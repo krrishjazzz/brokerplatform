@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      status: { not: "REJECTED" }, // Show all non-rejected properties
+      status: { not: "REJECTED" },
+      visibilityType: { not: "PRIVATE" },
     };
 
     const listingType = searchParams.get("listingType");
@@ -75,22 +76,34 @@ export async function GET(req: NextRequest) {
 
     const processedProperties = properties.map((property) => {
       let images: string[] = [];
+      let amenities: string[] = [];
       try {
         images = property.images ? JSON.parse(property.images) : [];
-      } catch (error) {
+      } catch {
         images = [];
+      }
+      try {
+        amenities = property.amenities ? JSON.parse(property.amenities) : [];
+      } catch {
+        amenities = [];
       }
 
       return {
         id: property.id,
         slug: property.slug,
         title: property.title,
+        description: property.description,
+        address: property.address,
         city: property.city,
+        state: property.state,
+        pincode: property.pincode,
         price: Number(property.price),
         listingType: property.listingType,
+        category: property.category,
         propertyType: property.propertyType,
         coverImage: property.coverImage,
         images,
+        amenities,
         assignedBrokerId: property.assignedBrokerId,
         assignedBroker: property.assignedBroker,
         publicBrokerName: property.publicBrokerName,
@@ -99,8 +112,14 @@ export async function GET(req: NextRequest) {
         areaUnit: property.areaUnit,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
+        floor: property.floor,
+        totalFloors: property.totalFloors,
+        ageYears: property.ageYears,
         furnishing: property.furnishing,
+        visibilityType: property.visibilityType,
+        listingStatus: property.listingStatus,
         status: property.status,
+        createdAt: property.createdAt,
       };
     });
 

@@ -5,22 +5,19 @@ import { useRouter } from "next/navigation";
 import {
   Building2,
   MapPin,
-  IndianRupee,
   Eye,
   Phone,
   Share,
-  Heart,
   Loader2,
   Search,
-  Filter,
   X,
-  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatPrice } from "@/lib/utils";
+import { Modal } from "@/components/ui/modal";
+import { formatPrice } from "@/lib/utils";
 import {
   PROPERTY_TYPES,
   INDIAN_STATES,
@@ -30,12 +27,18 @@ interface Property {
   id: string;
   slug: string;
   title: string;
+  description: string;
+  address: string;
   city: string;
+  state: string;
+  pincode: string;
   price: number;
   listingType: string;
+  category: string;
   propertyType: string;
   coverImage: string | null;
   images: string[];
+  amenities: string[];
   assignedBrokerId: string | null;
   assignedBroker?: {
     name: string;
@@ -47,8 +50,14 @@ interface Property {
   areaUnit: string;
   bedrooms: number | null;
   bathrooms: number | null;
+  floor: number | null;
+  totalFloors: number | null;
+  ageYears: number | null;
   furnishing: string | null;
+  visibilityType: string;
+  listingStatus: string;
   status: string;
+  createdAt: string;
 }
 
 export default function BrokerPropertiesPage() {
@@ -63,6 +72,7 @@ export default function BrokerPropertiesPage() {
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -105,10 +115,6 @@ export default function BrokerPropertiesPage() {
     setSelectedCity("");
     setMinPrice("");
     setMaxPrice("");
-  };
-
-  const handleViewDetails = (slug: string) => {
-    router.push(`/properties/${slug}`);
   };
 
   const handleContactBroker = (phone: string) => {
@@ -289,7 +295,7 @@ export default function BrokerPropertiesPage() {
                   <BrokerPropertyCard
                     key={property.id}
                     property={property}
-                    onViewDetails={handleViewDetails}
+                    onViewDetails={setSelectedProperty}
                     onContactBroker={handleContactBroker}
                     onWhatsApp={handleWhatsApp}
                     onShare={handleShare}
@@ -300,13 +306,17 @@ export default function BrokerPropertiesPage() {
           </div>
         </div>
       </div>
+      <BrokerPropertyDetailsModal
+        property={selectedProperty}
+        onClose={() => setSelectedProperty(null)}
+      />
     </div>
   );
 }
 
 interface BrokerPropertyCardProps {
   property: Property;
-  onViewDetails: (slug: string) => void;
+  onViewDetails: (property: Property) => void;
   onContactBroker: (phone: string) => void;
   onWhatsApp: (phone: string, property: Property) => void;
   onShare: (property: Property) => void;
@@ -409,7 +419,7 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
 
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
-            onClick={() => onViewDetails(property.slug)}
+            onClick={() => onViewDetails(property)}
             className="flex-1"
             size="sm"
           >
@@ -435,5 +445,107 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
         </div>
       </div>
     </div>
+  );
+}
+
+function BrokerPropertyDetailsModal({ property, onClose }: { property: Property | null; onClose: () => void }) {
+  if (!property) return null;
+
+  const images = property.images.length > 0 ? property.images : property.coverImage ? [property.coverImage] : [];
+  const detailRows = [
+    ["Listing Type", property.listingType],
+    ["Category", property.category],
+    ["Property Type", property.propertyType],
+    ["Area", `${Math.round(property.area).toLocaleString()} ${property.areaUnit}`],
+    ["Bedrooms", property.bedrooms ?? "N/A"],
+    ["Bathrooms", property.bathrooms ?? "N/A"],
+    ["Floor", property.floor != null && property.totalFloors != null ? `${property.floor} / ${property.totalFloors}` : "N/A"],
+    ["Furnishing", property.furnishing || "N/A"],
+    ["Age", property.ageYears != null ? `${property.ageYears} years` : "N/A"],
+    ["Visibility", property.visibilityType.replaceAll("_", " ")],
+    ["Status", property.listingStatus || property.status],
+  ];
+
+  return (
+    <Modal isOpen={Boolean(property)} onClose={onClose} title={property.title} className="max-w-4xl">
+      <div className="space-y-5">
+        {images.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {images.slice(0, 6).map((image, index) => (
+              <img
+                key={`${image}-${index}`}
+                src={image}
+                alt={`${property.title} ${index + 1}`}
+                className="h-32 w-full rounded-card object-cover border border-border"
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="blue">{property.listingType}</Badge>
+              <Badge variant={property.status === "LIVE" ? "success" : "warning"}>{property.status}</Badge>
+            </div>
+            <p className="text-sm text-text-secondary mt-2 flex items-center gap-1">
+              <MapPin size={14} />
+              {property.address}, {property.city}, {property.state} {property.pincode}
+            </p>
+          </div>
+          <div className="md:text-right">
+            <p className="text-2xl font-bold text-primary">{formatPrice(property.price)}</p>
+            {property.area > 0 && (
+              <p className="text-sm text-text-secondary">
+                Rs {Math.round(property.price / property.area).toLocaleString()}/sqft
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-semibold text-foreground mb-2">Description</h3>
+          <p className="text-sm text-text-secondary leading-6">{property.description}</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {detailRows.map(([label, value]) => (
+            <div key={label} className="rounded-card border border-border bg-surface px-3 py-2">
+              <p className="text-xs text-text-secondary">{label}</p>
+              <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {property.amenities.length > 0 && (
+          <div>
+            <h3 className="font-semibold text-foreground mb-2">Amenities</h3>
+            <div className="flex flex-wrap gap-2">
+              {property.amenities.map((amenity) => (
+                <Badge key={amenity} variant="default">{amenity}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <Button onClick={() => window.open(`tel:${property.assignedBroker?.phone || ""}`, "_self")} className="flex-1">
+            <Phone size={14} className="mr-2" />
+            Call Broker
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const phone = property.assignedBroker?.phone || process.env.NEXT_PUBLIC_PLATFORM_PHONE || "";
+              const message = `Hi, I'm interested in your property: ${property.title} in ${property.city}. Price: ${formatPrice(property.price)}`;
+              window.open(`https://wa.me/${phone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
+            }}
+            className="flex-1"
+          >
+            WhatsApp
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

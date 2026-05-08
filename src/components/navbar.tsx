@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Search,
   Clock,
   Eye,
   Heart,

@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
       assignedBrokerId,
       publicBrokerName,
       visibilityType,
+      coverImage,
       ...propertyData
     } = parsed.data;
 
@@ -192,6 +193,7 @@ export async function POST(req: NextRequest) {
         status: "PENDING_REVIEW",
         amenities: JSON.stringify(amenities),
         images: JSON.stringify(images),
+        coverImage: coverImage || images[0] || null,
       },
     });
 

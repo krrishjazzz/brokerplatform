@@ -100,7 +100,8 @@ interface SavedProperty {
   title: string;
   city: string;
   price: number;
-  coverImage: string;
+  coverImage: string | null;
+  images: string[];
   propertyType: string;
   slug: string;
 }
@@ -214,7 +215,7 @@ function DashboardContent() {
   const navItems = getNavItems(user.role, user.brokerStatus);
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-[#F3F7FB]">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -226,14 +227,14 @@ function DashboardContent() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-border flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto",
+          "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-border flex flex-col transition-transform duration-200 shadow-[8px_0_24px_rgb(15_23_42/0.04)] lg:top-14 lg:z-30 lg:h-[calc(100vh-3.5rem)] lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* User section */}
-        <div className="p-5 border-b border-border">
+        <div className="p-5 border-b border-border bg-[#F8FBFF]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+            <div className="w-11 h-11 rounded-full bg-primary text-white shadow-sm flex items-center justify-center font-semibold text-sm shrink-0">
               {user.name?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className="min-w-0">
@@ -261,10 +262,10 @@ function DashboardContent() {
                 setSidebarOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm font-medium transition-colors",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm font-medium transition-colors border border-transparent",
                 activeTab === item.id
-                  ? "bg-primary-light text-primary"
-                  : "text-text-secondary hover:bg-surface"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-text-secondary hover:bg-[#F1F6FF] hover:text-primary"
               )}
             >
               {item.icon}
@@ -284,7 +285,7 @@ function DashboardContent() {
           <h1 className="font-semibold text-foreground">Dashboard</h1>
         </div>
 
-        <main className="p-4 md:p-6 lg:p-8 max-w-6xl">
+        <main className="w-full max-w-6xl p-4 md:p-6 lg:px-8 lg:py-5">
           {activeTab === "overview" && <OverviewSection />}
           {activeTab === "properties" && <MyPropertiesSection />}
           {activeTab === "post" && <PostPropertySection onPosted={() => setActiveTab("properties")} />}
@@ -376,21 +377,24 @@ function MyPropertiesSection() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-foreground mb-6">My Properties</h2>
+      <div className="mb-5">
+        <h2 className="text-2xl font-semibold text-foreground">My Properties</h2>
+        <p className="text-sm text-text-secondary mt-1">Track listings, visibility and enquiries in one place.</p>
+      </div>
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : properties.length === 0 ? (
-        <div className="bg-white rounded-card shadow-card p-8 text-center border border-border">
+        <div className="bg-white rounded-card shadow-[0_10px_30px_rgb(15_23_42/0.06)] p-8 text-center border border-border">
           <Home size={48} className="mx-auto text-text-secondary mb-3" />
           <p className="text-text-secondary">You haven&apos;t posted any properties yet.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-card shadow-card border border-border overflow-x-auto">
+        <div className="bg-white rounded-card shadow-[0_10px_30px_rgb(15_23_42/0.06)] border border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-surface">
+              <tr className="border-b border-border bg-[#EEF5FF]">
                 <th className="text-left px-4 py-3 font-medium text-text-secondary">Title</th>
                 <th className="text-left px-4 py-3 font-medium text-text-secondary">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-text-secondary">City</th>
@@ -403,7 +407,7 @@ function MyPropertiesSection() {
             </thead>
             <tbody>
               {properties.map((p) => (
-                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-surface/50">
+                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-[#F8FBFF]">
                   <td className="px-4 py-3 font-medium text-foreground">{p.title}</td>
                   <td className="px-4 py-3 text-text-secondary">{p.propertyType}</td>
                   <td className="px-4 py-3 text-text-secondary">{p.city}</td>
@@ -586,6 +590,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     setSubmitting(true);
     data.amenities = selectedAmenities;
     data.images = images;
+    data.coverImage = images[0];
     try {
       console.log("Submitting property", data);
       const res = await fetch("/api/properties", {
@@ -674,17 +679,31 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
         })
       );
 
-      setImages(uploadedUrls);
-      setValue("images", uploadedUrls, { shouldValidate: true });
+      setImages((prev) => {
+        const nextImages = [...prev, ...uploadedUrls];
+        setValue("images", nextImages, { shouldValidate: true });
+        setValue("coverImage", nextImages[0], { shouldValidate: true });
+        return nextImages;
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to upload images";
       setUploadError(message);
-      setImages([]);
-      setValue("images", [], { shouldValidate: true });
+      if (images.length === 0) {
+        setValue("images", [], { shouldValidate: true });
+      }
     } finally {
       setUploadingImages(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const nextImages = prev.filter((_, i) => i !== index);
+      setValue("images", nextImages, { shouldValidate: true });
+      setValue("coverImage", nextImages[0] || "", { shouldValidate: true });
+      return nextImages;
+    });
   };
 
   return (
@@ -843,6 +862,14 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
                 <div
                   className="border-2 border-dashed border-border rounded-card p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files.length > 0) uploadImages(e.dataTransfer.files);
+                  }}
                 >
                   <Upload size={32} className="mx-auto text-text-secondary mb-2" />
                   <p className="text-sm text-text-secondary">
@@ -866,8 +893,24 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
                 {images.length > 0 && (
                   <div className="flex gap-2 mt-3 flex-wrap">
                     {images.map((img, i) => (
-                      <div key={i} className="w-20 h-20 rounded-btn bg-surface border border-border overflow-hidden">
+                      <div key={`${img}-${i}`} className="relative w-20 h-20 rounded-btn bg-surface border border-border overflow-hidden group">
                         <img src={img} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                        {i === 0 && (
+                          <span className="absolute left-1 bottom-1 bg-primary text-white text-[10px] font-medium px-1.5 py-0.5 rounded-pill">
+                            Cover
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage(i);
+                          }}
+                          className="absolute right-1 top-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-label={`Remove image ${i + 1}`}
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1085,6 +1128,7 @@ function SavedSection() {
           city: s.property.city,
           price: s.property.price,
           coverImage: s.property.coverImage,
+          images: JSON.parse(s.property.images || "[]"),
           propertyType: s.property.propertyType,
           slug: s.property.slug,
         }));
@@ -1118,8 +1162,8 @@ function SavedSection() {
               className="bg-white rounded-card shadow-card border border-border overflow-hidden hover:shadow-md transition-shadow"
             >
               <div className="h-40 bg-surface">
-                {p.coverImage ? (
-                  <img src={p.coverImage} alt={p.title} className="w-full h-full object-cover" />
+                {p.coverImage || p.images[0] ? (
+                  <img src={p.coverImage || p.images[0]} alt={p.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Home size={32} className="text-text-secondary" />
@@ -1172,10 +1216,15 @@ function ProfileSection({ user }: { user: { id: string; name: string | null; ema
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-foreground mb-6">Profile</h2>
-      <div className="bg-white rounded-card shadow-card border border-border p-6 max-w-lg">
+      <div className="mb-5">
+        <h2 className="text-2xl font-semibold text-foreground">Profile</h2>
+        <p className="text-sm text-text-secondary mt-1">Manage your account details and broker identity.</p>
+      </div>
+      <div className="bg-white rounded-card shadow-[0_10px_30px_rgb(15_23_42/0.06)] border border-border overflow-hidden max-w-lg">
+        <div className="h-2 bg-gradient-to-r from-primary via-success to-accent" />
+        <div className="p-6">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-primary-light flex items-center justify-center text-primary font-bold text-xl">
+          <div className="w-16 h-16 rounded-full bg-primary text-white shadow-sm flex items-center justify-center font-bold text-xl">
             {user.name?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div>
@@ -1194,7 +1243,7 @@ function ProfileSection({ user }: { user: { id: string; name: string | null; ema
             {editing ? (
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
             ) : (
-              <p className="text-sm text-text-secondary px-3 py-2 bg-surface rounded-btn">{user.name || "—"}</p>
+              <p className="text-sm text-text-secondary px-3 py-2 bg-[#F8FBFF] border border-border rounded-btn">{user.name || "—"}</p>
             )}
           </div>
 
@@ -1205,7 +1254,7 @@ function ProfileSection({ user }: { user: { id: string; name: string | null; ema
             {editing ? (
               <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
             ) : (
-              <p className="text-sm text-text-secondary px-3 py-2 bg-surface rounded-btn">{user.email || "—"}</p>
+              <p className="text-sm text-text-secondary px-3 py-2 bg-[#F8FBFF] border border-border rounded-btn">{user.email || "—"}</p>
             )}
           </div>
 
@@ -1213,7 +1262,7 @@ function ProfileSection({ user }: { user: { id: string; name: string | null; ema
             <label className="text-sm font-medium text-foreground flex items-center gap-1.5 mb-1">
               <Phone size={14} /> Phone
             </label>
-            <p className="text-sm text-text-secondary px-3 py-2 bg-surface rounded-btn">{user.phone}</p>
+            <p className="text-sm text-text-secondary px-3 py-2 bg-[#F8FBFF] border border-border rounded-btn">{user.phone}</p>
           </div>
         </div>
 
@@ -1230,6 +1279,7 @@ function ProfileSection({ user }: { user: { id: string; name: string | null; ema
               <Edit size={14} className="mr-1.5" /> Edit Profile
             </Button>
           )}
+        </div>
         </div>
       </div>
     </div>

@@ -59,11 +59,18 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     }
 
     const session = await getSession();
+    const canViewAsBroker =
+      session?.role === "BROKER" &&
+      session.brokerStatus === "APPROVED" &&
+      property.status !== "REJECTED" &&
+      property.visibilityType !== "PRIVATE";
+
     const canViewRestricted =
       session &&
       (session.role === "ADMIN" ||
         session.id === property.postedById ||
         session.id === property.assignedBrokerId ||
+        canViewAsBroker ||
         (property.visibilityType === "BROKER_NETWORK_ONLY" &&
           session.role === "BROKER" &&
           session.brokerStatus === "APPROVED"));
@@ -129,6 +136,7 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       assignedBrokerId,
       publicBrokerName,
       visibilityType,
+      coverImage,
       ...propertyData
     } = parsed.data;
 
@@ -137,6 +145,7 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       ...propertyData,
       amenities: JSON.stringify(amenities),
       images: JSON.stringify(images),
+      coverImage: coverImage || images[0] || null,
       visibilityType,
       publicBrokerName: publicBrokerName || "KrrishJazz",
       assignedBrokerId:

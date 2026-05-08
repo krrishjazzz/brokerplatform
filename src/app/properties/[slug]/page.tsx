@@ -91,6 +91,7 @@ export default function PropertyDetailPage() {
   const [enquiryLoading, setEnquiryLoading] = useState(false);
   const [enquirySent, setEnquirySent] = useState(false);
   const [enquiryError, setEnquiryError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [descExpanded, setDescExpanded] = useState(false);
   const [savingProperty, setSavingProperty] = useState(false);
   const [savedProperty, setSavedProperty] = useState(false);
@@ -110,22 +111,26 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     async function fetchProperty() {
       try {
-        const res = await fetch(`/api/properties/${slug}`);
+        setLoadError("");
+        const res = await fetch(`/api/properties/${slug}`, {
+          credentials: "include",
+        });
         if (!res.ok) {
-          router.push("/properties");
+          const result = await res.json().catch(() => null);
+          setLoadError(typeof result?.error === "string" ? result.error : "Property details are not available.");
           return;
         }
         const data = await res.json();
         setProperty(data.property);
         setSimilar(data.similar || []);
       } catch {
-        router.push("/properties");
+        setLoadError("Property details could not be loaded. Please try again.");
       } finally {
         setLoading(false);
       }
     }
-    fetchProperty();
-  }, [slug, router]);
+    if (slug) fetchProperty();
+  }, [slug]);
 
   const onEnquiry = async (data: EnquiryFormInput) => {
     if (!user) {
@@ -203,7 +208,22 @@ export default function PropertyDetailPage() {
     );
   }
 
-  if (!property) return null;
+  if (!property) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="bg-white border border-border rounded-card shadow-card p-8">
+          <h1 className="text-xl font-semibold text-foreground mb-2">Unable to open property details</h1>
+          <p className="text-text-secondary mb-5">{loadError || "This property could not be loaded."}</p>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => router.back()}>Go Back</Button>
+            <Button variant="outline" onClick={() => router.push("/broker/properties")}>
+              Broker Properties
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const images = property.images.length > 0 ? property.images : ["/placeholder.jpg"];
   const canShowBrokerPhone = Boolean(property.postedBy.phone);

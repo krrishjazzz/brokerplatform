@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   FileText,
   MapPin,
-  IndianRupee,
   Phone,
   MessageSquare,
   Search,
@@ -21,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
-import { cn, formatPrice } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import {
   PROPERTY_TYPES,
   INDIAN_STATES,
@@ -47,6 +46,11 @@ export default function BrokerRequirementsPage() {
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPropertyType, setSelectedPropertyType] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [minBudget, setMinBudget] = useState("");
+  const [maxBudget, setMaxBudget] = useState("");
+  const [selectedUrgency, setSelectedUrgency] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -60,9 +64,15 @@ export default function BrokerRequirementsPage() {
   });
 
   const fetchRequirements = useCallback(async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.set("q", searchQuery);
+      if (selectedPropertyType) params.set("propertyType", selectedPropertyType);
+      if (selectedCity) params.set("city", selectedCity);
+      if (minBudget) params.set("minBudget", minBudget);
+      if (maxBudget) params.set("maxBudget", maxBudget);
+      if (selectedUrgency) params.set("urgency", selectedUrgency);
 
       const res = await fetch(`/api/broker/requirements?${params}`, {
         credentials: "include",
@@ -76,7 +86,7 @@ export default function BrokerRequirementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, selectedPropertyType, selectedCity, minBudget, maxBudget, selectedUrgency]);
 
   useEffect(() => {
     if (user?.role === "BROKER" && user.brokerStatus === "APPROVED") {
@@ -98,6 +108,15 @@ export default function BrokerRequirementsPage() {
   const handleMatchProperty = (requirement: Requirement) => {
     // Could navigate to properties page with filters matching the requirement
     router.push(`/broker/properties?city=${requirement.city}&propertyType=${requirement.propertyType}`);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedPropertyType("");
+    setSelectedCity("");
+    setMinBudget("");
+    setMaxBudget("");
+    setSelectedUrgency("");
   };
 
   const handleSubmitRequirement = async (e: React.FormEvent) => {
@@ -169,16 +188,79 @@ export default function BrokerRequirementsPage() {
           </Button>
         </div>
 
-        {/* Search */}
+        {/* Search and Filters */}
         <div className="bg-white rounded-card border border-border p-6 mb-8">
-          <div className="relative max-w-md">
-            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+            <div className="relative md:col-span-2">
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
+              <Input
+                placeholder="Search requirements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <select
+              value={selectedPropertyType}
+              onChange={(e) => setSelectedPropertyType(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-btn text-sm bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            >
+              <option value="">All Property Types</option>
+              {Object.values(PROPERTY_TYPES).flat().map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-btn text-sm bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            >
+              <option value="">All Cities</option>
+              {INDIAN_STATES.map((state) => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedUrgency}
+              onChange={(e) => setSelectedUrgency(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-btn text-sm bg-white text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            >
+              <option value="">Any Age</option>
+              <option value="new">New: 0-7 days</option>
+              <option value="recent">Recent: 8-30 days</option>
+              <option value="old">Old: 30+ days</option>
+            </select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearFilters}
+              disabled={!searchQuery && !selectedPropertyType && !selectedCity && !minBudget && !maxBudget && !selectedUrgency}
+              className="h-10"
+            >
+              Clear Filters
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <Input
-              placeholder="Search requirements..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              type="number"
+              placeholder="Min Budget"
+              value={minBudget}
+              onChange={(e) => setMinBudget(e.target.value)}
             />
+            <Input
+              type="number"
+              placeholder="Max Budget"
+              value={maxBudget}
+              onChange={(e) => setMaxBudget(e.target.value)}
+            />
+            <div className="flex items-center text-sm text-text-secondary md:col-span-2">
+              Showing {requirements.length} matching requirement{requirements.length === 1 ? "" : "s"}
+            </div>
           </div>
         </div>
 

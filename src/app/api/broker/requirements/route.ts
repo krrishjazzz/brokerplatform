@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    const andFilters: any[] = [];
 
     const q = searchParams.get("q");
     if (q) {
@@ -25,6 +26,53 @@ export async function GET(req: NextRequest) {
         { city: { contains: q } },
         { propertyType: { contains: q } },
       ];
+    }
+
+    const propertyType = searchParams.get("propertyType");
+    if (propertyType) where.propertyType = propertyType;
+
+    const city = searchParams.get("city");
+    if (city) where.city = { contains: city };
+
+    const minBudget = searchParams.get("minBudget");
+    if (minBudget) {
+      andFilters.push({
+        OR: [
+          { budgetMax: { gte: parseFloat(minBudget) } },
+          { budgetMax: null },
+        ],
+      });
+    }
+
+    const maxBudget = searchParams.get("maxBudget");
+    if (maxBudget) {
+      andFilters.push({
+        OR: [
+          { budgetMin: { lte: parseFloat(maxBudget) } },
+          { budgetMin: null },
+        ],
+      });
+    }
+
+    const urgency = searchParams.get("urgency");
+    if (urgency) {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+
+      if (urgency === "new") {
+        where.createdAt = { gte: sevenDaysAgo };
+      } else if (urgency === "recent") {
+        where.createdAt = { gte: thirtyDaysAgo, lt: sevenDaysAgo };
+      } else if (urgency === "old") {
+        where.createdAt = { lt: thirtyDaysAgo };
+      }
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     const [requirements, total] = await Promise.all([
