@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Profile {
+  id                 String          @id @default(cuid())
+  phone              String          @unique
+  name               String?
+  email              String?
+  role               String          @default("CUSTOMER")
+  avatarUrl          String?
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  properties         Property[]      @relation("PostedProperties")
+  assignedProperties Property[]      @relation("AssignedBrokerProperties")
+  enquiries          Enquiry[]
+  saved              SavedProperty[]
+  brokerProfile      BrokerProfile?
+  requirements       Requirement[]
+}
+
+model BrokerProfile {
+  id              String   @id @default(cuid())
+  profileId       String   @unique
+  profile         Profile  @relation(fields: [profileId], references: [id])
+  rera            String
+  experience      Int
+  city            String
+  bio             String
+  status          String   @default("PENDING")
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+}
+
+model Property {
+  id               String          @id @default(cuid())
+  slug             String          @unique
+  title            String
+  description      String
+  listingType      String
+  category         String
+  propertyType     String
+  price            Decimal
+  priceNegotiable  Boolean         @default(false)
+  area             Float
+  areaUnit         String          @default("sqft")
+  bedrooms         Int?
+  bathrooms        Int?
+  floor            Int?
+  totalFloors      Int?
+  ageYears         Int?
+  furnishing       String?
+  amenities        String // JSON string for array
+  address          String
+  city             String
+  state            String
+  pincode          String
+  lat              Float?
+  lng              Float?
+  images           String // JSON string for array
+  coverImage       String?
+  videoUrl         String?
+  postedById       String
+  postedBy         Profile         @relation("PostedProperties", fields: [postedById], references: [id])
+  assignedBrokerId String?
+  assignedBroker   Profile?        @relation("AssignedBrokerProperties", fields: [assignedBrokerId], references: [id])
+  visibilityType   String          @default("PUBLIC_TO_CUSTOMERS")
+  listingStatus    String          @default("PENDING")
+  publicBrokerName String          @default("KrrishJazz")
+  status           String          @default("PENDING_REVIEW")
+  rejectionReason  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  enquiries        Enquiry[]
+  saved            SavedProperty[]
+
+  @@index([city, status, listingType, category])
+  @@index([visibilityType, listingStatus])
+  @@index([assignedBrokerId])
+}
+
+model Enquiry {
+  id         String    @id @default(cuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id])
+  customerId String
+  customer   Profile   @relation(fields: [customerId], references: [id])
+  name       String
+  phone      String
+  message    String
+  visitDate  DateTime?
+  status     String    @default("NEW")
+  createdAt  DateTime  @default(now())
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  user       Profile  @relation(fields: [userId], references: [id])
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+model OtpRecord {
+  id        String   @id @default(cuid())
+  phone     String
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Requirement {
+  id           String   @id @default(cuid())
+  brokerId     String
+  broker       Profile  @relation(fields: [brokerId], references: [id])
+  description  String
+  propertyType String
+  city         String
+  budgetMin    Decimal?
+  budgetMax    Decimal?
+  createdAt    DateTime @default(now())
+}
