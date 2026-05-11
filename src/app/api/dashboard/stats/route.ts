@@ -30,14 +30,52 @@ export async function GET() {
     }
 
     if (session.role === "ADMIN") {
-      const [totalUsers, totalProperties, pendingProperties, pendingBrokers, totalEnquiries] = await Promise.all([
+      const staleCutoff = new Date();
+      staleCutoff.setDate(staleCutoff.getDate() - 14);
+
+      const [
+        totalUsers,
+        totalProperties,
+        pendingProperties,
+        pendingBrokers,
+        totalEnquiries,
+        activeRequirements,
+        hotRequirements,
+        openCollaborations,
+        staleProperties,
+        newEnquiries,
+      ] = await Promise.all([
         prisma.profile.count(),
         prisma.property.count(),
         prisma.property.count({ where: { status: "PENDING_REVIEW" } }),
         prisma.brokerProfile.count({ where: { status: "PENDING" } }),
         prisma.enquiry.count(),
+        prisma.requirement.count({ where: { status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] } } }),
+        prisma.requirement.count({ where: { status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] }, urgency: { in: ["HOT", "HIGH"] } } }),
+        prisma.collaboration.count({ where: { status: { in: ["REQUESTED", "IN_DISCUSSION", "ACCEPTED"] } } }),
+        prisma.property.count({
+          where: {
+            status: "LIVE",
+            OR: [
+              { updatedAt: { lt: staleCutoff } },
+              { freshnessHistory: { none: {} } },
+            ],
+          },
+        }),
+        prisma.enquiry.count({ where: { status: "NEW" } }),
       ]);
-      return NextResponse.json({ totalUsers, totalProperties, pendingProperties, pendingBrokers, totalEnquiries });
+      return NextResponse.json({
+        totalUsers,
+        totalProperties,
+        pendingProperties,
+        pendingBrokers,
+        totalEnquiries,
+        activeRequirements,
+        hotRequirements,
+        openCollaborations,
+        staleProperties,
+        newEnquiries,
+      });
     }
 
     return NextResponse.json({});

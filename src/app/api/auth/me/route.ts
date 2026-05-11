@@ -21,18 +21,18 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const { name, email, wantToListAsOwner } = body;
-    const shouldUpgradeToOwner = wantToListAsOwner === true && session.role === "CUSTOMER";
+    const shouldEnableOwnerAccess = wantToListAsOwner === true && session.role === "CUSTOMER";
 
     const updated = await prisma.profile.update({
       where: { id: session.id },
       data: {
         ...(name && { name }),
         ...(email && { email }),
-        ...(shouldUpgradeToOwner && { role: "OWNER" }),
+        ...(shouldEnableOwnerAccess && { role: "OWNER" }),
       },
     });
 
-    if (shouldUpgradeToOwner) {
+    if (shouldEnableOwnerAccess) {
       await createSession(updated.id);
     }
 

@@ -7,12 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatPrice(price: number): string {
   if (price >= 10000000) {
-    return `₹${(price / 10000000).toFixed(2)} Cr`;
+    return `Rs ${(price / 10000000).toFixed(2)} Cr`;
   }
   if (price >= 100000) {
-    return `₹${(price / 100000).toFixed(2)} Lac`;
+    return `Rs ${(price / 100000).toFixed(2)} Lac`;
   }
-  return `₹${price.toLocaleString("en-IN")}`;
+  return `Rs ${price.toLocaleString("en-IN")}`;
 }
 
 export function slugify(text: string): string {

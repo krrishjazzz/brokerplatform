@@ -1,68 +1,64 @@
 import Link from "next/link";
-import { Globe, MessageCircle, Camera, Briefcase } from "lucide-react";
+import { Briefcase, Camera, Globe, MessageCircle } from "lucide-react";
 
 export function Footer() {
+  const linkClass = "text-sm text-text-secondary transition-colors hover:text-primary";
+
   return (
-    <footer className="bg-foreground text-white">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="border-t border-border bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-10">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
-            <h3 className="text-lg font-bold text-white mb-4">KrishJazz</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              India&apos;s trusted real estate platform. Find your dream property with verified listings from owners and brokers.
+            <h3 className="mb-3 text-xl font-bold text-primary">KrrishJazz</h3>
+            <p className="mb-4 text-sm leading-6 text-text-secondary">
+              Free owner listings, managed callbacks, and KrrishJazz-assisted closures with brokerage only after a successful deal.
             </p>
-            <div className="flex gap-3">
-              <a href="#" className="p-2 bg-white/10 rounded-btn hover:bg-white/20 transition-colors">
-                <Globe size={16} />
-              </a>
-              <a href="#" className="p-2 bg-white/10 rounded-btn hover:bg-white/20 transition-colors">
-                <MessageCircle size={16} />
-              </a>
-              <a href="#" className="p-2 bg-white/10 rounded-btn hover:bg-white/20 transition-colors">
-                <Camera size={16} />
-              </a>
-              <a href="#" className="p-2 bg-white/10 rounded-btn hover:bg-white/20 transition-colors">
-                <Briefcase size={16} />
-              </a>
+            <div className="flex gap-2">
+              {[Globe, MessageCircle, Camera, Briefcase].map((Icon, index) => (
+                <a key={index} href="#" className="flex h-9 w-9 items-center justify-center rounded-btn border border-border bg-surface text-primary hover:bg-primary-light">
+                  <Icon size={16} />
+                </a>
+              ))}
             </div>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide mb-4">Properties</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link href="/properties?listingType=BUY" className="hover:text-white transition-colors">Buy</Link></li>
-              <li><Link href="/properties?listingType=RENT" className="hover:text-white transition-colors">Rent</Link></li>
-              <li><Link href="/properties?category=COMMERCIAL" className="hover:text-white transition-colors">Commercial</Link></li>
-              <li><Link href="/properties?propertyType=Plot" className="hover:text-white transition-colors">Plots / Land</Link></li>
-              <li><Link href="/properties?listingType=RESALE" className="hover:text-white transition-colors">Resale</Link></li>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Properties</h4>
+            <ul className="space-y-2">
+              <li><Link href="/properties?listingType=BUY" className={linkClass}>Buy</Link></li>
+              <li><Link href="/properties?listingType=RENT" className={linkClass}>Rent</Link></li>
+              <li><Link href="/properties?category=COMMERCIAL" className={linkClass}>Commercial</Link></li>
+              <li><Link href="/properties?propertyType=Residential%20Plot" className={linkClass}>Plots / Land</Link></li>
+              <li><Link href="/properties?listingType=RESALE" className={linkClass}>Resale</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide mb-4">Top Cities</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link href="/properties?city=Mumbai" className="hover:text-white transition-colors">Mumbai</Link></li>
-              <li><Link href="/properties?city=Delhi" className="hover:text-white transition-colors">Delhi</Link></li>
-              <li><Link href="/properties?city=Bangalore" className="hover:text-white transition-colors">Bangalore</Link></li>
-              <li><Link href="/properties?city=Hyderabad" className="hover:text-white transition-colors">Hyderabad</Link></li>
-              <li><Link href="/properties?city=Pune" className="hover:text-white transition-colors">Pune</Link></li>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Top Cities</h4>
+            <ul className="space-y-2">
+              {["Kolkata", "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Pune"].map((city) => (
+                <li key={city}>
+                  <Link href={`/properties?city=${encodeURIComponent(city)}`} className={linkClass}>{city}</Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide mb-4">Contact</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li>Email: support@krishjazz.com</li>
-              <li>Phone: +91 98765 43210</li>
-              <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
-              <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Support</h4>
+            <ul className="space-y-2">
+              <li className="text-sm text-text-secondary">support@krrishjazz.com</li>
+              <li className="text-sm text-text-secondary">+91 98765 43210</li>
+              <li><Link href="/dashboard?tab=post" className={linkClass}>Post Property</Link></li>
+              <li className="text-sm text-text-secondary">Brokerage: one month on closure</li>
+              <li><Link href="/login" className={linkClass}>Login / Register</Link></li>
+              <li><Link href="/properties" className={linkClass}>Search Properties</Link></li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-white/10 mt-8 pt-8 text-center text-sm text-gray-400">
-          © {new Date().getFullYear()} KrishJazz. All rights reserved.
+        <div className="mt-8 border-t border-border pt-6 text-center text-sm text-text-secondary">
+          &copy; {new Date().getFullYear()} KrrishJazz. All rights reserved.
         </div>
       </div>
     </footer>

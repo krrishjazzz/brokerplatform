@@ -19,6 +19,7 @@ import {
   Plus,
   LayoutDashboard,
   Shield,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
@@ -30,12 +31,23 @@ export function Navbar() {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState("");
+  const [headerMode, setHeaderMode] = useState("Buy");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const navigateTo = (href: string) => {
     setDropdownOpen(false);
     setMobileMenuOpen(false);
     router.push(href);
+  };
+
+  const runHeaderSearch = () => {
+    const params = new URLSearchParams();
+    if (headerMode === "Rent") params.set("listingType", "RENT");
+    else if (headerMode === "Commercial") params.set("category", "COMMERCIAL");
+    else params.set("listingType", "BUY");
+    if (headerSearch.trim()) params.set("q", headerSearch.trim());
+    navigateTo(`/properties?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -71,7 +83,7 @@ export function Navbar() {
           <div className="px-4 py-3 border-t border-border">
             <Link
               href="/login?intent=post"
-              className="block w-full text-center py-2 bg-success text-white text-sm font-medium rounded-btn hover:bg-success/90 transition-colors"
+              className="block w-full text-center py-2 bg-white text-primary text-sm font-semibold rounded-btn border border-primary/20 hover:bg-primary-light transition-colors"
               onClick={() => setDropdownOpen(false)}
             >
               Post Property FREE
@@ -221,29 +233,60 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-white border-b border-border">
+    <nav className="sticky top-0 z-40 bg-primary text-white shadow-[0_2px_8px_rgb(0_31_77/0.18)]">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-center justify-between h-[76px] gap-4">
           {/* Logo */}
-          <Link href="/" className="text-xl font-bold text-primary">
-            KrishJazz
+          <Link href="/" className="flex items-center gap-2 text-3xl font-bold text-white">
+            <span className="leading-none">
+              KrrishJazz
+            </span>
           </Link>
+
+          <div className="hidden xl:flex min-w-0 flex-1 max-w-[800px] items-center rounded-btn bg-white text-foreground shadow-sm">
+            <select
+              value={headerMode}
+              onChange={(event) => setHeaderMode(event.target.value)}
+              className="h-11 rounded-l-btn border-r border-border bg-white px-3 text-sm font-semibold text-foreground outline-none"
+            >
+              <option>Buy</option>
+              <option>Rent</option>
+              <option>Commercial</option>
+            </select>
+            <input
+              aria-label="Search properties"
+              value={headerSearch}
+              onChange={(event) => setHeaderSearch(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && runHeaderSearch()}
+              className="h-11 min-w-0 flex-1 px-4 text-sm outline-none placeholder:text-text-secondary"
+              placeholder="Enter Locality / Project / Landmark"
+            />
+            <button type="button" onClick={runHeaderSearch} className="flex h-11 w-14 items-center justify-center text-foreground hover:text-primary">
+              <Search size={22} />
+            </button>
+          </div>
 
           {/* Center Nav Tabs - Desktop */}
           <div className="hidden lg:flex items-center gap-1">
-            {user?.role === "BROKER" ? (
+            {user?.role === "BROKER" && user.brokerStatus === "APPROVED" ? (
               <>
                 <Link
                   href="/broker/properties"
-                  className="relative px-3 py-4 text-sm font-medium text-text-secondary hover:text-primary transition-colors border-b-2 border-transparent hover:border-primary"
+                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Properties
                 </Link>
                 <Link
                   href="/broker/requirements"
-                  className="relative px-3 py-4 text-sm font-medium text-text-secondary hover:text-primary transition-colors border-b-2 border-transparent hover:border-primary"
+                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
                 >
                   Requirements
+                </Link>
+                <Link
+                  href="/dashboard?tab=post"
+                  className="relative px-4 py-2 rounded-btn text-sm font-semibold bg-white text-foreground hover:bg-primary-light transition-colors shadow-sm"
+                >
+                  Post Property
                 </Link>
               </>
             ) : (
@@ -251,16 +294,16 @@ export function Navbar() {
                 <Link
                   key={tab.label}
                   href={tab.href}
-                  className="relative px-3 py-4 text-sm font-medium text-text-secondary hover:text-primary transition-colors border-b-2 border-transparent hover:border-primary"
+                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
                 >
                   {tab.label}
                   {tab.badge && (
                     <span
                       className={cn(
-                        "ml-1 text-[10px] px-1.5 py-0.5 rounded-pill font-semibold",
+                        "ml-1 text-[10px] px-1.5 py-0.5 rounded-pill font-bold",
                         tab.badgeColor === "green"
-                          ? "bg-success/10 text-success"
-                          : "bg-error/10 text-error"
+                          ? "bg-success text-white"
+                          : "bg-error text-white"
                       )}
                     >
                       {tab.badge}
@@ -273,22 +316,35 @@ export function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <button className="p-2 hover:bg-surface rounded-btn transition-colors relative">
-              <Bell size={20} className="text-text-secondary" />
+            <Link
+              href="/properties"
+              className="xl:hidden hidden md:inline-flex items-center gap-2 rounded-btn border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+            >
+              <Search size={16} />
+              Search
+            </Link>
+            <button className="p-2 hover:bg-white/10 rounded-btn transition-colors relative border border-transparent">
+              <Bell size={20} className="text-white" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success" />
             </button>
 
             {/* User dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1 p-2 hover:bg-surface rounded-btn transition-colors"
+                className="flex items-center gap-2 rounded-pill border border-white/20 bg-white/10 px-2 py-1.5 hover:bg-white/15 transition-colors"
               >
-                <User size={20} className="text-text-secondary" />
-                <ChevronDown size={14} className="text-text-secondary" />
+                <span className="h-8 w-8 rounded-full bg-success-light text-success flex items-center justify-center text-xs font-bold">
+                  {(user?.name || user?.phone || "U").charAt(0).toUpperCase()}
+                </span>
+                <span className="hidden sm:block text-sm font-semibold text-white max-w-28 truncate">
+                  {user?.name || user?.phone || "Account"}
+                </span>
+                <ChevronDown size={14} className="text-white" />
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-border rounded-card shadow-modal overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-72 bg-background border border-border rounded-card shadow-modal overflow-hidden text-foreground">
                   {renderDropdownContent()}
                 </div>
               )}
@@ -296,7 +352,7 @@ export function Navbar() {
 
             {/* Mobile hamburger */}
             <button
-              className="lg:hidden p-2 hover:bg-surface rounded-btn transition-colors"
+              className="lg:hidden p-2 hover:bg-white/10 rounded-btn transition-colors text-white"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -307,21 +363,28 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-border bg-white">
+        <div className="lg:hidden border-t border-white/10 bg-primary text-white">
           <div className="px-4 py-2 space-y-1">
-            {user?.role === "BROKER" ? (
+            <button
+              type="button"
+              onClick={() => navigateTo("/properties")}
+              className="block w-full text-left px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 rounded-btn transition-colors"
+            >
+              Search Properties
+            </button>
+            {user?.role === "BROKER" && user.brokerStatus === "APPROVED" ? (
               <>
                 <button
                   type="button"
                   onClick={() => navigateTo("/broker/properties")}
-                  className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-surface rounded-btn transition-colors"
+                  className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
                 >
                   Properties
                 </button>
                 <button
                   type="button"
                   onClick={() => navigateTo("/broker/requirements")}
-                  className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-surface rounded-btn transition-colors"
+                  className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
                 >
                   Requirements
                 </button>
@@ -331,7 +394,7 @@ export function Navbar() {
                 <Link
                   key={tab.label}
                   href={tab.href}
-                  className="block px-3 py-2 text-sm text-text-secondary hover:text-primary hover:bg-surface rounded-btn transition-colors"
+                  className="block px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {tab.label}
@@ -362,7 +425,7 @@ function DropdownItem({ icon, label, href, onClick }: { icon: React.ReactNode; l
     <button
       type="button"
       onClick={() => onClick(href)}
-      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm text-text-secondary hover:text-foreground hover:bg-surface rounded-btn transition-colors"
+      className="w-full text-left flex items-center gap-2 px-2 py-1.5 text-sm text-text-secondary hover:text-foreground hover:bg-primary-light rounded-btn transition-colors"
     >
       {icon}
       {label}

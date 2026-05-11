@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { logActivity } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,26 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       await prisma.savedProperty.delete({ where: { id: existing.id } });
+      await logActivity({
+        actorId: session.id,
+        eventType: "PROPERTY_UNSAVED",
+        targetType: "PROPERTY",
+        targetId: propertyId,
+        propertyId,
+      });
       return NextResponse.json({ saved: false });
     }
 
     await prisma.savedProperty.create({
       data: { userId: session.id, propertyId },
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "PROPERTY_SAVED",
+      targetType: "PROPERTY",
+      targetId: propertyId,
+      propertyId,
     });
 
     return NextResponse.json({ saved: true });

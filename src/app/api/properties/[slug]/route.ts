@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { propertySchema } from "@/lib/validations";
+import { logActivity } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ function formatProperty(property: any, options: { publicView: boolean }) {
     verified: property.status === "LIVE" || listingStatus === "LIVE",
     amenities: JSON.parse(property.amenities || "[]"),
     images: JSON.parse(property.images || "[]"),
+    latestFreshness: property.freshnessHistory?.[0] || null,
   };
 
   if (!options.publicView) return formatted;
@@ -46,11 +48,41 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       where: { slug },
       include: {
         postedBy: {
-          select: { id: true, name: true, phone: true, role: true, brokerProfile: { select: { rera: true } } },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            role: true,
+            brokerProfile: {
+              select: {
+                rera: true,
+                serviceAreas: true,
+                responseScore: true,
+                completedCollaborations: true,
+                profileCompletion: true,
+                lastActiveAt: true,
+              },
+            },
+          },
         },
         assignedBroker: {
-          select: { id: true, name: true, role: true, brokerProfile: { select: { rera: true } } },
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            brokerProfile: {
+              select: {
+                rera: true,
+                serviceAreas: true,
+                responseScore: true,
+                completedCollaborations: true,
+                profileCompletion: true,
+                lastActiveAt: true,
+              },
+            },
+          },
         },
+        freshnessHistory: { orderBy: { confirmedAt: "desc" }, take: 5, include: { confirmedBy: { select: { name: true, role: true } } } },
       },
     });
 
@@ -158,6 +190,15 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
     const updated = await prisma.property.update({
       where: { slug },
       data,
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "PROPERTY_UPDATED",
+      targetType: "PROPERTY",
+      targetId: property.id,
+      propertyId: property.id,
+      metadata: { nextStatus, visibilityType },
     });
 
     return NextResponse.json({ property: updated });

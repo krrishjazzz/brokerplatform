@@ -22,19 +22,29 @@ model Profile {
   saved              SavedProperty[]
   brokerProfile      BrokerProfile?
   requirements       Requirement[]
+  initiatedCollabs   Collaboration[] @relation("InitiatedCollaborations")
+  receivedCollabs    Collaboration[] @relation("ReceivedCollaborations")
+  activityEvents     ActivityEvent[]
+  freshnessUpdates   ListingFreshness[]
 }
 
 model BrokerProfile {
-  id              String   @id @default(cuid())
-  profileId       String   @unique
-  profile         Profile  @relation(fields: [profileId], references: [id])
-  rera            String
-  experience      Int
-  city            String
-  bio             String
-  status          String   @default("PENDING")
-  rejectionReason String?
-  createdAt       DateTime @default(now())
+  id                       String   @id @default(cuid())
+  profileId                String   @unique
+  profile                  Profile  @relation(fields: [profileId], references: [id])
+  rera                     String
+  experience               Int
+  city                     String
+  serviceAreas             String   @default("[]") // JSON string for locality/city coverage
+  bio                      String
+  status                   String   @default("PENDING")
+  rejectionReason          String?
+  responseScore            Int      @default(70)
+  completedCollaborations  Int      @default(0)
+  profileCompletion        Int      @default(45)
+  lastActiveAt             DateTime?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @default(now()) @updatedAt
 }
 
 model Property {
@@ -57,6 +67,7 @@ model Property {
   furnishing       String?
   amenities        String // JSON string for array
   address          String
+  locality         String          @default("")
   city             String
   state            String
   pincode          String
@@ -78,8 +89,10 @@ model Property {
   updatedAt        DateTime        @updatedAt
   enquiries        Enquiry[]
   saved            SavedProperty[]
+  collaborations   Collaboration[]
+  freshnessHistory ListingFreshness[]
 
-  @@index([city, status, listingType, category])
+  @@index([city, locality, status, listingType, category])
   @@index([visibilityType, listingStatus])
   @@index([assignedBrokerId])
 }
@@ -119,13 +132,81 @@ model OtpRecord {
 }
 
 model Requirement {
-  id           String   @id @default(cuid())
-  brokerId     String
-  broker       Profile  @relation(fields: [brokerId], references: [id])
-  description  String
-  propertyType String
-  city         String
-  budgetMin    Decimal?
-  budgetMax    Decimal?
-  createdAt    DateTime @default(now())
+  id                String          @id @default(cuid())
+  brokerId          String
+  broker            Profile         @relation(fields: [brokerId], references: [id])
+  description       String
+  propertyType      String
+  locality          String          @default("")
+  city              String
+  budgetMin         Decimal?
+  budgetMax         Decimal?
+  status            String          @default("ACTIVE")
+  urgency           String          @default("NORMAL")
+  clientSeriousness String          @default("MEDIUM")
+  notes             String?
+  expiresAt         DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  collaborations    Collaboration[]
+
+  @@index([city, locality, propertyType, status])
+  @@index([urgency, createdAt])
+}
+
+model Collaboration {
+  id            String      @id @default(cuid())
+  propertyId    String?
+  property      Property?   @relation(fields: [propertyId], references: [id])
+  requirementId String?
+  requirement   Requirement? @relation(fields: [requirementId], references: [id])
+  initiatorId   String
+  initiator     Profile     @relation("InitiatedCollaborations", fields: [initiatorId], references: [id])
+  recipientId   String?
+  recipient     Profile?    @relation("ReceivedCollaborations", fields: [recipientId], references: [id])
+  status        String      @default("SHARED")
+  source        String      @default("MATCH_DRAWER")
+  lastAction    String      @default("CREATED")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  activity      ActivityEvent[]
+
+  @@index([propertyId, requirementId])
+  @@index([initiatorId, status])
+  @@index([recipientId, status])
+}
+
+model ActivityEvent {
+  id              String         @id @default(cuid())
+  actorId         String?
+  actor           Profile?       @relation(fields: [actorId], references: [id])
+  eventType       String
+  targetType      String
+  targetId        String
+  propertyId      String?
+  requirementId   String?
+  collaborationId String?
+  collaboration   Collaboration? @relation(fields: [collaborationId], references: [id])
+  metadata        String         @default("{}") // JSON string
+  createdAt       DateTime       @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+}
+
+model ListingFreshness {
+  id                 String    @id @default(cuid())
+  propertyId         String
+  property           Property  @relation(fields: [propertyId], references: [id])
+  availabilityStatus String    @default("PENDING")
+  confirmedById      String?
+  confirmedBy        Profile?  @relation(fields: [confirmedById], references: [id])
+  confirmedAt        DateTime  @default(now())
+  expiresAt          DateTime?
+  note               String?
+  createdAt          DateTime  @default(now())
+
+  @@index([propertyId, confirmedAt])
+  @@index([availabilityStatus, expiresAt])
 }

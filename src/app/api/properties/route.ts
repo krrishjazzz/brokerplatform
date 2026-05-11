@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { propertySchema } from "@/lib/validations";
 import { slugify } from "@/lib/utils";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
+import { logActivity } from "@/lib/workflow";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +26,11 @@ function formatProperty(property: any, options: { publicView: boolean }) {
     listingStatus,
     publicBrokerName: property.publicBrokerName || "KrrishJazz",
     verified: property.status === "LIVE" || listingStatus === "LIVE",
+    ownerListed: property.postedBy?.role === "OWNER",
+    readyToVisit: property.status === "LIVE" && ["LIVE", "AVAILABLE"].includes(listingStatus),
     amenities: JSON.parse(property.amenities || "[]"),
     images: JSON.parse(property.images || "[]"),
+    latestFreshness: property.freshnessHistory?.[0] || null,
   };
 
   if (!options.publicView) return formatted;
@@ -90,6 +94,32 @@ export async function GET(req: NextRequest) {
     const city = searchParams.get("city");
     if (city) where.city = { contains: city };
 
+    const locality = searchParams.get("locality");
+    if (locality) where.locality = { contains: locality };
+
+    const verified = searchParams.get("verified");
+    if (verified === "true") where.status = "LIVE";
+
+    const ownerListed = searchParams.get("ownerListed");
+    if (ownerListed === "true") where.postedBy = { role: "OWNER" };
+
+    const availability = searchParams.get("availability");
+    const listingStatus = searchParams.get("listingStatus");
+    if (availability || listingStatus) where.listingStatus = availability || listingStatus;
+
+    const readyToVisit = searchParams.get("readyToVisit");
+    if (readyToVisit === "true") {
+      where.status = "LIVE";
+      where.listingStatus = { in: ["LIVE", "AVAILABLE"] };
+    }
+
+    const fresh = searchParams.get("fresh");
+    if (fresh === "true") {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      where.updatedAt = { gte: sevenDaysAgo };
+    }
+
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
     if (minPrice || maxPrice) {
@@ -110,6 +140,7 @@ export async function GET(req: NextRequest) {
         { title: { contains: q } },
         { description: { contains: q } },
         { city: { contains: q } },
+        { locality: { contains: q } },
         { address: { contains: q } },
       ];
     }
@@ -128,6 +159,7 @@ export async function GET(req: NextRequest) {
         include: {
           postedBy: { select: { name: true, role: true } },
           assignedBroker: { select: { name: true, role: true } },
+          freshnessHistory: { orderBy: { confirmedAt: "desc" }, take: 1 },
           _count: publicView ? undefined : { select: { enquiries: true } },
         },
       }),
@@ -195,6 +227,27 @@ export async function POST(req: NextRequest) {
         images: JSON.stringify(images),
         coverImage: coverImage || images[0] || null,
       },
+    });
+
+    const freshnessExpiry = new Date();
+    freshnessExpiry.setDate(freshnessExpiry.getDate() + 14);
+    await prisma.listingFreshness.create({
+      data: {
+        propertyId: property.id,
+        confirmedById: session.id,
+        availabilityStatus: "PENDING",
+        expiresAt: freshnessExpiry,
+        note: "Created with property submission",
+      },
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "PROPERTY_SUBMITTED",
+      targetType: "PROPERTY",
+      targetId: property.id,
+      propertyId: property.id,
+      metadata: { visibilityType, locality: property.locality, city: property.city },
     });
 
     await sendSMS(session.phone, SMS_TEMPLATES.propertySubmitted());

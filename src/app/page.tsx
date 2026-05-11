@@ -4,291 +4,280 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  MapPin,
-  Mic,
+  ArrowRight,
+  BadgeCheck,
   Building2,
   Factory,
-  Warehouse,
-  Landmark,
+  Home,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Store,
   Trees,
-  Hotel,
-  CheckCircle2,
-  UserCheck,
-  Globe,
-  BadgeDollarSign,
-  ArrowRight,
-  Star,
-  Quote,
+  Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const HERO_TABS = ["Buy", "Rent", "New Launch", "Commercial", "Plots/Land", "Projects"];
-
-const CATEGORIES = [
-  { icon: Building2, label: "Residential", href: "/properties?category=RESIDENTIAL" },
-  { icon: Landmark, label: "Commercial", href: "/properties?category=COMMERCIAL" },
-  { icon: Trees, label: "Agricultural", href: "/properties?category=AGRICULTURAL" },
-  { icon: Factory, label: "Industrial", href: "/properties?category=INDUSTRIAL" },
-  { icon: Warehouse, label: "Warehouse", href: "/properties?propertyType=Warehouse" },
-  { icon: Hotel, label: "Projects", href: "/projects" },
-];
-
-const WHY_US = [
-  { icon: CheckCircle2, title: "Verified Listings", desc: "Every property is verified before going live" },
-  { icon: UserCheck, title: "Trusted Brokers", desc: "RERA verified brokers you can trust" },
-  { icon: Globe, title: "Pan-India Network", desc: "Properties across all major cities" },
-  { icon: BadgeDollarSign, title: "Zero Brokerage", desc: "Direct owner properties available" },
+const SEARCH_TABS = [
+  { label: "Buy", params: { listingType: "BUY" } },
+  { label: "Rent", params: { listingType: "RENT" } },
+  { label: "Commercial", params: { category: "COMMERCIAL" } },
+  { label: "Plots", params: { propertyType: "Plot" } },
 ];
 
 const POPULAR_SEARCHES = [
-  "Flats in Mumbai",
-  "2 BHK in Bangalore",
-  "Plots in Hyderabad",
-  "Villas in Pune",
-  "Office in Delhi",
-  "3 BHK in Chennai",
+  "2 BHK in New Town",
+  "Office in Salt Lake",
+  "Shop in Park Street",
+  "Warehouse in Howrah",
+  "Plot in Rajarhat",
 ];
 
-const CITIES = [
-  { name: "Mumbai", color: "from-blue-500/20" },
-  { name: "Delhi", color: "from-red-500/20" },
-  { name: "Bangalore", color: "from-green-500/20" },
-  { name: "Hyderabad", color: "from-purple-500/20" },
-  { name: "Chennai", color: "from-yellow-500/20" },
-  { name: "Pune", color: "from-pink-500/20" },
+const PROPERTY_TYPES = [
+  {
+    label: "Flats & Homes",
+    meta: "Apartments, villas, houses",
+    href: "/properties?category=RESIDENTIAL",
+    icon: Home,
+    tone: "bg-primary-light text-primary",
+  },
+  {
+    label: "Offices",
+    meta: "Ready offices and leases",
+    href: "/properties?category=COMMERCIAL&propertyType=Office",
+    icon: Building2,
+    tone: "bg-accent-light text-accent",
+  },
+  {
+    label: "Shops",
+    meta: "Retail, showroom, frontage",
+    href: "/properties?category=COMMERCIAL&propertyType=Shop",
+    icon: Store,
+    tone: "bg-success-light text-success",
+  },
+  {
+    label: "Plots",
+    meta: "Land and investment plots",
+    href: "/properties?propertyType=Residential%20Plot",
+    icon: Trees,
+    tone: "bg-warning-light text-[#9A5B00]",
+  },
+  {
+    label: "Warehouses",
+    meta: "Storage and logistics",
+    href: "/properties?propertyType=Warehouse",
+    icon: Warehouse,
+    tone: "bg-primary-light text-accent",
+  },
+  {
+    label: "Industrial",
+    meta: "Factory, shed, land",
+    href: "/properties?category=INDUSTRIAL",
+    icon: Factory,
+    tone: "bg-primary-light text-primary",
+  },
 ];
 
-const TESTIMONIALS = [
-  { name: "Rajesh Kumar", city: "Mumbai", text: "Found my dream apartment through KrishJazz. The process was smooth and the listings were genuine.", rating: 5 },
-  { name: "Priya Sharma", city: "Bangalore", text: "As a broker, KrishJazz has helped me connect with serious buyers. Great platform!", rating: 5 },
-  { name: "Amit Patel", city: "Delhi", text: "Sold my property within 2 weeks of listing. Highly recommend KrishJazz to everyone.", rating: 4 },
-];
+const CITY_LINKS = ["Kolkata", "New Town", "Salt Lake", "Rajarhat", "Ballygunge", "Howrah"];
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState("Buy");
-  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState(SEARCH_TABS[0]);
+  const [search, setSearch] = useState("");
+  const [city, setCity] = useState("");
+  const [budget, setBudget] = useState("");
 
-  const handleSearch = () => {
+  const buildParams = (overrideSearch = search) => {
     const params = new URLSearchParams();
-    if (activeTab === "Rent") params.set("listingType", "RENT");
-    else if (activeTab === "Commercial") params.set("category", "COMMERCIAL");
-    else params.set("listingType", "BUY");
-    if (searchQuery) params.set("q", searchQuery);
-    router.push(`/properties?${params.toString()}`);
+    Object.entries(activeTab.params).forEach(([key, value]) => params.set(key, value));
+    if (overrideSearch.trim()) params.set("q", overrideSearch.trim());
+    if (city.trim()) params.set("city", city.trim());
+    if (budget) params.set("maxPrice", budget);
+    return params;
+  };
+
+  const runSearch = () => {
+    router.push(`/properties?${buildParams().toString()}`);
   };
 
   return (
-    <div>
-      {/* HERO SECTION */}
-      <section className="relative bg-surface py-16 lg:py-24">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
-            Find Your Perfect Property
-          </h1>
-          <p className="text-text-secondary text-lg mb-8">
-            Search from thousands of verified listings across India
-          </p>
-
-          {/* Tabs */}
-          <div className="flex items-center justify-center gap-1 mb-6">
-            {HERO_TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-btn transition-colors",
-                  activeTab === tab
-                    ? "bg-primary text-white"
-                    : "bg-white text-text-secondary hover:bg-primary-light"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
+    <main className="min-h-screen bg-surface pb-16 text-foreground">
+      <section className="relative overflow-hidden border-b border-border bg-primary-light">
+        <div className="absolute inset-x-0 top-0 h-1 bg-primary" />
+        <div className="mx-auto max-w-7xl px-4 pb-12 pt-10 lg:px-6 lg:pb-16 lg:pt-14">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="inline-flex items-center gap-2 rounded-pill border border-primary/20 bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm">
+              <BadgeCheck size={16} />
+              Verified property search
+            </p>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+              Find a property that feels right.
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-text-secondary">
+              Search homes, offices, shops, plots, and warehouses with free owner listings and KrrishJazz-assisted closure.
+            </p>
           </div>
 
-          {/* Search bar */}
-          <div className="max-w-3xl mx-auto bg-white rounded-card shadow-modal p-2 flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 px-3">
-              <Search size={20} className="text-text-secondary shrink-0" />
-              <input
-                type="text"
-                placeholder="Search by city, locality, or property name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full py-2 text-sm bg-transparent outline-none placeholder:text-text-secondary"
-              />
+          <div className="mx-auto mt-8 max-w-5xl rounded-card border border-primary/15 bg-white p-3 shadow-lift">
+            <div className="flex justify-center border-b border-border">
+              <div className="flex w-full gap-1 overflow-x-auto px-1 sm:w-auto">
+                {SEARCH_TABS.map((tab) => (
+                  <button
+                    key={tab.label}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "relative min-w-24 px-5 py-3 text-sm font-semibold transition-colors",
+                      activeTab.label === tab.label
+                        ? "text-primary"
+                        : "text-text-secondary hover:text-primary"
+                    )}
+                  >
+                    {tab.label}
+                    {activeTab.label === tab.label && (
+                      <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-            <button className="p-2 hover:bg-surface rounded-btn transition-colors">
-              <MapPin size={20} className="text-text-secondary" />
-            </button>
-            <button className="p-2 hover:bg-surface rounded-btn transition-colors">
-              <Mic size={20} className="text-text-secondary" />
-            </button>
-            <Button onClick={handleSearch} size="lg">
-              Search
-            </Button>
+
+            <div className="grid gap-2 pt-3 lg:grid-cols-[1fr_1.3fr_170px_auto]">
+              <div className="flex min-h-12 items-center gap-2 rounded-btn border border-border bg-surface px-3 focus-within:border-primary">
+                <MapPin size={18} className="shrink-0 text-primary" />
+                <input
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  placeholder="City or locality"
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-text-secondary"
+                />
+              </div>
+              <div className="flex min-h-12 items-center gap-2 rounded-btn border border-border bg-surface px-3 focus-within:border-primary">
+                <Search size={18} className="shrink-0 text-primary" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => event.key === "Enter" && runSearch()}
+                  placeholder="Search flat, office, shop, plot..."
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-text-secondary"
+                />
+              </div>
+              <select
+                value={budget}
+                onChange={(event) => setBudget(event.target.value)}
+                className="min-h-12 rounded-btn border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="">Budget</option>
+                <option value="3000000">Under 30L</option>
+                <option value="5000000">Under 50L</option>
+                <option value="10000000">Under 1Cr</option>
+                <option value="50000">Rent under 50K</option>
+              </select>
+              <Button onClick={runSearch} size="lg" className="min-h-12">
+                Search
+              </Button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              <span className="text-xs font-semibold text-text-secondary">Popular:</span>
+              {POPULAR_SEARCHES.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => router.push(`/properties?${buildParams(item).toString()}`)}
+                  className="rounded-pill border border-border bg-white px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/40 hover:bg-primary-light hover:text-primary"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Popular searches */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-            {POPULAR_SEARCHES.map((search) => (
+          <div className="mx-auto mt-5 grid max-w-3xl gap-2 sm:grid-cols-3">
+            <TrustPill icon={<ShieldCheck size={16} />} title="Free owner listings" />
+            <TrustPill icon={<BadgeCheck size={16} />} title="1 month brokerage on closure" />
+            <TrustPill icon={<Search size={16} />} title="Managed callbacks" />
+          </div>
+        </div>
+      </section>
+
+      <section className="py-10">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase text-primary">Browse Properties</p>
+              <h2 className="mt-1 text-2xl font-semibold text-foreground">Start with what you need</h2>
+            </div>
+            <Link href="/properties" className="text-sm font-semibold text-accent hover:text-primary">
+              Open filters
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {PROPERTY_TYPES.map((type) => (
               <Link
-                key={search}
-                href={`/properties?q=${encodeURIComponent(search)}`}
-                className="px-3 py-1 bg-white text-xs text-text-secondary rounded-pill border border-border hover:border-primary hover:text-primary transition-colors"
+                key={type.label}
+                href={type.href}
+                className="group rounded-card border border-border bg-white p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
               >
-                {search}
+                <div className="flex items-start justify-between gap-4">
+                  <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-btn", type.tone)}>
+                    <type.icon size={21} />
+                  </div>
+                  <ArrowRight size={18} className="text-text-secondary transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                </div>
+                <h3 className="mt-5 text-lg font-semibold text-foreground">{type.label}</h3>
+                <p className="mt-1 text-sm text-text-secondary">{type.meta}</p>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* PROPERTY CATEGORIES */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-foreground text-center mb-8">
-            Browse by Category
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CATEGORIES.map((cat) => (
+      <section className="border-y border-border bg-white py-9">
+        <div className="mx-auto max-w-7xl px-4 lg:px-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Popular localities</h2>
+            <p className="hidden text-sm text-text-secondary sm:block">Tap a location to see matching properties</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {CITY_LINKS.map((item) => (
               <Link
-                key={cat.label}
-                href={cat.href}
-                className="flex flex-col items-center gap-3 p-6 bg-white rounded-card border border-border hover:border-primary hover:shadow-card transition-all group"
+                key={item}
+                href={`/properties?q=${encodeURIComponent(item)}`}
+                className="rounded-pill border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary-light hover:text-primary"
               >
-                <cat.icon size={32} className="text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium text-foreground">{cat.label}</span>
+                {item}
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* WHY CHOOSE US */}
-      <section className="py-16 bg-surface">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-foreground text-center mb-8">
-            Why Choose KrishJazz
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {WHY_US.map((item) => (
-              <div
-                key={item.title}
-                className="flex flex-col items-center text-center p-6 bg-white rounded-card border border-border"
-              >
-                <item.icon size={32} className="text-primary mb-3" />
-                <h3 className="text-sm font-semibold text-foreground mb-1">{item.title}</h3>
-                <p className="text-xs text-text-secondary">{item.desc}</p>
-              </div>
-            ))}
+      <section className="bg-primary py-9 text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+          <div>
+            <p className="text-sm font-medium text-white/70">Owners and brokers</p>
+            <h2 className="mt-1 text-2xl font-semibold">Have a property to list?</h2>
+            <p className="mt-1 text-sm text-white/75">Post free. Brokerage applies only when KrrishJazz helps close the deal.</p>
           </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-foreground text-center mb-12">
-            How It Works
-          </h2>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            {[
-              { step: "1", title: "Search", desc: "Browse thousands of verified property listings" },
-              { step: "2", title: "Enquire", desc: "Connect directly with owners and brokers" },
-              { step: "3", title: "Move In", desc: "Finalize the deal and move into your dream home" },
-            ].map((item, i) => (
-              <div key={item.step} className="flex flex-col items-center text-center relative">
-                <div className="w-12 h-12 bg-primary-light text-primary rounded-full flex items-center justify-center text-lg font-bold mb-3">
-                  {item.step}
-                </div>
-                <h3 className="text-base font-semibold text-foreground mb-1">{item.title}</h3>
-                <p className="text-sm text-text-secondary max-w-[200px]">{item.desc}</p>
-                {i < 2 && (
-                  <ArrowRight size={20} className="hidden md:block absolute -right-10 top-6 text-primary" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURED CITIES */}
-      <section className="py-16 bg-surface">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-foreground text-center mb-8">
-            Explore Top Cities
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CITIES.map((city) => (
-              <Link
-                key={city.name}
-                href={`/properties?city=${encodeURIComponent(city.name)}`}
-                className="relative overflow-hidden rounded-card aspect-[3/4] bg-white border border-border hover:shadow-card transition-all group flex items-end"
-              >
-                <div className={cn("absolute inset-0 bg-gradient-to-b", city.color, "to-surface")} />
-                <div className="relative p-4">
-                  <h3 className="text-base font-semibold text-foreground">{city.name}</h3>
-                  <p className="text-xs text-text-secondary">View Properties →</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-foreground text-center mb-8">
-            What Our Users Say
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="p-6 bg-white rounded-card border border-border">
-                <Quote size={24} className="text-primary/20 mb-3" />
-                <p className="text-sm text-text-secondary mb-4">{t.text}</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center text-xs font-semibold text-primary">
-                    {t.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{t.name}</p>
-                    <p className="text-xs text-text-secondary">{t.city}</p>
-                  </div>
-                  <div className="ml-auto flex gap-0.5">
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star key={i} size={12} className="fill-warning text-warning" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA BANNER */}
-      <section className="py-16 bg-primary">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-2xl lg:text-3xl font-bold text-white mb-4">
-            List Your Property for Free
-          </h2>
-          <p className="text-white/80 mb-6">
-            Reach thousands of potential buyers and tenants across India
-          </p>
-          <Link href="/login?intent=post">
-            <Button variant="accent" size="lg">
-              Post Property Free <ArrowRight size={16} className="ml-2" />
+          <Link href="/dashboard?tab=post">
+            <Button variant="ghost" size="lg" className="w-full bg-white text-primary hover:bg-primary-light sm:w-auto">
+              Post Property
             </Button>
           </Link>
         </div>
       </section>
+    </main>
+  );
+}
+
+function TrustPill({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-pill border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-sm">
+      <span className="text-primary">{icon}</span>
+      {title}
     </div>
   );
 }

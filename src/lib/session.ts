@@ -10,10 +10,14 @@ export async function createSession(profileId: string) {
   // Lookup profile role to embed in JWT for middleware checks
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { role: true },
+    select: { role: true, brokerProfile: { select: { status: true } } },
   });
 
-  const token = await new jose.SignJWT({ profileId, role: profile?.role || "CUSTOMER" })
+  const token = await new jose.SignJWT({
+    profileId,
+    role: profile?.role || "CUSTOMER",
+    brokerStatus: profile?.brokerProfile?.status || null,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .sign(JWT_SECRET);

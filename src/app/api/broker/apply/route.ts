@@ -19,19 +19,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    // Update role and create broker profile
+    const existing = await prisma.brokerProfile.findUnique({
+      where: { profileId: session.id },
+    });
+
+    if (existing?.status === "APPROVED") {
+      return NextResponse.json({ error: "Broker profile is already approved" }, { status: 409 });
+    }
+
+    if (existing?.status === "PENDING") {
+      return NextResponse.json({ error: "Broker application is already under review" }, { status: 409 });
+    }
+
+    const serviceAreas = parsed.data.serviceAreas
+      ? parsed.data.serviceAreas.split(",").map((area) => area.trim()).filter(Boolean)
+      : [parsed.data.city];
+
     await prisma.$transaction([
       prisma.profile.update({
         where: { id: session.id },
         data: { role: "BROKER" },
       }),
-      prisma.brokerProfile.create({
-        data: {
-          profileId: session.id,
-          ...parsed.data,
-          status: "PENDING",
-        },
-      }),
+      existing
+        ? prisma.brokerProfile.update({
+            where: { profileId: session.id },
+            data: {
+              ...parsed.data,
+              serviceAreas: JSON.stringify(serviceAreas),
+              status: "PENDING",
+              rejectionReason: null,
+            },
+          })
+        : prisma.brokerProfile.create({
+            data: {
+              profileId: session.id,
+              ...parsed.data,
+              serviceAreas: JSON.stringify(serviceAreas),
+              status: "PENDING",
+            },
+          }),
     ]);
 
     await createSession(session.id);

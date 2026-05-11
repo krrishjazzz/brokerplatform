@@ -4,16 +4,19 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Phone, ArrowLeft } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Building2, CheckCircle2, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { registerSchema, brokerApplicationSchema } from "@/lib/validations";
 import type { RegisterInput, BrokerApplicationInput } from "@/lib/validations";
 
 function LoginPageContent() {
   const { user, loading: authLoading, login, register: registerUser, refreshUser } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect") || "/";
@@ -70,12 +73,15 @@ function LoginPageContent() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Failed to send OTP");
+        toast(data.error || "Failed to send OTP", "error");
         return;
       }
       setStep("otp");
       setResendCooldown(30);
+      toast("OTP sent successfully.", "success");
     } catch {
       setError("Something went wrong. Please try again.");
+      toast("Something went wrong. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -109,6 +115,7 @@ function LoginPageContent() {
       const result = await login(phone, otpString);
       if (!result.success) {
         setError(result.error || "Invalid OTP");
+        toast(result.error || "Invalid OTP", "error");
         return;
       }
       if (mode === "register" && !result.isNew) {
@@ -125,6 +132,7 @@ function LoginPageContent() {
       }
     } catch {
       setError("Verification failed. Please try again.");
+      toast("Verification failed. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -150,9 +158,11 @@ function LoginPageContent() {
     setLoading(true);
     try {
       await registerUser(data);
+      toast("Profile completed.", "success");
       router.push(intent === "post" ? "/dashboard?tab=post" : redirect);
     } catch {
       setError("Registration failed");
+      toast("Registration failed.", "error");
     } finally {
       setLoading(false);
     }
@@ -168,42 +178,87 @@ function LoginPageContent() {
       if (res.ok) {
         await refreshUser();
         setBrokerModalOpen(false);
+        toast("Broker application submitted.", "success");
         router.push("/dashboard");
       } else {
         const err = await res.json();
         setError(err.error || "Application failed");
+        toast(err.error || "Application failed", "error");
       }
     } catch {
       setError("Application failed");
+      toast("Application failed.", "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-surface">
-      <div className="w-full max-w-md mx-4">
-        <div className="bg-white rounded-card border border-border shadow-card p-8">
-          <div className="text-center mb-6">
-            <div className="inline-flex rounded-full border border-border bg-surface p-1 mb-4">
+    <main className="min-h-[calc(100vh-76px)] bg-surface">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-6 lg:py-12">
+        <section className="hidden overflow-hidden rounded-card border border-border bg-primary text-white shadow-card lg:block">
+          <div className="p-8">
+            <Badge className="border-white/20 bg-white/10 text-white">KrrishJazz Account</Badge>
+            <h1 className="mt-8 max-w-xl text-4xl font-bold leading-tight">Login once. Search, shortlist, post and manage property with confidence.</h1>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-white/75">
+              A clean property workflow for buyers, owners and trusted brokers, styled for fast Indian real estate decisions.
+            </p>
+
+            <div className="mt-8 grid gap-3">
+              {[
+                ["Search verified listings", "Use filters and saved properties for faster decisions.", SearchIcon],
+                ["Post as owner", "List free and pay brokerage only after a successful closure.", Building2],
+                ["Broker network", "Approved brokers can match demand and inventory.", ShieldCheck],
+              ].map(([title, desc, Icon]) => (
+                <div key={title as string} className="flex items-start gap-3 rounded-card border border-white/15 bg-white/10 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn bg-white text-primary">
+                    {typeof Icon !== "string" && <Icon size={20} />}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">{title as string}</p>
+                    <p className="mt-1 text-sm text-white/70">{desc as string}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <div className="mb-5 rounded-card border border-primary/15 bg-primary-light p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-btn bg-white text-primary shadow-sm">
+                  <UserRound size={21} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Welcome to KrrishJazz</p>
+                  <p className="text-sm text-text-secondary">Continue with mobile OTP</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-card border border-border shadow-card p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <div className="inline-flex rounded-pill border border-border bg-surface p-1 mb-4">
               <button
                 type="button"
                 onClick={() => { setMode("login"); setStep("phone"); setOtp(["", "", "", "", "", ""]); setError(""); }}
-                className={`px-4 py-2 rounded-full transition ${mode === "login" ? "bg-white text-primary shadow-sm" : "text-text-secondary hover:text-foreground"}`}
+                className={`px-5 py-2 rounded-pill text-sm font-semibold transition ${mode === "login" ? "bg-white text-primary shadow-sm" : "text-text-secondary hover:text-foreground"}`}
               >
                 Login
               </button>
               <button
                 type="button"
                 onClick={() => { setMode("register"); setStep("phone"); setOtp(["", "", "", "", "", ""]); setError(""); }}
-                className={`px-4 py-2 rounded-full transition ${mode === "register" ? "bg-white text-primary shadow-sm" : "text-text-secondary hover:text-foreground"}`}
+                className={`px-5 py-2 rounded-pill text-sm font-semibold transition ${mode === "register" ? "bg-white text-primary shadow-sm" : "text-text-secondary hover:text-foreground"}`}
               >
                 Register
               </button>
             </div>
 
             <h1 className="text-2xl font-bold text-foreground">
-              {step === "phone" && (mode === "register" ? "Register on KrishJazz" : "Login to KrishJazz")}
+              {step === "phone" && (mode === "register" ? "Register on KrrishJazz" : "Login to KrrishJazz")}
               {step === "otp" && "Enter OTP"}
               {step === "register" && "Complete Your Profile"}
             </h1>
@@ -215,7 +270,7 @@ function LoginPageContent() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-btn text-sm text-error">
+            <div className="mb-4 rounded-btn border border-error/20 bg-error-light p-3 text-sm font-medium text-error">
               {error}
             </div>
           )}
@@ -254,6 +309,18 @@ function LoginPageContent() {
               <Button onClick={handleSendOtp} loading={loading} className="w-full" size="lg">
                 Send OTP
               </Button>
+              <div className="grid gap-2 pt-2 sm:grid-cols-3">
+                {[
+                  ["Buyer", "Search"],
+                  ["Owner", "Post"],
+                  ["Broker", "Match"],
+                ].map(([title, label]) => (
+                  <div key={title} className="rounded-btn border border-border bg-surface px-3 py-2 text-center">
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    <p className="text-xs text-text-secondary">{label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -323,6 +390,12 @@ function LoginPageContent() {
               <Button type="submit" loading={loading} className="w-full" size="lg">
                 Complete Registration
               </Button>
+              <div className="rounded-card border border-success/20 bg-success-light p-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-success">
+                  <CheckCircle2 size={16} />
+                  Owner access can be enabled during registration.
+                </p>
+              </div>
               <div className="text-center">
                 <button
                   type="button"
@@ -334,7 +407,9 @@ function LoginPageContent() {
               </div>
             </form>
           )}
-        </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Broker Application Modal */}
@@ -359,6 +434,12 @@ function LoginPageContent() {
             error={brokerErrors.city?.message}
             {...brokerForm("city")}
           />
+          <Input
+            label="Service Areas"
+            placeholder="e.g. Salt Lake, Park Street, New Town"
+            error={brokerErrors.serviceAreas?.message}
+            {...brokerForm("serviceAreas")}
+          />
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">Short Bio</label>
             <textarea
@@ -375,8 +456,12 @@ function LoginPageContent() {
           </Button>
         </form>
       </Modal>
-    </div>
+    </main>
   );
+}
+
+function SearchIcon({ size = 20 }: { size?: number }) {
+  return <BadgeCheck size={size} />;
 }
 
 export default function LoginPage() {

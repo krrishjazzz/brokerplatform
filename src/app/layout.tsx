@@ -3,10 +3,13 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { ToastProvider } from "@/components/ui/toast";
+import { BrokerageTrustBar } from "@/components/brokerage-trust-bar";
+import { KrrishJazzAssistant } from "@/components/krrishjazz-assistant";
 
 export const metadata: Metadata = {
-  title: "KrishJazz - Find Your Dream Property",
-  description: "India's trusted real estate platform. Buy, sell, or rent properties with verified listings.",
+  title: "KrrishJazz - Free Property Listings and Managed Closures",
+  description: "Search, post, and close property deals with free owner listings, managed callbacks, and brokerage only after successful closure.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,9 +17,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen flex flex-col">
         <AuthProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <ToastProvider>
+            <Navbar />
+            <BrokerageTrustBar />
+            <main className="flex-1">{children}</main>
+            <KrrishJazzAssistant />
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

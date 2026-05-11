@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      status: { not: "REJECTED" },
+      status: { notIn: ["REJECTED", "CLOSED"] },
       visibilityType: { not: "PRIVATE" },
     };
 
@@ -33,6 +33,20 @@ export async function GET(req: NextRequest) {
     const city = searchParams.get("city");
     if (city) where.city = { contains: city };
 
+    const locality = searchParams.get("locality");
+    if (locality) where.locality = { contains: locality };
+
+    const availability = searchParams.get("availability");
+    const listingStatus = searchParams.get("listingStatus");
+    if (availability || listingStatus) where.listingStatus = availability || listingStatus;
+
+    const fresh = searchParams.get("fresh");
+    if (fresh === "true") {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      where.updatedAt = { gte: sevenDaysAgo };
+    }
+
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
     if (minPrice || maxPrice) {
@@ -47,6 +61,7 @@ export async function GET(req: NextRequest) {
         { title: { contains: q } },
         { description: { contains: q } },
         { city: { contains: q } },
+        { locality: { contains: q } },
         { address: { contains: q } },
       ];
     }
@@ -67,14 +82,25 @@ export async function GET(req: NextRequest) {
             select: {
               name: true,
               phone: true,
+              brokerProfile: {
+                select: {
+                  rera: true,
+                  city: true,
+                  responseScore: true,
+                  profileCompletion: true,
+                  completedCollaborations: true,
+                  lastActiveAt: true,
+                },
+              },
             },
           },
+          freshnessHistory: { orderBy: { confirmedAt: "desc" }, take: 1 },
         },
       }),
       prisma.property.count({ where }),
     ]);
 
-    const processedProperties = properties.map((property) => {
+    const processedProperties = await Promise.all(properties.map(async (property) => {
       let images: string[] = [];
       let amenities: string[] = [];
       try {
@@ -88,12 +114,36 @@ export async function GET(req: NextRequest) {
         amenities = [];
       }
 
+      const matchingRequirementsCount = await prisma.requirement.count({
+        where: {
+          status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] },
+          propertyType: property.propertyType,
+          city: { contains: property.city },
+          ...(property.locality ? { OR: [{ locality: { contains: property.locality } }, { locality: "" }] } : {}),
+          AND: [
+            {
+              OR: [
+                { budgetMin: { lte: property.price } },
+                { budgetMin: null },
+              ],
+            },
+            {
+              OR: [
+                { budgetMax: { gte: property.price } },
+                { budgetMax: null },
+              ],
+            },
+          ],
+        },
+      });
+
       return {
         id: property.id,
         slug: property.slug,
         title: property.title,
         description: property.description,
         address: property.address,
+        locality: property.locality,
         city: property.city,
         state: property.state,
         pincode: property.pincode,
@@ -119,9 +169,12 @@ export async function GET(req: NextRequest) {
         visibilityType: property.visibilityType,
         listingStatus: property.listingStatus,
         status: property.status,
+        matchingRequirementsCount,
         createdAt: property.createdAt,
+        updatedAt: property.updatedAt,
+        latestFreshness: property.freshnessHistory?.[0] || null,
       };
-    });
+    }));
 
     return NextResponse.json({
       properties: processedProperties,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { requirementSchema } from "@/lib/validations";
+import { logActivity } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { description: { contains: q } },
         { city: { contains: q } },
+        { locality: { contains: q } },
         { propertyType: { contains: q } },
       ];
     }
@@ -33,6 +36,15 @@ export async function GET(req: NextRequest) {
 
     const city = searchParams.get("city");
     if (city) where.city = { contains: city };
+
+    const locality = searchParams.get("locality");
+    if (locality) where.locality = { contains: locality };
+
+    const status = searchParams.get("status");
+    where.status = status || { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] };
+
+    const seriousness = searchParams.get("clientSeriousness");
+    if (seriousness) where.clientSeriousness = seriousness;
 
     const minBudget = searchParams.get("minBudget");
     if (minBudget) {
@@ -62,7 +74,9 @@ export async function GET(req: NextRequest) {
       const thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(now.getDate() - 30);
 
-      if (urgency === "new") {
+      if (["LOW", "NORMAL", "HIGH", "HOT"].includes(urgency)) {
+        where.urgency = urgency;
+      } else if (urgency === "new") {
         where.createdAt = { gte: sevenDaysAgo };
       } else if (urgency === "recent") {
         where.createdAt = { gte: thirtyDaysAgo, lt: sevenDaysAgo };
@@ -93,16 +107,45 @@ export async function GET(req: NextRequest) {
       prisma.requirement.count({ where }),
     ]);
 
-    const processedRequirements = requirements.map((req) => ({
-      id: req.id,
-      description: req.description,
-      propertyType: req.propertyType,
-      city: req.city,
-      budgetMin: req.budgetMin ? Number(req.budgetMin) : null,
-      budgetMax: req.budgetMax ? Number(req.budgetMax) : null,
-      createdAt: req.createdAt.toISOString(),
-      broker: req.broker,
-    }));
+    const processedRequirements = await Promise.all(
+      requirements.map(async (req) => {
+        const minBudget = req.budgetMin ? Number(req.budgetMin) : null;
+        const maxBudget = req.budgetMax ? Number(req.budgetMax) : null;
+        const matchFilters: any[] = [];
+
+        if (minBudget != null) matchFilters.push({ price: { gte: minBudget } });
+        if (maxBudget != null) matchFilters.push({ price: { lte: maxBudget } });
+
+        const matchedPropertiesCount = await prisma.property.count({
+          where: {
+            status: { notIn: ["REJECTED", "CLOSED"] },
+            visibilityType: { not: "PRIVATE" },
+            propertyType: req.propertyType,
+            city: { contains: req.city },
+            ...(req.locality ? { locality: { contains: req.locality } } : {}),
+            ...(matchFilters.length > 0 ? { AND: matchFilters } : {}),
+          },
+        });
+
+        return {
+          id: req.id,
+          description: req.description,
+          propertyType: req.propertyType,
+          locality: req.locality,
+          city: req.city,
+          budgetMin: minBudget,
+          budgetMax: maxBudget,
+          status: req.status,
+          urgency: req.urgency,
+          clientSeriousness: req.clientSeriousness,
+          notes: req.notes,
+          expiresAt: req.expiresAt?.toISOString() || null,
+          matchedPropertiesCount,
+          createdAt: req.createdAt.toISOString(),
+          broker: req.broker,
+        };
+      })
+    );
 
     return NextResponse.json({
       requirements: processedRequirements,
@@ -125,24 +168,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only brokers can post requirements" }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { description, propertyType, city, budgetMin, budgetMax } = body;
+    if (session.brokerStatus !== "APPROVED") {
+      return NextResponse.json({ error: "Broker account not yet approved" }, { status: 403 });
+    }
 
-    if (!description || !propertyType || !city) {
-      return NextResponse.json(
-        { error: "Description, property type, and city are required" },
-        { status: 400 }
-      );
+    const body = await req.json();
+    const parsed = requirementSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
     const requirement = await prisma.requirement.create({
       data: {
         brokerId: session.id,
-        description,
-        propertyType,
-        city,
-        budgetMin: budgetMin ? parseFloat(budgetMin) : null,
-        budgetMax: budgetMax ? parseFloat(budgetMax) : null,
+        description: parsed.data.description,
+        propertyType: parsed.data.propertyType,
+        locality: parsed.data.locality || "",
+        city: parsed.data.city,
+        budgetMin: parsed.data.budgetMin || null,
+        budgetMax: parsed.data.budgetMax || null,
+        status: parsed.data.status,
+        urgency: parsed.data.urgency,
+        clientSeriousness: parsed.data.clientSeriousness,
+        notes: parsed.data.notes || null,
+        expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
+      },
+    });
+
+    await prisma.brokerProfile.updateMany({
+      where: { profileId: session.id },
+      data: { lastActiveAt: new Date() },
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "REQUIREMENT_POSTED",
+      targetType: "REQUIREMENT",
+      targetId: requirement.id,
+      requirementId: requirement.id,
+      metadata: {
+        city: requirement.city,
+        locality: requirement.locality,
+        urgency: requirement.urgency,
       },
     });
 

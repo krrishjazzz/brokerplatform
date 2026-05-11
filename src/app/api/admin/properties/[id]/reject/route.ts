@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
+import { logActivity } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: { id: params.id },
       data: { status: "REJECTED", listingStatus: "REJECTED", rejectionReason: reason || "Does not meet guidelines" },
       include: { postedBy: true },
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "PROPERTY_REJECTED",
+      targetType: "Property",
+      targetId: property.id,
+      metadata: { reason: reason || "Does not meet guidelines", source: "ADMIN_REVIEW" },
     });
 
     await sendSMS(

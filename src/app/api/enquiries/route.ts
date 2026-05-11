@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { enquirySchema } from "@/lib/validations";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { rateLimit } from "@/lib/rate-limit";
+import { logActivity } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,15 @@ export async function POST(req: NextRequest) {
         visitDate: parsed.data.visitDate ? new Date(parsed.data.visitDate) : null,
         customerId: session.id,
       },
+    });
+
+    await logActivity({
+      actorId: session.id,
+      eventType: "MANAGED_ENQUIRY_SUBMITTED",
+      targetType: "PROPERTY",
+      targetId: property.id,
+      propertyId: property.id,
+      metadata: { enquiryId: enquiry.id, source: "PUBLIC_PROPERTY_DETAIL" },
     });
 
     // Notify property owner/broker

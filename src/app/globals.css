@@ -11,12 +11,26 @@
 
 body {
   font-family: 'Inter', sans-serif;
-    color: #1A1A2E;
-    background: #FFFFFF;
+  color: #001F4D;
+  background: #F7F8FA;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #EAF5FF;
+  color: #005CA8;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .surface-grid {
+    background-image:
+      linear-gradient(rgba(0, 92, 168, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 92, 168, 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 }

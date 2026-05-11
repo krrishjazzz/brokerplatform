@@ -10,11 +10,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", loading, children, disabled, type = "button", ...props }, ref) => {
     const variants = {
-      primary: "bg-primary text-white hover:bg-primary/90",
+      primary: "bg-accent text-white shadow-[0_4px_12px_rgb(0_120_219/0.22)] hover:bg-accent/90 hover:shadow-card",
       secondary: "bg-primary-light text-primary hover:bg-primary-light/80",
-      ghost: "bg-transparent text-foreground hover:bg-surface border border-border",
-      accent: "bg-accent text-white hover:bg-accent/90",
-      outline: "bg-white text-primary border border-primary hover:bg-primary-light",
+      ghost: "bg-white text-foreground hover:bg-primary-light border border-border",
+      accent: "bg-accent text-white shadow-[0_4px_12px_rgb(0_120_219/0.22)] hover:bg-accent/90",
+      outline: "bg-white text-primary border border-primary/30 hover:bg-primary-light",
     };
     const sizes = {
       sm: "px-3 py-1.5 text-sm",
@@ -25,7 +25,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center font-medium rounded-btn transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed",
+          "inline-flex items-center justify-center font-medium rounded-btn transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]",
           variants[variant],
           sizes[size],
           className

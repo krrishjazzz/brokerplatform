@@ -16,6 +16,7 @@ export const brokerApplicationSchema = z.object({
   rera: z.string().min(3, "RERA number is required"),
   experience: z.coerce.number().min(0, "Experience must be 0 or more"),
   city: z.string().min(2, "City is required"),
+  serviceAreas: z.string().optional().or(z.literal("")),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
 });
 
@@ -23,7 +24,7 @@ export const propertySchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
   listingType: z.enum(["BUY", "RENT", "RESALE", "LEASE", "COMMERCIAL"]),
-  category: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL"]),
+  category: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "HOSPITALITY"]),
   propertyType: z.string().min(1, "Property type is required"),
   price: z.coerce.number().positive("Price must be positive"),
   priceNegotiable: z.boolean().default(false),
@@ -37,6 +38,7 @@ export const propertySchema = z.object({
   furnishing: z.string().optional(),
   amenities: z.array(z.string()).default([]),
   address: z.string().min(5, "Address is required"),
+  locality: z.string().min(2, "Locality is required"),
   city: z.string().min(2, "City is required"),
   state: z.string().min(2, "State is required"),
   pincode: z.string().regex(/^\d{6}$/, "Invalid pincode"),
@@ -63,9 +65,15 @@ export const enquirySchema = z.object({
 export const requirementSchema = z.object({
   description: z.string().min(10, "Description is required"),
   propertyType: z.string().min(1, "Property type is required"),
+  locality: z.string().optional().or(z.literal("")),
   city: z.string().min(2, "City is required"),
   budgetMin: z.coerce.number().positive().optional(),
   budgetMax: z.coerce.number().positive().optional(),
+  status: z.enum(["ACTIVE", "MATCHING", "IN_DISCUSSION", "CLOSED", "DROPPED"]).default("ACTIVE"),
+  urgency: z.enum(["LOW", "NORMAL", "HIGH", "HOT"]).default("NORMAL"),
+  clientSeriousness: z.enum(["LOW", "MEDIUM", "HIGH", "VERIFIED"]).default("MEDIUM"),
+  notes: z.string().optional().or(z.literal("")),
+  expiresAt: z.string().optional().or(z.literal("")),
 });
 
 export type PhoneInput = z.infer<typeof phoneSchema>;

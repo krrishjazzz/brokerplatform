@@ -24,17 +24,17 @@ export async function sendSMS(to: string, message: string) {
 
 export const SMS_TEMPLATES = {
   otp: (otp: string) =>
-    `Your KrishJazz OTP is ${otp}. Valid for 5 minutes. Do not share with anyone.`,
+    `Your KrrishJazz OTP is ${otp}. Valid for 5 minutes. Do not share with anyone.`,
   brokerApplied: (name: string) =>
     `New broker application from ${name}. Review at /admin`,
   brokerApproved: (name: string) =>
-    `Congratulations ${name}! Your broker account on KrishJazz is approved.`,
+    `Congratulations ${name}! Your broker account on KrrishJazz is approved.`,
   brokerRejected: (name: string, reason: string) =>
     `Hi ${name}, your broker application was not approved. Reason: ${reason}`,
   propertySubmitted: () =>
     `We received your property listing. It will be live after review.`,
   propertyApproved: (title: string) =>
-    `Your property "${title}" is now LIVE on KrishJazz!`,
+    `Your property "${title}" is now LIVE on KrrishJazz!`,
   propertyRejected: (title: string, reason: string) =>
     `Your property listing "${title}" was rejected. Reason: ${reason}`,
   newEnquiry: (propertyTitle: string, name: string) =>

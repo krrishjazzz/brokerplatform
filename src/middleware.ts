@@ -32,7 +32,9 @@ export async function middleware(request: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
 
-    if (payload.role === "BROKER") {
+    const brokerStatus = payload.brokerStatus as string | null | undefined;
+
+    if (payload.role === "BROKER" && brokerStatus === "APPROVED") {
       if (isBrokerRestricted) {
         return NextResponse.redirect(new URL("/broker/properties", request.url));
       }
@@ -42,6 +44,10 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isBrokerRoute && payload.role !== "BROKER") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (isBrokerRoute && payload.role === "BROKER" && brokerStatus && brokerStatus !== "APPROVED") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
