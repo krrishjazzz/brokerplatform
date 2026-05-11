@@ -80,7 +80,7 @@ model Property {
   postedBy         Profile         @relation("PostedProperties", fields: [postedById], references: [id])
   assignedBrokerId String?
   assignedBroker   Profile?        @relation("AssignedBrokerProperties", fields: [assignedBrokerId], references: [id])
-  visibilityType   String          @default("PUBLIC_TO_CUSTOMERS")
+  visibilityType   String          @default("FULL_VISIBILITY")
   listingStatus    String          @default("PENDING")
   publicBrokerName String          @default("KrrishJazz")
   status           String          @default("PENDING_REVIEW")
@@ -108,7 +108,15 @@ model Enquiry {
   message    String
   visitDate  DateTime?
   status     String    @default("NEW")
+  priority   String    @default("NORMAL")
+  nextAction String?
+  followUpAt DateTime?
+  assignedTo String?
+  lastOutcome String?
   createdAt  DateTime  @default(now())
+
+  @@index([status, followUpAt])
+  @@index([priority, createdAt])
 }
 
 model SavedProperty {

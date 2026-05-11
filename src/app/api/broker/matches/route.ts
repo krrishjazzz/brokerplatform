@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { logActivity, scoreMatch } from "@/lib/workflow";
+import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,39 @@ function parseJsonArray(value: string | null) {
   }
 }
 
-function formatProperty(property: any) {
+function getSourceMeta(property: any, session: { id: string; name?: string | null; phone?: string | null }) {
+  const sourceType =
+    property.postedById === session.id || property.assignedBrokerId === session.id
+      ? "YOUR_PROPERTY"
+      : property.postedBy?.role === "OWNER"
+      ? "KRRISHJAZZ_OWNER_PROPERTY"
+      : "BROKER_NETWORK_PROPERTY";
+
+  return {
+    sourceType,
+    sourceLabel:
+      sourceType === "YOUR_PROPERTY"
+        ? "Your Property"
+        : sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+        ? "KrrishJazz Managed Owner Property"
+        : "Broker Network Property",
+    sourceName:
+      sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+        ? "KrrishJazz"
+        : sourceType === "YOUR_PROPERTY"
+        ? session.name || "You"
+        : property.assignedBroker?.name || property.postedBy?.name || "Network Broker",
+    sourcePhone:
+      sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+        ? process.env.NEXT_PUBLIC_PLATFORM_PHONE || ""
+        : sourceType === "YOUR_PROPERTY"
+        ? session.phone || ""
+        : property.assignedBroker?.phone || property.postedBy?.phone || "",
+  };
+}
+
+function formatProperty(property: any, session: { id: string; name?: string | null; phone?: string | null }) {
+  const source = getSourceMeta(property, session);
   return {
     id: property.id,
     slug: property.slug,
@@ -32,10 +65,14 @@ function formatProperty(property: any) {
     images: parseJsonArray(property.images),
     amenities: parseJsonArray(property.amenities),
     assignedBrokerId: property.assignedBrokerId,
-    assignedBroker: property.assignedBroker,
+    assignedBroker: property.assignedBroker ? { id: property.assignedBroker.id, name: property.assignedBroker.name, phone: property.assignedBroker.phone } : null,
     postedById: property.postedById,
-    postedBy: property.postedBy,
-    publicBrokerName: property.publicBrokerName,
+    postedBy: property.postedBy ? { id: property.postedBy.id, name: property.postedBy.name, phone: property.postedBy.phone, role: property.postedBy.role } : null,
+    publicBrokerName: source.sourceLabel,
+    sourceType: source.sourceType,
+    sourceLabel: source.sourceLabel,
+    sourceName: source.sourceName,
+    sourcePhone: source.sourcePhone,
     verified: property.status === "LIVE",
     area: property.area,
     areaUnit: property.areaUnit,
@@ -143,7 +180,7 @@ export async function GET(req: NextRequest) {
 
       const where: any = {
         status: { notIn: ["REJECTED", "CLOSED"] },
-        visibilityType: { not: "PRIVATE" },
+        visibilityType: { in: BROKER_VISIBLE_TYPES },
         propertyType: requirement.propertyType,
         city: { contains: requirement.city },
       };
@@ -159,7 +196,7 @@ export async function GET(req: NextRequest) {
         take: limit,
         include: {
           assignedBroker: { select: { id: true, name: true, phone: true } },
-          postedBy: { select: { id: true, name: true, phone: true } },
+          postedBy: { select: { id: true, name: true, phone: true, role: true } },
           freshnessHistory: { orderBy: { confirmedAt: "desc" }, take: 1 },
         },
       });
@@ -169,7 +206,7 @@ export async function GET(req: NextRequest) {
         broker: { id: session.id, name: session.name, phone: session.phone },
       });
       const matches = properties.map((property) => ({
-        ...formatProperty(property),
+        ...formatProperty(property, session),
         match: scoreMatch({
           propertyCity: property.city,
           propertyLocality: property.locality,

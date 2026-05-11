@@ -27,6 +27,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
 import { PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
+import { getVisibilityLabel } from "@/lib/visibility";
 
 interface Property {
   id: string;
@@ -48,9 +49,13 @@ interface Property {
   assignedBrokerId: string | null;
   assignedBroker?: {
     name: string;
-    phone: string;
+    phone?: string;
   } | null;
   publicBrokerName: string;
+  sourceType?: string;
+  sourceLabel?: string;
+  sourceName?: string;
+  sourcePhone?: string;
   verified: boolean;
   area: number;
   areaUnit: string;
@@ -85,7 +90,7 @@ interface MatchedRequirement {
   broker: {
     id: string;
     name: string;
-    phone: string;
+    phone?: string;
   };
 }
 
@@ -264,7 +269,6 @@ export default function BrokerPropertiesPage() {
   };
 
   const handleContactBroker = (phone: string, property?: Property) => {
-    if (!phone || phone.includes("XXXX")) return;
     if (property) {
       trackBrokerAction({
         propertyId: property.id,
@@ -273,10 +277,18 @@ export default function BrokerPropertiesPage() {
         metadata: { source: "BROKER_PROPERTY_LIST" },
       });
     }
+    if (!phone || phone.includes("XXXX")) {
+      toast("Broker phone is not available.", "error");
+      return;
+    }
     window.open(`tel:${phone}`, "_self");
   };
 
   const handleWhatsApp = (phone: string, property: Property) => {
+    if (!phone || phone.includes("XXXX")) {
+      toast("Broker WhatsApp is not available.", "error");
+      return;
+    }
     trackBrokerAction({
       propertyId: property.id,
       eventType: "BROKER_WHATSAPP_CLICKED",
@@ -364,7 +376,7 @@ export default function BrokerPropertiesPage() {
       `Matching requirement: ${requirement.description}`,
       `Requirement budget: ${getRequirementBudget(requirement)}`,
       "",
-      "This looks like a match. Please confirm client seriousness and site visit timing.",
+      "This looks like a match. Please confirm client seriousness, brokerage terms, and site visit timing.",
     ].join("\n");
 
     trackBrokerAction({
@@ -375,7 +387,12 @@ export default function BrokerPropertiesPage() {
       metadata: { channel: "WHATSAPP", matchScore: requirement.match?.score || null },
     });
 
-    window.open(`https://wa.me/${requirement.broker.phone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
+    const brokerPhone = requirement.broker.phone || "";
+    if (!brokerPhone || brokerPhone.includes("XXXX")) {
+      toast("Requirement broker phone is not available yet.", "error");
+      return;
+    }
+    window.open(`https://wa.me/${brokerPhone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   const applyQuickFilter = (action: string) => {
@@ -406,6 +423,7 @@ export default function BrokerPropertiesPage() {
   const hotMatches = properties.reduce((sum, property) => sum + property.matchingRequirementsCount, 0);
   const highMatchListings = properties.filter((property) => property.matchingRequirementsCount > 0).length;
   const onHold = properties.filter((property) => property.listingStatus === "ON_HOLD").length;
+  const followUpCount = properties.filter((property) => property.matchingRequirementsCount > 0 || getFreshness(property.updatedAt).isFresh === false).length;
   const activeFiltersCount = [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort].filter(Boolean).length;
 
   const visibleProperties = properties.filter((property) => {
@@ -426,7 +444,7 @@ export default function BrokerPropertiesPage() {
               </div>
               <h1 className="text-3xl font-semibold sm:text-4xl">Broker Network Properties</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">
-                Scan live inventory, match requirements, call brokers directly, and move deals through WhatsApp-first workflows.
+                Scan broker-visible inventory, match requirements, and contact verified brokers directly while customers still see KrrishJazz.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={() => router.push("/broker/requirements")}>
@@ -498,7 +516,21 @@ export default function BrokerPropertiesPage() {
           <div className="mt-4 grid gap-2 text-primary lg:grid-cols-3">
             <BrokerWorkflowCard icon={<Search size={16} />} title="Find inventory" text="Use city, type, and budget filters before sharing." />
             <BrokerWorkflowCard icon={<Target size={16} />} title="Match demand" text="Open matching requirements from every property card." />
-            <BrokerWorkflowCard icon={<MessageCircle size={16} />} title="Close faster" text="Call or WhatsApp with ready-to-send property context." />
+            <BrokerWorkflowCard icon={<MessageCircle size={16} />} title="Close faster" text="Call or WhatsApp verified brokers with ready-to-send property context." />
+          </div>
+
+          <div className="mt-3 rounded-card border border-white/15 bg-white/10 p-3 text-white">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Broker CRM cue</p>
+                <p className="mt-1 text-xs leading-5 text-white/75">
+                  {followUpCount} listing{followUpCount === 1 ? "" : "s"} need follow-up from matches or freshness checks.
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setClientFocus("matches")} className="border border-white/20 text-white hover:bg-white/10">
+                Open follow-ups
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -630,13 +662,16 @@ export default function BrokerPropertiesPage() {
               <Loader2 size={38} className="animate-spin text-primary" />
             </div>
           ) : visibleProperties.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border bg-white p-10 text-center shadow-card">
-              <Building2 size={54} className="mx-auto mb-4 text-primary" />
-              <h3 className="mb-2 text-lg font-semibold text-foreground">No matching broker inventory</h3>
-              <p className="text-text-secondary">Try clearing filters or searching a nearby locality.</p>
-              <Button onClick={clearFilters} variant="outline" className="mt-5">
-                Clear filters
-              </Button>
+            <div className="rounded-card border border-dashed border-border bg-white p-8 shadow-card">
+              <div className="mx-auto max-w-xl text-center">
+                <Building2 size={54} className="mx-auto mb-4 text-primary" />
+                <h3 className="mb-2 text-lg font-semibold text-foreground">No broker-visible inventory yet</h3>
+                <p className="text-sm leading-6 text-text-secondary">Try a broader locality, remove tight budget filters, or post your own supply with the right visibility mode.</p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <Button onClick={clearFilters} variant="outline">Clear filters</Button>
+                  <Button onClick={() => router.push("/dashboard?tab=post")}>Post supply</Button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -711,9 +746,10 @@ interface BrokerPropertyCardProps {
 }
 
 function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsApp, onShare, onFindRequirements }: BrokerPropertyCardProps) {
-  const isDirectOwner = !property.assignedBrokerId;
-  const brokerName = isDirectOwner ? "KrrishJazz" : property.assignedBroker?.name || property.publicBrokerName || "Network Broker";
-  const brokerPhone = isDirectOwner ? process.env.NEXT_PUBLIC_PLATFORM_PHONE || "+91XXXXXXXXXX" : property.assignedBroker?.phone || "";
+  const sourceLabel = property.sourceLabel || property.publicBrokerName || "Broker Network Property";
+  const sourceName = property.sourceName || sourceLabel;
+  const sourcePhone = property.sourcePhone || "";
+  const sourceTone = property.sourceType === "YOUR_PROPERTY" ? "success" : property.sourceType === "KRRISHJAZZ_OWNER_PROPERTY" ? "blue" : "accent";
   const pricePerUnit = property.area ? Math.round(property.price / property.area) : 0;
   const freshness = getFreshness(property.updatedAt);
   const availability = getAvailability(property);
@@ -740,7 +776,7 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
           <button
             type="button"
             className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary shadow-card transition-colors hover:bg-primary-light"
-            onClick={() => onContactBroker(brokerPhone, property)}
+            onClick={() => onContactBroker(sourcePhone, property)}
             aria-label="Call broker"
           >
             <Phone size={18} />
@@ -764,6 +800,7 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
                     Verified
                   </Badge>
                 )}
+                <Badge variant={sourceTone as any}>{sourceLabel}</Badge>
                 <Badge>{property.propertyType}</Badge>
               </div>
               <h2 className="line-clamp-2 text-xl font-semibold text-foreground">{property.title}</h2>
@@ -792,11 +829,11 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
           <div className="mt-4 grid gap-3 rounded-card border border-border bg-surface p-3 lg:grid-cols-[1fr_1fr_1fr]">
             <div className="flex items-center gap-2">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                {brokerName.charAt(0).toUpperCase()}
+                {sourceLabel.charAt(0).toUpperCase()}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{brokerName}</p>
-                <p className="text-xs text-text-secondary">{isDirectOwner ? "Platform managed" : "Collaborating broker"}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{sourceName}</p>
+                <p className="text-xs text-text-secondary">{sourceLabel}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-text-secondary">
@@ -805,30 +842,30 @@ function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsA
             </div>
             <div className="flex items-center gap-2 text-sm text-text-secondary">
               <UserCheck size={16} className="text-success" />
-              Direct broker action
+              {sourcePhone || "Contact via KrrishJazz"}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <Button onClick={() => onViewDetails(property)} className="w-full" size="sm">
-              <Eye size={14} className="mr-2" />
-              Details
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onContactBroker(brokerPhone, property)} className="w-full">
+          <div className="mt-4 grid grid-cols-[1.4fr_1fr_auto] gap-2">
+            <Button variant="accent" size="sm" onClick={() => onContactBroker(sourcePhone, property)} className="w-full">
               <Phone size={14} className="mr-2" />
-              Call
+              Call Broker
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onWhatsApp(brokerPhone, property)} className="w-full">
+            <Button variant="outline" size="sm" onClick={() => onWhatsApp(sourcePhone, property)} className="w-full">
               <MessageCircle size={14} className="mr-2" />
               WhatsApp
             </Button>
-            <Button variant="accent" size="sm" onClick={() => onFindRequirements(property)} className="w-full">
-              <Target size={14} className="mr-2" />
-              Match
+            <Button variant="ghost" size="sm" onClick={() => onViewDetails(property)} className="w-full" aria-label="Details">
+              <Eye size={14} />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => onShare(property)} className="w-full">
-              <Share size={14} className="mr-2" />
-              Share
+          </div>
+          <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+            <Button variant="outline" size="sm" onClick={() => onFindRequirements(property)} className="w-full">
+              <Target size={14} className="mr-2" />
+              Match Requirement
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onShare(property)} className="w-full" aria-label="Share">
+              <Share size={14} />
             </Button>
           </div>
         </div>
@@ -851,8 +888,9 @@ function BrokerPropertyDetailsModal({
   if (!property) return null;
 
   const images = property.images.length > 0 ? property.images : property.coverImage ? [property.coverImage] : [];
-  const brokerName = !property.assignedBrokerId ? "KrrishJazz" : property.assignedBroker?.name || property.publicBrokerName || "Network Broker";
-  const brokerPhone = property.assignedBroker?.phone || process.env.NEXT_PUBLIC_PLATFORM_PHONE || "";
+  const sourceLabel = property.sourceLabel || property.publicBrokerName || "Broker Network Property";
+  const sourceName = property.sourceName || sourceLabel;
+  const brokerPhone = property.sourcePhone || "";
   const freshness = getFreshness(property.updatedAt);
   const availability = getAvailability(property);
   const detailRows = [
@@ -865,7 +903,7 @@ function BrokerPropertyDetailsModal({
     ["Floor", property.floor != null && property.totalFloors != null ? `${property.floor} / ${property.totalFloors}` : "N/A"],
     ["Furnishing", property.furnishing || "N/A"],
     ["Age", property.ageYears != null ? `${property.ageYears} years` : "N/A"],
-    ["Listing Reach", property.visibilityType.replaceAll("_", " ")],
+    ["Listing Reach", getVisibilityLabel(property.visibilityType)],
     ["Status", property.listingStatus || property.status],
     ["Matching Requirements", property.matchingRequirementsCount],
     ["Last Updated", new Date(property.updatedAt).toLocaleDateString("en-IN")],
@@ -909,14 +947,14 @@ function BrokerPropertyDetailsModal({
 
         <div className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-3">
           <div>
-            <p className="text-xs text-text-secondary">Broker</p>
-            <p className="mt-1 font-semibold text-foreground">{brokerName}</p>
-            <p className="text-xs text-text-secondary">{brokerPhone || "Platform managed"}</p>
+            <p className="text-xs text-text-secondary">Supply Source</p>
+            <p className="mt-1 font-semibold text-foreground">{sourceName}</p>
+            <p className="text-xs text-text-secondary">{sourceLabel} · {brokerPhone || "Phone unavailable"}</p>
           </div>
           <div>
             <p className="text-xs text-text-secondary">Deal action</p>
             <p className="mt-1 font-semibold text-foreground">Call, WhatsApp, match requirements</p>
-            <p className="text-xs text-text-secondary">Designed for broker follow-up</p>
+            <p className="text-xs text-text-secondary">Broker-to-broker contact is available here</p>
           </div>
           <div>
             <p className="text-xs text-text-secondary">Demand signal</p>
@@ -951,7 +989,7 @@ function BrokerPropertyDetailsModal({
         )}
 
         <div className="grid gap-3 pt-2 sm:grid-cols-3">
-          <Button onClick={() => window.open(`tel:${brokerPhone}`, "_self")}>
+          <Button onClick={() => window.open(`tel:${brokerPhone}`, "_self")} disabled={!brokerPhone}>
             <Phone size={14} className="mr-2" />
             Call Broker
           </Button>
@@ -1061,11 +1099,11 @@ function MatchingRequirementsDrawer({
                         onTrackAction({
                           propertyId: property.id,
                           requirementId: requirement.id,
-                          eventType: "BROKER_CALL_CLICKED",
+                          eventType: "BROKER_REQUIREMENT_CALL_CLICKED",
                           recipientId: requirement.broker.id,
                           metadata: { matchScore: score.score },
                         });
-                        onCallBroker(requirement.broker.phone);
+                        onCallBroker(requirement.broker.phone || "");
                       }}>
                         <Phone size={14} className="mr-2" />
                         Call Broker

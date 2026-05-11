@@ -10,7 +10,6 @@ import {
   BedDouble,
   BellRing,
   Building2,
-  Clock,
   Eye,
   Heart,
   Home,
@@ -196,32 +195,52 @@ function PropertiesContent() {
   const [sort, setSort] = useState(searchParams.get("sort") || "");
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(parseInt(searchParams.get("page") || "1"));
+  const [requirementForm, setRequirementForm] = useState({
+    name: user?.name || "",
+    phone: user?.phone || "",
+    requirementType: searchParams.get("propertyType") || "",
+    locality: searchParams.get("locality") || searchParams.get("q") || "",
+    city: searchParams.get("city") || "",
+    budgetMax: searchParams.get("maxPrice") || "",
+    urgency: "THIS_WEEK",
+    note: "",
+  });
+  const [requirementSubmitting, setRequirementSubmitting] = useState(false);
+  const [requirementSent, setRequirementSent] = useState(false);
 
-  const hasSearchIntent = Boolean(
-    listingType ||
-    category ||
-    propertyType ||
-    locality ||
-    city ||
-    minPrice ||
-    maxPrice ||
-    bedrooms ||
-    furnishing ||
-    freshOnly ||
-    verifiedOnly ||
-    readyToVisitOnly ||
-    ownerListedOnly ||
-    budgetMatchOnly ||
-    availability ||
-    query
-  );
+  const specificIntentCount = [
+    propertyType,
+    locality,
+    city,
+    minPrice,
+    maxPrice,
+    bedrooms,
+    furnishing,
+    freshOnly,
+    verifiedOnly,
+    readyToVisitOnly,
+    ownerListedOnly,
+    budgetMatchOnly,
+    availability,
+    query,
+  ].filter(Boolean).length;
+  const broadIntentCount = [listingType, category].filter(Boolean).length;
+  const hasSearchIntent = specificIntentCount > 0 || broadIntentCount >= 2;
+  const needsMoreFilters = broadIntentCount > 0 && !hasSearchIntent;
 
   const fetchProperties = useCallback(async () => {
     if (!hasSearchIntent) {
       setProperties([]);
       setPagination(null);
       setLoading(false);
-      router.replace("/properties", { scroll: false });
+      if (needsMoreFilters) {
+        const params = new URLSearchParams();
+        if (listingType) params.set("listingType", listingType);
+        if (category) params.set("category", category);
+        router.replace(`/properties?${params.toString()}`, { scroll: false });
+      } else {
+        router.replace("/properties", { scroll: false });
+      }
       return;
     }
 
@@ -257,7 +276,7 @@ function PropertiesContent() {
     } finally {
       setLoading(false);
     }
-  }, [hasSearchIntent, listingType, category, propertyType, locality, city, minPrice, maxPrice, bedrooms, furnishing, freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly, availability, sort, query, page, router]);
+  }, [hasSearchIntent, needsMoreFilters, listingType, category, propertyType, locality, city, minPrice, maxPrice, bedrooms, furnishing, freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly, availability, sort, query, page, router]);
 
   useEffect(() => {
     fetchProperties();
@@ -319,15 +338,15 @@ function PropertiesContent() {
     setPage(1);
     if (action === "office") {
       setCategory("COMMERCIAL");
-      setPropertyType("Office");
+      setPropertyType("Office Space");
     }
     if (action === "2bhk") {
       setCategory("RESIDENTIAL");
       setBedrooms("2");
     }
     if (action === "warehouse") {
-      setCategory("COMMERCIAL");
-      setPropertyType("Warehouse");
+      setCategory("INDUSTRIAL");
+      setPropertyType("Warehouse / Godown");
     }
     if (action === "verified") setVerifiedOnly((value) => !value);
     if (action === "fresh") setFreshOnly((value) => !value);
@@ -351,6 +370,39 @@ function PropertiesContent() {
   const availablePropertyTypes = category
     ? PROPERTY_TYPES[category] || []
     : Object.values(PROPERTY_TYPES).flat();
+
+  const submitSearchRequirement = async () => {
+    setRequirementSubmitting(true);
+    try {
+      const res = await fetch("/api/search-requirements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...requirementForm,
+          requirementType: requirementForm.requirementType || propertyType || category || "Property",
+          locality: requirementForm.locality || locality || query,
+          city: requirementForm.city || city || "Kolkata",
+          budgetMax: requirementForm.budgetMax ? Number(requirementForm.budgetMax) : undefined,
+          sourceUrl: typeof window !== "undefined" ? window.location.href : "",
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const firstError = data?.error && typeof data.error === "object"
+          ? Object.values(data.error).flat().filter(Boolean)[0]
+          : data?.error;
+        toast(String(firstError || "Could not submit your requirement."), "error");
+        return;
+      }
+      setRequirementSent(true);
+      toast("Requirement shared. KrrishJazz will look for matching options.", "success");
+    } catch {
+      toast("Could not submit your requirement.", "error");
+    } finally {
+      setRequirementSubmitting(false);
+    }
+  };
 
   const activeFilters = [
     listingType && { label: listingType, clear: () => setListingType("") },
@@ -493,7 +545,8 @@ function PropertiesContent() {
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
         <aside
           className={cn(
-            "h-fit shrink-0 space-y-4 rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:block lg:w-72",
+            "shrink-0 space-y-4 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:block lg:h-fit lg:w-72",
+            filtersOpen && "fixed inset-x-3 bottom-20 top-24 z-40 lg:static",
             filtersOpen ? "block" : "hidden"
           )}
         >
@@ -696,6 +749,7 @@ function PropertiesContent() {
 
           {!hasSearchIntent ? (
             <GuidedSearchStart
+              needsMoreFilters={needsMoreFilters}
               onPick={(next) => {
                 setPage(1);
                 if (next.category !== undefined) setCategory(next.category);
@@ -720,14 +774,26 @@ function PropertiesContent() {
               ))}
             </div>
           ) : visibleProperties.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border bg-white p-10 text-center shadow-card">
-              <Building2 size={42} className="mx-auto text-primary" />
-              <h3 className="mt-4 text-lg font-semibold text-foreground">No matching inventory yet</h3>
-              <p className="mt-2 text-sm text-text-secondary">Try changing budget, trust chips, location, or property type.</p>
-              <Button onClick={clearFilters} className="mt-5" variant="outline">
-                Clear filters
-              </Button>
-            </div>
+            <NoMatchRequirementCapture
+              form={requirementForm}
+              setForm={setRequirementForm}
+              submitting={requirementSubmitting}
+              sent={requirementSent}
+              onSubmit={submitSearchRequirement}
+              onClearFilters={clearFilters}
+              onRelaxBudget={() => {
+                setMinPrice("");
+                setMaxPrice("");
+                setBudgetMatchOnly(false);
+                setPage(1);
+              }}
+              onShowNearby={() => {
+                setLocality("");
+                setQuery(city || "Kolkata");
+                setPage(1);
+              }}
+              propertyTypes={availablePropertyTypes}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {visibleProperties.map((property) => (
@@ -757,11 +823,21 @@ function PropertiesContent() {
       </div>
 
       <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_1fr_1.1fr] gap-2">
           <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="outline" className="w-full">
             <SlidersHorizontal size={16} className="mr-2" />
-            Filters
+            Filters{activeFilters.length ? ` (${activeFilters.length})` : ""}
           </Button>
+          <select
+            value={sort}
+            onChange={(e) => { setSort(e.target.value); setPage(1); }}
+            className="min-h-10 rounded-btn border border-border bg-white px-2 text-xs font-semibold text-foreground outline-none focus:border-primary"
+            aria-label="Sort properties"
+          >
+            <option value="">Newest</option>
+            <option value="price_asc">Low price</option>
+            <option value="price_desc">High price</option>
+          </select>
           <Button onClick={() => { setPage(1); fetchProperties(); }} variant="accent" className="w-full">
             Search
           </Button>
@@ -780,15 +856,176 @@ function FilterGroup({ label, children }: { label: string; children: ReactNode }
   );
 }
 
+function NoMatchRequirementCapture({
+  form,
+  setForm,
+  submitting,
+  sent,
+  onSubmit,
+  onClearFilters,
+  onRelaxBudget,
+  onShowNearby,
+  propertyTypes,
+}: {
+  form: {
+    name: string;
+    phone: string;
+    requirementType: string;
+    locality: string;
+    city: string;
+    budgetMax: string;
+    urgency: string;
+    note: string;
+  };
+  setForm: (form: {
+    name: string;
+    phone: string;
+    requirementType: string;
+    locality: string;
+    city: string;
+    budgetMax: string;
+    urgency: string;
+    note: string;
+  }) => void;
+  submitting: boolean;
+  sent: boolean;
+  onSubmit: () => void;
+  onClearFilters: () => void;
+  onRelaxBudget: () => void;
+  onShowNearby: () => void;
+  propertyTypes: string[];
+}) {
+  const update = (key: keyof typeof form, value: string) => setForm({ ...form, [key]: value });
+  const [wizardStep, setWizardStep] = useState(0);
+  const wizardLabels = ["Need", "Location", "Budget", "Contact"];
+
+  return (
+    <div className="overflow-hidden rounded-card border border-border bg-white shadow-card">
+      <div className="grid gap-0 lg:grid-cols-[1fr_390px]">
+        <div className="bg-primary-light p-6 lg:p-8">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">
+            <Search size={22} />
+          </div>
+          <h3 className="mt-5 text-2xl font-semibold text-foreground">No exact match yet</h3>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
+            Good search, thin supply. Share what you need and KrrishJazz can manually check owner and broker inventory instead of making you keep refreshing filters.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <button type="button" onClick={onRelaxBudget} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
+              <p className="text-sm font-semibold text-foreground">Relax budget</p>
+              <p className="mt-1 text-xs leading-5 text-text-secondary">Remove strict price filters and see near matches.</p>
+            </button>
+            <button type="button" onClick={onShowNearby} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
+              <p className="text-sm font-semibold text-foreground">Try nearby</p>
+              <p className="mt-1 text-xs leading-5 text-text-secondary">Search broader localities around your preferred area.</p>
+            </button>
+            <button type="button" onClick={onClearFilters} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
+              <p className="text-sm font-semibold text-foreground">Reset filters</p>
+              <p className="mt-1 text-xs leading-5 text-text-secondary">Start clean with one city, type, or budget.</p>
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-border bg-white p-5 lg:border-l lg:border-t-0">
+          {sent ? (
+            <div className="flex h-full min-h-80 flex-col items-center justify-center text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-light text-success">
+                <BadgeCheck size={24} />
+              </div>
+              <h4 className="mt-4 text-lg font-semibold text-foreground">Requirement received</h4>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                KrrishJazz ops can now follow up and look for matching supply manually.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Tell KrrishJazz your requirement</p>
+                <p className="mt-1 text-xs leading-5 text-text-secondary">This becomes an assisted-search request for admin follow-up.</p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1">
+                {wizardLabels.map((label, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setWizardStep(index)}
+                    className={cn(
+                      "rounded-btn border px-2 py-2 text-[11px] font-semibold transition-colors",
+                      wizardStep === index ? "border-primary bg-primary text-white" : "border-border bg-surface text-text-secondary"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {wizardStep === 0 && (
+                <>
+                  <select value={form.requirementType} onChange={(event) => update("requirementType", event.target.value)} className="min-h-11 w-full rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary">
+                    <option value="">Property type</option>
+                    {propertyTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                  <textarea value={form.note} onChange={(event) => update("note", event.target.value)} placeholder="Anything important? floor, road, visit timing, furnishing..." className="min-h-24 w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary" />
+                </>
+              )}
+
+              {wizardStep === 1 && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                  <input value={form.locality} onChange={(event) => update("locality", event.target.value)} placeholder="Preferred locality" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
+                  <input value={form.city} onChange={(event) => update("city", event.target.value)} placeholder="City" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
+                </div>
+              )}
+
+              {wizardStep === 2 && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                  <input type="number" value={form.budgetMax} onChange={(event) => update("budgetMax", event.target.value)} placeholder="Max budget" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
+                  <select value={form.urgency} onChange={(event) => update("urgency", event.target.value)} className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary">
+                    <option value="IMMEDIATE">Immediate</option>
+                    <option value="THIS_WEEK">This week</option>
+                    <option value="THIS_MONTH">This month</option>
+                    <option value="EXPLORING">Just exploring</option>
+                  </select>
+                </div>
+              )}
+
+              {wizardStep === 3 && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                  <input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Your name" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
+                  <input value={form.phone} onChange={(event) => update("phone", event.target.value)} placeholder="+91XXXXXXXXXX" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" disabled={wizardStep === 0} onClick={() => setWizardStep((step) => Math.max(0, step - 1))}>Back</Button>
+                <Button type="button" variant="outline" disabled={wizardStep === wizardLabels.length - 1} onClick={() => setWizardStep((step) => Math.min(wizardLabels.length - 1, step + 1))}>Next</Button>
+              </div>
+
+              <Button onClick={onSubmit} loading={submitting} className="w-full" disabled={!form.name || !form.phone || !form.city}>
+                Send Requirement
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GuidedSearchStart({
+  needsMoreFilters,
   onPick,
 }: {
+  needsMoreFilters: boolean;
   onPick: (next: { category?: string; propertyType?: string; listingType?: string; query?: string }) => void;
 }) {
   const starters = [
     { title: "Buy a home", desc: "Flats, villas, independent houses", icon: Home, tone: "bg-primary-light text-primary", next: { category: "RESIDENTIAL", listingType: "BUY" } },
     { title: "Rent a home", desc: "Ready-to-move rental homes", icon: Building2, tone: "bg-accent-light text-accent", next: { category: "RESIDENTIAL", listingType: "RENT" } },
-    { title: "Commercial space", desc: "Offices, shops, showrooms", icon: Store, tone: "bg-success-light text-success", next: { category: "COMMERCIAL" } },
+    { title: "Commercial space", desc: "Offices, shops, showrooms", icon: Store, tone: "bg-success-light text-success", next: { category: "COMMERCIAL", propertyType: "Office Space" } },
     { title: "Plots and land", desc: "Investment land and plots", icon: MapPin, tone: "bg-warning-light text-[#9A5B00]", next: { propertyType: "Residential Plot" } },
   ];
 
@@ -800,9 +1037,11 @@ function GuidedSearchStart({
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-light text-primary">
           <SlidersHorizontal size={22} />
         </div>
-        <h3 className="mt-4 text-xl font-semibold text-foreground">Start with a filter</h3>
+        <h3 className="mt-4 text-xl font-semibold text-foreground">{needsMoreFilters ? "Add one more filter" : "Start with a filter"}</h3>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-          We will show properties after you choose a need, location, budget, or search term. This keeps the page easy instead of overwhelming.
+          {needsMoreFilters
+            ? "Buy, Rent, or Commercial alone is too broad. Add locality, budget, BHK, or property type so the results stay useful."
+            : "We will show properties after you choose a need, location, budget, or search term. This keeps the page easy instead of overwhelming."}
         </p>
       </div>
 
@@ -871,40 +1110,40 @@ function PropertyCard({
   const freshness = getFreshness(property.updatedAt);
   const image = property.coverImage || property.images[0];
   const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
-  const brokerName = property.publicBrokerName || property.postedBy.name || "KrrishJazz";
+  const brokerName = "KrrishJazz";
+  const specs = getSmartSpecs(property).slice(0, 3);
   const trustSignals = [
     property.verified ? { label: "Verified", icon: ShieldCheck, tone: "text-success bg-success/10 border-success/20" } : null,
-    getFreshness(property.updatedAt).score === "high" ? { label: "Fresh", icon: BellRing, tone: "text-primary bg-primary-light border-primary/20" } : null,
     property.readyToVisit ? { label: "Ready to Visit", icon: Eye, tone: "text-accent bg-accent/10 border-accent/20" } : null,
+    getFreshness(property.updatedAt).score === "high" ? { label: "Fresh", icon: BellRing, tone: "text-primary bg-primary-light border-primary/20" } : null,
     property.ownerListed ? { label: "Owner Listed", icon: Home, tone: "text-warning bg-warning-light border-warning/20" } : null,
-  ].filter(Boolean) as { label: string; icon: typeof ShieldCheck; tone: string }[];
+  ].filter(Boolean).slice(0, 3) as { label: string; icon: typeof ShieldCheck; tone: string }[];
 
   return (
-    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="flex flex-col lg:flex-row">
-        <div className="relative h-64 bg-surface lg:h-auto lg:w-72 lg:shrink-0">
-          {image ? (
-            <img
-              src={image}
-              alt={property.title}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-primary">
-              <Building2 size={48} />
-            </div>
-          )}
+    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lift">
+      <div className="grid lg:grid-cols-[310px_1fr]">
+        <div className="relative h-64 overflow-hidden bg-surface lg:h-full">
+          <Link href={`/properties/${property.slug}`} className="block h-full">
+            {image ? (
+              <img
+                src={image}
+                alt={property.title}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-primary">
+                <Building2 size={48} />
+              </div>
+            )}
+          </Link>
 
           <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
             <Badge variant={badgeVariant(property.listingType)}>{listingLabel(property.listingType)}</Badge>
-            <Badge variant={freshness.variant}>
-              <BellRing size={11} className="mr-1" />
-              {freshness.label}
-            </Badge>
           </div>
 
           <button
+            type="button"
             onClick={() => onSave(property.id)}
             className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-text-secondary shadow-card transition-colors hover:text-accent"
             aria-label="Save property"
@@ -912,72 +1151,58 @@ function PropertyCard({
             <Heart size={17} />
           </button>
 
-          <div className="absolute bottom-3 left-3 right-3 rounded-card bg-foreground/82 p-3 text-white backdrop-blur">
-            <p className="text-xs text-white/70">Protected by KrrishJazz</p>
-            <p className="mt-1 flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck size={15} className="text-success" />
-              Verified inventory workflow
-            </p>
+          <div className="absolute bottom-3 left-3 rounded-pill bg-foreground/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+            {property.images.length || (property.coverImage ? 1 : 0)} photo{property.images.length === 1 ? "" : "s"}
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col p-4 lg:p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col p-4 lg:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge variant="blue">{property.propertyType}</Badge>
-                {property.verified && (
-                  <Badge variant="success">
-                    <BadgeCheck size={11} className="mr-1" />
-                    Verified
-                  </Badge>
-                )}
-                {property.ownerListed && <Badge variant="warning">Owner Listed</Badge>}
-              </div>
               <Link href={`/properties/${property.slug}`} className="block">
                 <h2 className="line-clamp-2 text-xl font-semibold text-foreground group-hover:text-primary">{property.title}</h2>
               </Link>
               <p className="mt-2 flex items-center gap-1 text-sm text-text-secondary">
                 <MapPin size={14} />
-                <span className="line-clamp-1">{property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}</span>
+                <span className="line-clamp-1">{property.locality ? `${property.locality}, ` : ""}{property.city}</span>
               </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Badge variant="blue">{property.propertyType}</Badge>
+                <Badge variant={freshness.variant}>
+                  <BellRing size={11} className="mr-1" />
+                  {freshness.label}
+                </Badge>
+              </div>
             </div>
 
-            <div className="shrink-0 lg:text-right">
+            <div className="shrink-0 sm:text-right">
               <p className="text-2xl font-bold text-primary">{formatPrice(Number(property.price))}</p>
               {pricePerUnit && <p className="mt-1 text-xs text-text-secondary">Rs {pricePerUnit}/sqft</p>}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {getSmartSpecs(property).map((spec) => (
-              <div key={spec.label} className="rounded-btn border border-border bg-surface px-3 py-2">
-                <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
-                  {spec.icon}
-                  <span className="truncate">{spec.value}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-text-secondary">{spec.label}</p>
-              </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {specs.map((spec) => (
+              <span key={spec.label} className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground">
+                {spec.icon}
+                {spec.value}
+              </span>
             ))}
           </div>
 
-          <div className="mt-4 grid gap-2 rounded-card border border-border bg-surface p-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 rounded-card border border-primary/10 bg-primary-light/60 p-3 sm:grid-cols-[1fr_auto]">
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-primary text-xs font-bold">
                 {brokerName.charAt(0).toUpperCase()}
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{brokerName}</p>
-                <p className="text-xs text-text-secondary">Active broker</p>
+                <p className="text-xs text-text-secondary">KrrishJazz managed contact</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Clock size={15} className="text-success" />
-              Freshness checked
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Eye size={15} className="text-accent" />
-              Ready to enquire
+            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+              <ShieldCheck size={15} />
+              Contact protected
             </div>
           </div>
 
@@ -995,34 +1220,26 @@ function PropertyCard({
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Link href={`/properties/${property.slug}`} className="sm:col-span-1">
-              <Button className="w-full" size="sm">
-                <Eye size={14} className="mr-2" />
-                Details
+          <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
+            <Link href={user ? `/properties/${property.slug}#enquire` : `/login?redirect=/properties/${property.slug}`} className="min-w-0">
+              <Button variant="accent" className="w-full" size="sm">
+                <MessageCircle size={14} className="mr-2" />
+                Get Callback
               </Button>
             </Link>
-            <Link href={user ? `/properties/${property.slug}#enquire` : `/login?redirect=/properties/${property.slug}`}>
-              <Button className="w-full" variant="accent" size="sm">
-                <MessageCircle size={14} className="mr-2" />
-                Enquire
+            <Link href={`/properties/${property.slug}`}>
+              <Button variant="outline" size="sm" aria-label="View details">
+                <Eye size={14} className="mr-2" />
+                <span className="hidden sm:inline">Details</span>
               </Button>
             </Link>
             <button
               type="button"
               onClick={() => onShare(property)}
-              className="inline-flex items-center justify-center rounded-btn border border-primary/40 bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary-light"
-            >
-              <Share2 size={14} className="mr-2" />
-              Share
-            </button>
-            <button
-              type="button"
-              onClick={() => onSave(property.id)}
               className="inline-flex items-center justify-center rounded-btn border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-primary-light hover:text-primary"
+              aria-label="Share property"
             >
-              <Heart size={14} className="mr-2" />
-              Save
+              <Share2 size={14} />
             </button>
           </div>
         </div>

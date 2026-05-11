@@ -32,7 +32,7 @@ export async function GET() {
           where: {
             targetType: "ENQUIRY",
             targetId: { in: leads.map((lead) => lead.id) },
-            eventType: { in: ["LEAD_NOTE_ADDED", "LEAD_STATUS_UPDATED"] },
+            eventType: { in: ["LEAD_NOTE_ADDED", "LEAD_STATUS_UPDATED", "LEAD_FOLLOW_UP_UPDATED"] },
           },
           include: { actor: { select: { name: true, phone: true } } },
           orderBy: { createdAt: "desc" },

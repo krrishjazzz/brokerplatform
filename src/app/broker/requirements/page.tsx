@@ -46,7 +46,7 @@ interface Requirement {
   broker: {
     id: string;
     name: string;
-    phone: string;
+    phone?: string;
   };
 }
 
@@ -67,15 +67,20 @@ interface MatchedProperty {
   assignedBroker?: {
     id?: string;
     name: string;
-    phone: string;
+    phone?: string;
   } | null;
   postedById?: string;
   postedBy?: {
     id: string;
     name: string | null;
-    phone: string;
+    role?: string;
+    phone?: string;
   };
   publicBrokerName: string;
+  sourceType?: string;
+  sourceLabel?: string;
+  sourceName?: string;
+  sourcePhone?: string;
   area: number;
   areaUnit: string;
   furnishing: string | null;
@@ -220,10 +225,14 @@ export default function BrokerRequirementsPage() {
   }, [user, router, fetchRequirements]);
 
   const handleCallBroker = (phone: string, requirement?: Requirement) => {
+    if (!phone || phone.includes("XXXX")) {
+      toast("Broker phone is not available yet.", "error");
+      return;
+    }
     if (requirement) {
       trackBrokerAction({
         requirementId: requirement.id,
-        eventType: "BROKER_CALL_CLICKED",
+        eventType: "BROKER_REQUIREMENT_CALL_CLICKED",
         recipientId: requirement.broker.id,
         metadata: { source: "BROKER_REQUIREMENT_CARD" },
       });
@@ -232,9 +241,13 @@ export default function BrokerRequirementsPage() {
   };
 
   const handleWhatsApp = (phone: string, requirement: Requirement) => {
+    if (!phone || phone.includes("XXXX")) {
+      toast("Broker WhatsApp number is not available yet.", "error");
+      return;
+    }
     trackBrokerAction({
       requirementId: requirement.id,
-      eventType: "BROKER_WHATSAPP_CLICKED",
+      eventType: "BROKER_REQUIREMENT_WHATSAPP_CLICKED",
       recipientId: requirement.broker.id,
       metadata: { source: "BROKER_REQUIREMENT_CARD" },
     });
@@ -246,7 +259,7 @@ export default function BrokerRequirementsPage() {
       `Budget: ${getBudgetText(requirement)}`,
       `Current matches: ${requirement.matchedPropertiesCount}`,
       "",
-      "I may have matching inventory. Please confirm client seriousness and next steps.",
+      "I may have matching inventory. Please confirm client seriousness, brokerage terms, and next steps.",
     ].join("\n");
     window.open(`https://wa.me/${phone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -313,7 +326,7 @@ export default function BrokerRequirementsPage() {
   const handleSendRequirementToPropertyBroker = (property: MatchedProperty, requirement: Requirement) => {
     const phone = getMatchedPropertyBrokerPhone(property);
     if (!phone || phone.includes("XXXX")) {
-      toast("Broker phone is not available for this property.", "error");
+      toast("Property broker phone is not available yet.", "error");
       return;
     }
 
@@ -344,11 +357,14 @@ export default function BrokerRequirementsPage() {
 
   const handleCallPropertyBroker = (property: MatchedProperty) => {
     const phone = getMatchedPropertyBrokerPhone(property);
-    if (!phone || phone.includes("XXXX")) return;
+    if (!phone || phone.includes("XXXX")) {
+      toast("Property broker phone is not available yet.", "error");
+      return;
+    }
     trackBrokerAction({
       propertyId: property.id,
       requirementId: matchRequirement?.id,
-      eventType: "BROKER_CALL_CLICKED",
+      eventType: "BROKER_PROPERTY_CALL_CLICKED",
       recipientId: getMatchedPropertyBrokerId(property),
       metadata: { source: "REQUIREMENT_MATCH_DRAWER" },
     });
@@ -561,7 +577,7 @@ export default function BrokerRequirementsPage() {
           <div className="mt-4 grid gap-2 text-primary lg:grid-cols-3">
             <BrokerWorkflowCard icon={<Plus size={16} />} title="Capture demand" text="Add buyer or tenant requirements while the client is warm." />
             <BrokerWorkflowCard icon={<Target size={16} />} title="Match supply" text="Open matching properties and share only the best-fit options." />
-            <BrokerWorkflowCard icon={<Phone size={16} />} title="Confirm fast" text="Call brokers with budget, city, and seriousness already packaged." />
+            <BrokerWorkflowCard icon={<Phone size={16} />} title="Confirm fast" text="Call or WhatsApp brokers with budget, city, and seriousness already packaged." />
           </div>
         </div>
       </section>
@@ -671,10 +687,10 @@ export default function BrokerRequirementsPage() {
               <Loader2 size={38} className="animate-spin text-primary" />
             </div>
           ) : visibleRequirements.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border bg-white p-10 text-center shadow-card">
+            <div className="rounded-card border border-dashed border-border bg-white p-8 text-center shadow-card">
               <FileText size={54} className="mx-auto mb-4 text-primary" />
               <h3 className="mb-2 text-lg font-semibold text-foreground">No active demand found</h3>
-              <p className="text-text-secondary">Try clearing filters or add a new requirement from a client conversation.</p>
+              <p className="mx-auto max-w-xl text-sm leading-6 text-text-secondary">Add real buyer or tenant demand from client conversations. KrrishJazz will help match it against protected network inventory.</p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <Button onClick={clearFilters} variant="outline">Clear filters</Button>
                 <Button onClick={() => setShowAddModal(true)}>Add Requirement</Button>
@@ -793,7 +809,7 @@ function RequirementCard({ requirement, onCallBroker, onWhatsApp, onShareRequire
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{requirement.broker.name}</p>
-              <p className="text-xs text-text-secondary">{requirement.broker.phone}</p>
+              <p className="text-xs text-text-secondary">{requirement.broker.phone || "Phone unavailable"}</p>
             </div>
           </div>
 
@@ -803,11 +819,11 @@ function RequirementCard({ requirement, onCallBroker, onWhatsApp, onShareRequire
               View Matches
             </Button>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={() => onCallBroker(requirement.broker.phone, requirement)}>
+              <Button variant="outline" size="sm" onClick={() => onCallBroker(requirement.broker.phone || "", requirement)}>
                 <Phone size={14} className="mr-1" />
                 Call
               </Button>
-              <Button variant="outline" size="sm" onClick={() => onWhatsApp(requirement.broker.phone, requirement)}>
+              <Button variant="outline" size="sm" onClick={() => onWhatsApp(requirement.broker.phone || "", requirement)}>
                 <MessageCircle size={14} className="mr-1" />
                 WhatsApp
               </Button>
@@ -992,7 +1008,7 @@ function MatchingPropertiesDrawer({
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-4 grid grid-cols-3 gap-2">
             <RequirementMatchSignal label="Matched supply" value={properties.length} />
-            <RequirementMatchSignal label="Broker" value={requirement.broker.name} />
+            <RequirementMatchSignal label="Demand Source" value={requirement.broker.name} />
             <RequirementMatchSignal label="Posted" value={new Date(requirement.createdAt).toLocaleDateString("en-IN")} />
           </div>
 
@@ -1013,6 +1029,7 @@ function MatchingPropertiesDrawer({
               {properties.map((property) => {
                 const score = getPropertyFit(requirement, property);
                 const brokerName = getMatchedPropertyBrokerName(property);
+                const brokerPhone = getMatchedPropertyBrokerPhone(property);
                 const imageUrl = property.coverImage || property.images?.[0] || "";
 
                 return (
@@ -1037,7 +1054,7 @@ function MatchingPropertiesDrawer({
                         <p className="mt-1 line-clamp-1 text-sm text-text-secondary">{property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}</p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-3">
                           <InfoTile label="Area" value={`${Math.round(property.area).toLocaleString()} ${property.areaUnit}`} />
-                          <InfoTile label="Broker" value={brokerName} />
+                          <InfoTile label="Supply Source" value={brokerPhone ? `${brokerName} · ${brokerPhone}` : brokerName} />
                           <InfoTile label="Freshness" value={getMatchedPropertyFreshness(property.updatedAt)} highlight />
                         </div>
                         <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -1068,8 +1085,7 @@ function MatchingPropertiesDrawer({
 }
 
 function getMatchedPropertyBrokerName(property: MatchedProperty) {
-  if (!property.assignedBrokerId) return "KrrishJazz";
-  return property.assignedBroker?.name || property.publicBrokerName || "Network Broker";
+  return property.sourceName || property.sourceLabel || property.assignedBroker?.name || property.postedBy?.name || property.publicBrokerName || "Broker Network Property";
 }
 
 function getMatchedPropertyBrokerId(property: MatchedProperty) {
@@ -1077,8 +1093,7 @@ function getMatchedPropertyBrokerId(property: MatchedProperty) {
 }
 
 function getMatchedPropertyBrokerPhone(property: MatchedProperty) {
-  if (!property.assignedBrokerId) return process.env.NEXT_PUBLIC_PLATFORM_PHONE || "+91XXXXXXXXXX";
-  return property.assignedBroker?.phone || "";
+  return property.sourcePhone || property.assignedBroker?.phone || property.postedBy?.phone || "";
 }
 
 function getMatchedPropertyFreshness(updatedAt: string) {

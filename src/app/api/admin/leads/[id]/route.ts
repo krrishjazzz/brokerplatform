@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/workflow";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_STATUSES = new Set(["NEW", "CONTACTED", "VISIT_SCHEDULED", "NEGOTIATING", "CLOSED", "LOST"]);
+const ALLOWED_PRIORITIES = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
 
 function parseMetadata(value: string) {
   try {
@@ -25,13 +26,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = await req.json();
     const status = body.status ? String(body.status).toUpperCase() : "";
     const note = typeof body.note === "string" ? body.note.trim() : "";
+    const priority = body.priority ? String(body.priority).toUpperCase() : "";
+    const nextAction = typeof body.nextAction === "string" ? body.nextAction.trim() : undefined;
+    const assignedTo = typeof body.assignedTo === "string" ? body.assignedTo.trim() : undefined;
+    const lastOutcome = typeof body.lastOutcome === "string" ? body.lastOutcome.trim() : undefined;
+    const followUpAt = body.followUpAt ? new Date(body.followUpAt) : undefined;
 
-    if (!status && !note) {
-      return NextResponse.json({ error: "Status or note is required" }, { status: 400 });
+    if (!status && !note && !priority && nextAction === undefined && assignedTo === undefined && lastOutcome === undefined && !followUpAt) {
+      return NextResponse.json({ error: "Status, note, or follow-up update is required" }, { status: 400 });
     }
 
     if (status && !ALLOWED_STATUSES.has(status)) {
       return NextResponse.json({ error: "Invalid lead status" }, { status: 400 });
+    }
+    if (priority && !ALLOWED_PRIORITIES.has(priority)) {
+      return NextResponse.json({ error: "Invalid lead priority" }, { status: 400 });
+    }
+    if (followUpAt && Number.isNaN(followUpAt.getTime())) {
+      return NextResponse.json({ error: "Invalid follow-up date" }, { status: 400 });
     }
 
     const existing = await prisma.enquiry.findUnique({
@@ -43,10 +55,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    const lead = status
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (priority) updateData.priority = priority;
+    if (nextAction !== undefined) updateData.nextAction = nextAction || null;
+    if (assignedTo !== undefined) updateData.assignedTo = assignedTo || null;
+    if (lastOutcome !== undefined) updateData.lastOutcome = lastOutcome || null;
+    if (followUpAt) updateData.followUpAt = followUpAt;
+
+    const lead = Object.keys(updateData).length
       ? await prisma.enquiry.update({
           where: { id: params.id },
-          data: { status },
+          data: updateData,
           include: {
             property: { select: { title: true, slug: true } },
             customer: { select: { name: true } },
@@ -89,11 +109,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       });
     }
 
+    if (priority || nextAction !== undefined || assignedTo !== undefined || lastOutcome !== undefined || followUpAt) {
+      await logActivity({
+        actorId: session.id,
+        eventType: "LEAD_FOLLOW_UP_UPDATED",
+        targetType: "ENQUIRY",
+        targetId: lead.id,
+        propertyId: existing.propertyId,
+        metadata: {
+          priority: priority || lead.priority,
+          nextAction: nextAction ?? lead.nextAction,
+          assignedTo: assignedTo ?? lead.assignedTo,
+          lastOutcome: lastOutcome ?? lead.lastOutcome,
+          followUpAt: followUpAt ? followUpAt.toISOString() : lead.followUpAt?.toISOString(),
+          note,
+          propertyTitle: existing.property.title,
+        },
+      });
+    }
+
     const activities = await prisma.activityEvent.findMany({
       where: {
         targetType: "ENQUIRY",
         targetId: lead.id,
-        eventType: { in: ["LEAD_NOTE_ADDED", "LEAD_STATUS_UPDATED"] },
+        eventType: { in: ["LEAD_NOTE_ADDED", "LEAD_STATUS_UPDATED", "LEAD_FOLLOW_UP_UPDATED"] },
       },
       include: { actor: { select: { name: true, phone: true } } },
       orderBy: { createdAt: "desc" },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = {
       status: { notIn: ["REJECTED", "CLOSED"] },
-      visibilityType: { not: "PRIVATE" },
+      visibilityType: { in: BROKER_VISIBLE_TYPES },
     };
 
     const listingType = searchParams.get("listingType");
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
         include: {
+          postedBy: { select: { id: true, name: true, phone: true, role: true } },
           assignedBroker: {
             select: {
               name: true,
@@ -137,6 +139,31 @@ export async function GET(req: NextRequest) {
         },
       });
 
+      const sourceType =
+        property.postedById === session.id || property.assignedBrokerId === session.id
+          ? "YOUR_PROPERTY"
+          : property.postedBy?.role === "OWNER"
+          ? "KRRISHJAZZ_OWNER_PROPERTY"
+          : "BROKER_NETWORK_PROPERTY";
+      const sourceLabel =
+        sourceType === "YOUR_PROPERTY"
+          ? "Your Property"
+          : sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+          ? "KrrishJazz Managed Owner Property"
+          : "Broker Network Property";
+      const sourceName =
+        sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+          ? "KrrishJazz"
+          : sourceType === "YOUR_PROPERTY"
+          ? session.name || "You"
+          : property.assignedBroker?.name || property.postedBy?.name || "Network Broker";
+      const sourcePhone =
+        sourceType === "KRRISHJAZZ_OWNER_PROPERTY"
+          ? process.env.NEXT_PUBLIC_PLATFORM_PHONE || ""
+          : sourceType === "YOUR_PROPERTY"
+          ? session.phone
+          : property.assignedBroker?.phone || property.postedBy?.phone || "";
+
       return {
         id: property.id,
         slug: property.slug,
@@ -155,8 +182,12 @@ export async function GET(req: NextRequest) {
         images,
         amenities,
         assignedBrokerId: property.assignedBrokerId,
-        assignedBroker: property.assignedBroker,
-        publicBrokerName: property.publicBrokerName,
+        assignedBroker: property.assignedBroker ? { name: property.assignedBroker.name, phone: property.assignedBroker.phone } : null,
+        publicBrokerName: sourceLabel,
+        sourceType,
+        sourceLabel,
+        sourceName,
+        sourcePhone,
         verified: property.status === "LIVE",
         area: property.area,
         areaUnit: property.areaUnit,

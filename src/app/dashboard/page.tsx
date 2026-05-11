@@ -53,6 +53,7 @@ import {
   INDIAN_CITIES,
 } from "@/lib/constants";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
+import { VISIBILITY_OPTIONS, getVisibilityLabel } from "@/lib/visibility";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -834,9 +835,12 @@ function MyPropertiesSection() {
         <div className="bg-white rounded-card shadow-card p-8 text-center border border-border">
           <Home size={48} className="mx-auto text-text-secondary mb-3" />
           <p className="text-text-secondary">You haven&apos;t posted any properties yet.</p>
+          <Button className="mt-5" onClick={() => window.location.href = "/dashboard?tab=post"}>Post your first property</Button>
         </div>
       ) : (
         <div className="space-y-5">
+          <OwnerActivityTimeline properties={properties} />
+          <VisibilityAnalytics properties={properties} />
           {properties.map((p) => {
             const freshness = getFreshnessSignal(p);
             const listingHealth = getListingHealthScore(p);
@@ -914,6 +918,78 @@ function MyPropertiesSection() {
 
 // ─── Post Property (Multi-step Form) ────────────────────────────────────────────
 
+function OwnerActivityTimeline({ properties }: { properties: PropertyRow[] }) {
+  const liveCount = properties.filter((property) => property.status === "LIVE").length;
+  const enquiryCount = properties.reduce((total, property) => total + (property._count?.enquiries || 0), 0);
+  const freshCount = properties.filter((property) => property.latestFreshness?.availabilityStatus === "AVAILABLE").length;
+  const steps = [
+    { title: "Listings submitted", desc: `${properties.length} propert${properties.length === 1 ? "y" : "ies"} in your workspace`, active: properties.length > 0 },
+    { title: "KrrishJazz verification", desc: `${liveCount} live listing${liveCount === 1 ? "" : "s"} after review`, active: liveCount > 0 },
+    { title: "Customer interest", desc: `${enquiryCount} managed response${enquiryCount === 1 ? "" : "s"} captured`, active: enquiryCount > 0 },
+    { title: "Freshness check", desc: `${freshCount} listing${freshCount === 1 ? "" : "s"} recently confirmed`, active: freshCount > 0 },
+  ];
+
+  return (
+    <section className="rounded-card border border-border bg-white p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="font-semibold text-foreground">KrrishJazz activity timeline</h3>
+          <p className="text-sm text-text-secondary">A simple view of what is happening after you list.</p>
+        </div>
+        <Badge variant="blue">Owner view</Badge>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        {steps.map((step, index) => (
+          <div key={step.title} className={cn("rounded-card border p-4", step.active ? "border-primary/20 bg-primary-light" : "border-border bg-surface")}>
+            <div className={cn("mb-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold", step.active ? "bg-primary text-white" : "bg-white text-text-secondary")}>
+              {index + 1}
+            </div>
+            <p className="text-sm font-semibold text-foreground">{step.title}</p>
+            <p className="mt-1 text-xs leading-5 text-text-secondary">{step.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VisibilityAnalytics({ properties }: { properties: PropertyRow[] }) {
+  const visibilityCounts = [
+    { label: "Customer + Broker", value: "FULL_VISIBILITY" },
+    { label: "Customers only", value: "DIRECT_CUSTOMERS_ONLY" },
+    { label: "Broker network", value: "BROKER_NETWORK_ONLY" },
+    { label: "Private", value: "PRIVATE" },
+  ].map((item) => ({
+    ...item,
+    count: properties.filter((property) => property.visibilityType === item.value).length,
+  }));
+  const staleCount = properties.filter((property) => {
+    const updatedAt = property.latestFreshness?.confirmedAt || property.updatedAt || property.createdAt;
+    if (!updatedAt) return true;
+    return Date.now() - new Date(updatedAt).getTime() > 14 * 24 * 60 * 60 * 1000;
+  }).length;
+
+  return (
+    <section className="rounded-card border border-border bg-white p-5 shadow-card">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="font-semibold text-foreground">Visibility and freshness analytics</h3>
+          <p className="text-sm text-text-secondary">See how your inventory is distributed and which listings need reconfirmation.</p>
+        </div>
+        <Badge variant={staleCount ? "warning" : "success"}>{staleCount} stale</Badge>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {visibilityCounts.map((item) => (
+          <div key={item.value} className="rounded-btn border border-border bg-surface p-3">
+            <p className="text-2xl font-bold text-primary">{item.count}</p>
+            <p className="mt-1 text-xs font-semibold text-foreground">{item.label}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 const STEPS = ["Type", "Details", "Location", "Media", "Review"];
 
 const CATEGORY_ICON_MAP: Record<string, React.ReactNode> = {
@@ -923,6 +999,28 @@ const CATEGORY_ICON_MAP: Record<string, React.ReactNode> = {
   AGRICULTURAL: <Trees size={20} />,
   HOSPITALITY: <Building2 size={20} />,
 };
+
+function UploadFocusChecklist({ selectedType, items }: { selectedType?: string; items: string[] }) {
+  return (
+    <div className="rounded-card border border-border bg-surface p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{selectedType ? `${selectedType} upload checklist` : "Upload checklist"}</p>
+          <p className="text-xs leading-5 text-text-secondary">KrrishJazz uses these signals to verify, match, and coordinate faster.</p>
+        </div>
+        <Badge variant={selectedType ? "success" : "warning"}>{selectedType ? "Type selected" : "Pick type"}</Badge>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.map((item) => (
+          <span key={item} className="inline-flex items-center gap-1.5 rounded-pill border border-primary/15 bg-white px-3 py-1 text-xs font-semibold text-primary">
+            <Check size={12} />
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -935,6 +1033,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [categoryNotes, setCategoryNotes] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -952,7 +1051,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       images: [],
       priceNegotiable: false,
       areaUnit: "sqft",
-      visibilityType: "PUBLIC_TO_CUSTOMERS",
+      visibilityType: "FULL_VISIBILITY",
       publicBrokerName: "KrrishJazz",
     },
   });
@@ -960,6 +1059,8 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const category = watch("category");
   const selectedPropertyType = watch("propertyType");
   const selectedListingType = watch("listingType");
+  const watchedTitle = watch("title");
+  const watchedDescription = watch("description");
   const watchedPrice = watch("price");
   const watchedArea = watch("area");
   const watchedCity = watch("city");
@@ -968,6 +1069,11 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const watchedVisibility = watch("visibilityType");
   const watchedPublicBrokerName = watch("publicBrokerName");
   const activeTypeGuide = selectedPropertyType ? PROPERTY_TYPE_GUIDE[selectedPropertyType] : null;
+  const uploadFocusItems = activeTypeGuide?.fields?.length
+    ? activeTypeGuide.fields
+    : selectedPropertyType
+    ? ["Price", "Area", "Location", "Photos"]
+    : ["Category", "Property type", "Price", "Location"];
 
   const propertyTypeLower = (selectedPropertyType || "").toLowerCase();
   const isResidentialDetail = /(apartment|villa|house|penthouse|studio|row|floor)/.test(propertyTypeLower);
@@ -1008,7 +1114,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     },
     {
       label: "Listing reach selected",
-      detail: (watchedVisibility || "PUBLIC_TO_CUSTOMERS").replaceAll("_", " "),
+      detail: getVisibilityLabel(watchedVisibility),
       complete: Boolean(watchedVisibility),
     },
   ];
@@ -1134,6 +1240,9 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     }
 
     setSubmitting(true);
+    if (categoryNotes.trim()) {
+      data.description = `${data.description}\n\nCategory-specific details: ${categoryNotes.trim()}`;
+    }
     data.amenities = selectedAmenities;
     data.images = images;
     data.coverImage = images[0];
@@ -1151,7 +1260,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
           images: [],
           priceNegotiable: false,
           areaUnit: "sqft",
-          visibilityType: "PUBLIC_TO_CUSTOMERS",
+          visibilityType: "FULL_VISIBILITY",
           publicBrokerName: "KrrishJazz",
         });
         setImages([]);
@@ -1288,6 +1397,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
         </div>
       </div>
 
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="bg-white rounded-card shadow-card border border-border p-6">
           {/* Step 1: Basic Info */}
@@ -1374,6 +1484,8 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
                   </div>
                 </div>
               )}
+
+              <UploadFocusChecklist selectedType={selectedPropertyType} items={uploadFocusItems} />
             </div>
           )}
 
@@ -1439,6 +1551,22 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
                 <input type="checkbox" className="rounded border-border" {...register("priceNegotiable")} />
                 Price Negotiable
               </label>
+              <Textarea
+                label={selectedPropertyType ? `${selectedPropertyType} specific details` : "Category-specific details"}
+                placeholder={
+                  isCommercialDetail
+                    ? "Seats/cabins, frontage, floor, pantry, parking, power backup..."
+                    : isIndustrialDetail
+                    ? "Clear height, dock, truck access, power load, road width..."
+                    : isPlotDetail
+                    ? "Facing, road width, boundary, approvals, conversion status..."
+                    : isHospitalityDetail
+                    ? "Beds/rooms, sharing, food, rules, housekeeping, license..."
+                    : "Maintenance, society, balcony, parking, lift, facing..."
+                }
+                value={categoryNotes}
+                onChange={(event) => setCategoryNotes(event.target.value)}
+              />
             </div>
           )}
 
@@ -1468,22 +1596,43 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
           {step === 3 && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Select
-                  label="Listing Reach"
-                  options={[
-                    { value: "PUBLIC_TO_CUSTOMERS", label: "Public Search + Broker Network" },
-                    { value: "BROKER_NETWORK_ONLY", label: "Broker Network Only" },
-                    { value: "PRIVATE", label: "Private Draft" },
-                  ]}
-                  error={errors.visibilityType?.message}
-                  {...register("visibilityType")}
-                />
                 <Input
                   label="Displayed Contact / Managed By"
                   placeholder="KrrishJazz"
                   error={errors.publicBrokerName?.message}
                   {...register("publicBrokerName")}
                 />
+              </div>
+
+              <input type="hidden" {...register("visibilityType")} />
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">Listing Reach</label>
+                  {errors.visibilityType?.message && <p className="text-xs text-error">{errors.visibilityType.message}</p>}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {VISIBILITY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setValue("visibilityType", option.value, { shouldValidate: true })}
+                      className={cn(
+                        "rounded-card border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card",
+                        watchedVisibility === option.value
+                          ? "border-primary bg-primary-light shadow-card"
+                          : "border-border bg-white hover:border-primary/40"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{option.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-text-secondary">{option.description}</p>
+                        </div>
+                        <span className={cn("mt-0.5 h-4 w-4 rounded-full border", watchedVisibility === option.value ? "border-primary bg-primary" : "border-border")} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -1594,7 +1743,7 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
                 </div>
                 <div className="rounded-card border border-border bg-surface p-4">
                   <p className="text-xs text-text-secondary">Listing Reach</p>
-                  <p className="font-semibold text-foreground mt-1">{(watchedVisibility || "PUBLIC_TO_CUSTOMERS").replaceAll("_", " ")}</p>
+                  <p className="font-semibold text-foreground mt-1">{getVisibilityLabel(watchedVisibility)}</p>
                   <p className="text-sm text-text-secondary mt-1">{selectedAmenities.length} amenit{selectedAmenities.length === 1 ? "y" : "ies"} selected</p>
                 </div>
                 <div className="rounded-card border border-border bg-surface p-4">
@@ -1677,11 +1826,98 @@ function PostPropertySection({ onPosted }: { onPosted: () => void }) {
           </div>
         </div>
       </form>
+      <ListingLivePreview
+        title={watchedTitle}
+        description={watchedDescription}
+        listingType={selectedListingType}
+        propertyType={selectedPropertyType}
+        city={watchedCity}
+        locality={watchedLocality}
+        price={watchedPrice}
+        area={watchedArea}
+        image={images[0]}
+        visibility={watchedVisibility}
+        managedBy={watchedPublicBrokerName}
+        amenitiesCount={selectedAmenities.length}
+      />
+      </div>
     </div>
   );
 }
 
 // ─── Leads ──────────────────────────────────────────────────────────────────────
+
+function ListingLivePreview({
+  title,
+  description,
+  listingType,
+  propertyType,
+  city,
+  locality,
+  price,
+  area,
+  image,
+  visibility,
+  managedBy,
+  amenitiesCount,
+}: {
+  title?: string;
+  description?: string;
+  listingType?: string;
+  propertyType?: string;
+  city?: string;
+  locality?: string;
+  price?: unknown;
+  area?: unknown;
+  image?: string;
+  visibility?: string;
+  managedBy?: string;
+  amenitiesCount: number;
+}) {
+  return (
+    <aside className="hidden xl:block">
+      <div className="sticky top-24 rounded-card border border-border bg-white p-4 shadow-card">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Live listing preview</p>
+            <p className="text-xs text-text-secondary">How buyers and brokers will scan it.</p>
+          </div>
+          <Badge variant="blue">{getVisibilityLabel(visibility)}</Badge>
+        </div>
+        <div className="overflow-hidden rounded-card border border-border bg-white">
+          <div className="relative h-44 bg-surface">
+            {image ? (
+              <img src={image} alt="Listing preview" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-primary">
+                <Building2 size={42} />
+              </div>
+            )}
+            <div className="absolute left-3 top-3 flex gap-1.5">
+              <Badge variant="blue">{listingType || "Listing"}</Badge>
+              <Badge variant="success">Managed</Badge>
+            </div>
+          </div>
+          <div className="p-4">
+            <p className="text-xl font-bold text-primary">{price ? formatPrice(Number(price)) : "Price pending"}</p>
+            <h3 className="mt-2 line-clamp-2 text-base font-semibold text-foreground">{title || "Property title will appear here"}</h3>
+            <p className="mt-1 line-clamp-1 text-sm text-text-secondary">{[locality, city].filter(Boolean).join(", ") || "Location pending"}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{propertyType || "Type"}</span>
+              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{area ? `${Number(area).toLocaleString("en-IN")} sqft` : "Area"}</span>
+              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{amenitiesCount} amenities</span>
+            </div>
+            <p className="mt-3 line-clamp-3 text-xs leading-5 text-text-secondary">{description || "Description preview helps you spot missing details before submission."}</p>
+            <div className="mt-4 rounded-card border border-primary/20 bg-primary-light p-3">
+              <p className="text-xs font-semibold text-primary">{managedBy || "KrrishJazz"} coordinates enquiries</p>
+              <p className="mt-1 text-[11px] leading-4 text-text-secondary">Contact remains protected. Listing is free until deal closure.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
 
 function LeadsSection() {
   const [leads, setLeads] = useState<LeadRow[]>([]);

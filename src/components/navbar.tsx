@@ -24,7 +24,14 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { NAV_TABS } from "@/lib/constants";
+
+const CUSTOMER_NAV_LINKS = [
+  { label: "Buy", href: "/properties?listingType=BUY" },
+  { label: "Rent", href: "/properties?listingType=RENT" },
+  { label: "Commercial", href: "/properties?category=COMMERCIAL" },
+  { label: "Plots/Land", href: "/properties?propertyType=Residential%20Plot" },
+  { label: "Post Property", href: "/dashboard?tab=post", badge: "FREE" },
+];
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -45,6 +52,7 @@ export function Navbar() {
     const params = new URLSearchParams();
     if (headerMode === "Rent") params.set("listingType", "RENT");
     else if (headerMode === "Commercial") params.set("category", "COMMERCIAL");
+    else if (headerMode === "Plots/Land") params.set("propertyType", "Residential Plot");
     else params.set("listingType", "BUY");
     if (headerSearch.trim()) params.set("q", headerSearch.trim());
     navigateTo(`/properties?${params.toString()}`);
@@ -235,39 +243,40 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-40 bg-primary text-white shadow-[0_2px_8px_rgb(0_31_77/0.18)]">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-[76px] gap-4">
+        <div className="flex h-16 items-center justify-between gap-3">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-3xl font-bold text-white">
+          <Link href="/" className="flex shrink-0 items-center gap-2 text-2xl font-bold text-white lg:text-[28px]">
             <span className="leading-none">
               KrrishJazz
             </span>
           </Link>
 
-          <div className="hidden xl:flex min-w-0 flex-1 max-w-[800px] items-center rounded-btn bg-white text-foreground shadow-sm">
+          <div className="hidden w-[340px] shrink-0 items-center rounded-btn bg-white text-foreground shadow-sm xl:flex 2xl:w-[390px]">
             <select
               value={headerMode}
               onChange={(event) => setHeaderMode(event.target.value)}
-              className="h-11 rounded-l-btn border-r border-border bg-white px-3 text-sm font-semibold text-foreground outline-none"
+              className="h-10 rounded-l-btn border-r border-border bg-white px-3 text-sm font-semibold text-foreground outline-none"
             >
               <option>Buy</option>
               <option>Rent</option>
               <option>Commercial</option>
+              <option>Plots/Land</option>
             </select>
             <input
               aria-label="Search properties"
               value={headerSearch}
               onChange={(event) => setHeaderSearch(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && runHeaderSearch()}
-              className="h-11 min-w-0 flex-1 px-4 text-sm outline-none placeholder:text-text-secondary"
-              placeholder="Enter Locality / Project / Landmark"
+              className="h-10 min-w-0 flex-1 px-3 text-sm outline-none placeholder:text-text-secondary"
+              placeholder="Locality / project / landmark"
             />
-            <button type="button" onClick={runHeaderSearch} className="flex h-11 w-14 items-center justify-center text-foreground hover:text-primary">
-              <Search size={22} />
+            <button type="button" onClick={runHeaderSearch} className="flex h-10 w-12 items-center justify-center text-foreground hover:text-primary">
+              <Search size={21} />
             </button>
           </div>
 
           {/* Center Nav Tabs - Desktop */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden items-center gap-1 xl:flex">
             {user?.role === "BROKER" && user.brokerStatus === "APPROVED" ? (
               <>
                 <Link
@@ -290,21 +299,19 @@ export function Navbar() {
                 </Link>
               </>
             ) : (
-              NAV_TABS.map((tab) => (
+              CUSTOMER_NAV_LINKS.map((tab) => (
                 <Link
                   key={tab.label}
                   href={tab.href}
-                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
+                  className={cn(
+                    "relative rounded-btn px-3 py-2 text-sm font-semibold text-white/90 transition-colors hover:bg-white/10 hover:text-white",
+                    tab.badge && "bg-white text-foreground hover:bg-primary-light hover:text-foreground"
+                  )}
                 >
                   {tab.label}
                   {tab.badge && (
                     <span
-                      className={cn(
-                        "ml-1 text-[10px] px-1.5 py-0.5 rounded-pill font-bold",
-                        tab.badgeColor === "green"
-                          ? "bg-success text-white"
-                          : "bg-error text-white"
-                      )}
+                      className="ml-1 rounded-pill bg-success px-1.5 py-0.5 text-[10px] font-bold text-white"
                     >
                       {tab.badge}
                     </span>
@@ -318,12 +325,12 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               href="/properties"
-              className="xl:hidden hidden md:inline-flex items-center gap-2 rounded-btn border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+              className="hidden items-center gap-2 rounded-btn border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/15 md:inline-flex xl:hidden"
             >
               <Search size={16} />
               Search
             </Link>
-            <button className="p-2 hover:bg-white/10 rounded-btn transition-colors relative border border-transparent">
+            <button className="relative hidden rounded-btn border border-transparent p-2 transition-colors hover:bg-white/10 md:block">
               <Bell size={20} className="text-white" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success" />
             </button>
@@ -390,7 +397,7 @@ export function Navbar() {
                 </button>
               </>
             ) : (
-              NAV_TABS.map((tab) => (
+              CUSTOMER_NAV_LINKS.map((tab) => (
                 <Link
                   key={tab.label}
                   href={tab.href}
@@ -400,12 +407,7 @@ export function Navbar() {
                   {tab.label}
                   {tab.badge && (
                     <span
-                      className={cn(
-                        "ml-2 text-[10px] px-1.5 py-0.5 rounded-pill font-semibold",
-                        tab.badgeColor === "green"
-                          ? "bg-success/10 text-success"
-                          : "bg-error/10 text-error"
-                      )}
+                      className="ml-2 rounded-pill bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success"
                     >
                       {tab.badge}
                     </span>

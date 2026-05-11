@@ -79,6 +79,219 @@ const IMAGES = {
   ],
 };
 
+const SAMPLE_BROKERS = [
+  {
+    phone: "+919900000101",
+    name: "Raj Malhotra",
+    email: "raj@skylinekrrishjazz.test",
+    agency: "Skyline Realty Network",
+    rera: "WB/RERA/BRK/2026/101",
+    experience: 9,
+    city: "Kolkata",
+    serviceAreas: ["New Town", "Salt Lake", "Rajarhat", "EM Bypass"],
+    bio: "Residential rental and resale broker with fast owner confirmation habits.",
+  },
+  {
+    phone: "+919900000102",
+    name: "Priya Sen",
+    email: "priya@urbannestkrrishjazz.test",
+    agency: "UrbanNest Brokers",
+    rera: "WB/RERA/BRK/2026/102",
+    experience: 7,
+    city: "Kolkata",
+    serviceAreas: ["Park Street", "Ballygunge", "Salt Lake", "New Town"],
+    bio: "Premium apartment and serviced living specialist for relocation clients.",
+  },
+  {
+    phone: "+919900000103",
+    name: "Arjun Mehta",
+    email: "arjun@eastwestkrrishjazz.test",
+    agency: "EastWest Commercial",
+    rera: "HR/RERA/BRK/2026/103",
+    experience: 11,
+    city: "Gurugram",
+    serviceAreas: ["Golf Course Road", "Cyber City", "Sohna Road", "Udyog Vihar"],
+    bio: "Commercial leasing broker focused on offices, showrooms, and warehouses.",
+  },
+];
+
+const BROKER_SAMPLE_PROPERTIES = [
+  {
+    brokerPhone: "+919900000101",
+    slug: "broker-network-new-town-2bhk-view-apartment",
+    title: "2 BHK View Apartment for Rent in New Town",
+    description: "Broker-network rental apartment with lift, parking, balcony, and recently confirmed availability.",
+    listingType: "RENT",
+    category: "RESIDENTIAL",
+    propertyType: "Apartment",
+    price: 32000,
+    area: 1120,
+    areaUnit: "sqft",
+    bedrooms: 2,
+    bathrooms: 2,
+    floor: 9,
+    totalFloors: 18,
+    furnishing: "Semi-Furnished",
+    amenities: ["Lift", "Parking", "24x7 Security", "Power Backup", "Balcony"],
+    address: "Action Area 1, New Town Main Road",
+    locality: "New Town",
+    city: "Kolkata",
+    state: "West Bengal",
+    pincode: "700156",
+    images: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200",
+    ],
+    visibilityType: "FULL_VISIBILITY",
+    publicBrokerName: "KrrishJazz",
+  },
+  {
+    brokerPhone: "+919900000101",
+    slug: "broker-network-salt-lake-independent-house",
+    title: "Independent House for Sale in Salt Lake",
+    description: "Corner house with wide road access, parking, and redevelopment potential for serious buyer requirements.",
+    listingType: "BUY",
+    category: "RESIDENTIAL",
+    propertyType: "Independent House",
+    price: 18500000,
+    area: 2400,
+    areaUnit: "sqft",
+    bedrooms: 4,
+    bathrooms: 4,
+    floor: 1,
+    totalFloors: 2,
+    furnishing: "Unfurnished",
+    amenities: ["Parking", "Garden", "Water Supply", "Road Access"],
+    address: "Sector 2, Salt Lake",
+    locality: "Salt Lake",
+    city: "Kolkata",
+    state: "West Bengal",
+    pincode: "700091",
+    images: [
+      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200",
+      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1200",
+    ],
+    visibilityType: "BROKER_NETWORK_ONLY",
+    publicBrokerName: "KrrishJazz",
+  },
+  {
+    brokerPhone: "+919900000102",
+    slug: "broker-network-ballygunge-premium-3bhk",
+    title: "Premium 3 BHK Apartment in Ballygunge",
+    description: "Owner flexible on rent for verified family tenant. Good society, clubhouse, lift, and two car parks.",
+    listingType: "RENT",
+    category: "RESIDENTIAL",
+    propertyType: "Apartment",
+    price: 78000,
+    area: 1850,
+    areaUnit: "sqft",
+    bedrooms: 3,
+    bathrooms: 3,
+    floor: 7,
+    totalFloors: 14,
+    furnishing: "Fully Furnished",
+    amenities: ["Lift", "Parking", "Gym", "Clubhouse", "24x7 Security"],
+    address: "Ballygunge Circular Road",
+    locality: "Ballygunge",
+    city: "Kolkata",
+    state: "West Bengal",
+    pincode: "700019",
+    images: [
+      "https://images.unsplash.com/photo-1615873968403-89e068629265?w=1200",
+      "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1200",
+    ],
+    visibilityType: "FULL_VISIBILITY",
+    publicBrokerName: "KrrishJazz",
+  },
+  {
+    brokerPhone: "+919900000102",
+    slug: "broker-network-park-street-serviced-apartment",
+    title: "Serviced Apartment for Lease near Park Street",
+    description: "Corporate-ready serviced apartment with housekeeping, Wi-Fi, food service, and flexible lease terms.",
+    listingType: "LEASE",
+    category: "HOSPITALITY",
+    propertyType: "Serviced Apartment",
+    price: 95000,
+    area: 900,
+    areaUnit: "sqft",
+    bedrooms: 2,
+    bathrooms: 2,
+    floor: 5,
+    totalFloors: 10,
+    furnishing: "Fully Furnished",
+    amenities: ["Wi-Fi", "Housekeeping", "Food Service", "Lift", "Power Backup"],
+    address: "Middleton Street, Park Street Area",
+    locality: "Park Street",
+    city: "Kolkata",
+    state: "West Bengal",
+    pincode: "700071",
+    images: [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200",
+      "https://images.unsplash.com/photo-1560448204-61dc36dc98c8?w=1200",
+    ],
+    visibilityType: "BROKER_NETWORK_ONLY",
+    publicBrokerName: "KrrishJazz",
+  },
+  {
+    brokerPhone: "+919900000103",
+    slug: "broker-network-golf-course-road-office",
+    title: "Managed Office Space on Golf Course Road",
+    description: "Plug-and-play commercial office with conference room, reception, power backup, and metro-side visibility.",
+    listingType: "LEASE",
+    category: "COMMERCIAL",
+    propertyType: "Office Space",
+    price: 240000,
+    area: 3200,
+    areaUnit: "sqft",
+    bedrooms: null,
+    bathrooms: 2,
+    floor: 11,
+    totalFloors: 18,
+    furnishing: "Fully Furnished",
+    amenities: ["Parking", "Lift", "Power Backup", "CCTV", "Fire Safety"],
+    address: "Golf Course Road Business Tower",
+    locality: "Golf Course Road",
+    city: "Gurugram",
+    state: "Haryana",
+    pincode: "122002",
+    images: [
+      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1200",
+      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=1200",
+    ],
+    visibilityType: "FULL_VISIBILITY",
+    publicBrokerName: "KrrishJazz",
+  },
+  {
+    brokerPhone: "+919900000103",
+    slug: "broker-network-udyog-vihar-warehouse",
+    title: "Warehouse / Godown for Lease in Udyog Vihar",
+    description: "High-clearance warehouse with truck access, loading bay, three phase power, and security.",
+    listingType: "LEASE",
+    category: "INDUSTRIAL",
+    propertyType: "Warehouse / Godown",
+    price: 185000,
+    area: 7200,
+    areaUnit: "sqft",
+    bedrooms: null,
+    bathrooms: 2,
+    floor: 0,
+    totalFloors: 1,
+    furnishing: "Unfurnished",
+    amenities: ["Truck Access", "Loading Dock", "Three Phase Power", "CCTV", "Fire Safety"],
+    address: "Phase 4, Udyog Vihar",
+    locality: "Udyog Vihar",
+    city: "Gurugram",
+    state: "Haryana",
+    pincode: "122016",
+    images: [
+      "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1200",
+      "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=1200",
+    ],
+    visibilityType: "BROKER_NETWORK_ONLY",
+    publicBrokerName: "KrrishJazz",
+  },
+];
+
 const CATEGORY_AMENITIES = {
   RESIDENTIAL: ["Parking", "Lift", "24x7 Security", "Power Backup", "Gym", "Garden", "Balcony"],
   COMMERCIAL: ["Parking", "Lift", "Power Backup", "24x7 Security", "CCTV", "Fire Safety", "Visitor Parking"],
@@ -141,6 +354,159 @@ function bedroomsFor(type, index) {
   return null;
 }
 
+async function seedSampleBrokers() {
+  const brokerProfiles = new Map();
+
+  for (const broker of SAMPLE_BROKERS) {
+    const profile = await prisma.profile.upsert({
+      where: { phone: broker.phone },
+      update: {
+        name: broker.name,
+        email: broker.email,
+        role: "BROKER",
+        isActive: true,
+      },
+      create: {
+        phone: broker.phone,
+        name: broker.name,
+        email: broker.email,
+        role: "BROKER",
+        isActive: true,
+      },
+    });
+
+    await prisma.brokerProfile.upsert({
+      where: { profileId: profile.id },
+      update: {
+        rera: broker.rera,
+        experience: broker.experience,
+        city: broker.city,
+        serviceAreas: JSON.stringify(broker.serviceAreas),
+        bio: `${broker.agency}. ${broker.bio}`,
+        status: "APPROVED",
+        responseScore: 86,
+        completedCollaborations: 14,
+        profileCompletion: 92,
+        lastActiveAt: new Date(),
+      },
+      create: {
+        profileId: profile.id,
+        rera: broker.rera,
+        experience: broker.experience,
+        city: broker.city,
+        serviceAreas: JSON.stringify(broker.serviceAreas),
+        bio: `${broker.agency}. ${broker.bio}`,
+        status: "APPROVED",
+        responseScore: 86,
+        completedCollaborations: 14,
+        profileCompletion: 92,
+        lastActiveAt: new Date(),
+      },
+    });
+
+    brokerProfiles.set(broker.phone, profile);
+  }
+
+  return brokerProfiles;
+}
+
+async function seedBrokerNetworkProperties(brokerProfiles) {
+  let count = 0;
+
+  for (const sample of BROKER_SAMPLE_PROPERTIES) {
+    const broker = brokerProfiles.get(sample.brokerPhone);
+    if (!broker) continue;
+
+    const property = await prisma.property.upsert({
+      where: { slug: sample.slug },
+      update: {
+        title: sample.title,
+        description: sample.description,
+        listingType: sample.listingType,
+        category: sample.category,
+        propertyType: sample.propertyType,
+        price: sample.price,
+        priceNegotiable: true,
+        area: sample.area,
+        areaUnit: sample.areaUnit,
+        bedrooms: sample.bedrooms,
+        bathrooms: sample.bathrooms,
+        floor: sample.floor,
+        totalFloors: sample.totalFloors,
+        ageYears: 2,
+        furnishing: sample.furnishing,
+        amenities: JSON.stringify(sample.amenities),
+        address: sample.address,
+        locality: sample.locality,
+        city: sample.city,
+        state: sample.state,
+        pincode: sample.pincode,
+        images: JSON.stringify(sample.images),
+        coverImage: sample.images[0],
+        visibilityType: sample.visibilityType,
+        listingStatus: "AVAILABLE",
+        publicBrokerName: sample.publicBrokerName,
+        status: "LIVE",
+        postedById: broker.id,
+        assignedBrokerId: broker.id,
+      },
+      create: {
+        title: sample.title,
+        slug: sample.slug,
+        description: sample.description,
+        listingType: sample.listingType,
+        category: sample.category,
+        propertyType: sample.propertyType,
+        price: sample.price,
+        priceNegotiable: true,
+        area: sample.area,
+        areaUnit: sample.areaUnit,
+        bedrooms: sample.bedrooms,
+        bathrooms: sample.bathrooms,
+        floor: sample.floor,
+        totalFloors: sample.totalFloors,
+        ageYears: 2,
+        furnishing: sample.furnishing,
+        amenities: JSON.stringify(sample.amenities),
+        address: sample.address,
+        locality: sample.locality,
+        city: sample.city,
+        state: sample.state,
+        pincode: sample.pincode,
+        images: JSON.stringify(sample.images),
+        coverImage: sample.images[0],
+        visibilityType: sample.visibilityType,
+        listingStatus: "AVAILABLE",
+        publicBrokerName: sample.publicBrokerName,
+        status: "LIVE",
+        postedById: broker.id,
+        assignedBrokerId: broker.id,
+      },
+    });
+
+    await prisma.listingFreshness.deleteMany({
+      where: {
+        propertyId: property.id,
+        note: "Seeded broker network listing with direct broker contact",
+      },
+    });
+
+    await prisma.listingFreshness.create({
+      data: {
+        propertyId: property.id,
+        confirmedById: broker.id,
+        availabilityStatus: "AVAILABLE",
+        expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        note: "Seeded broker network listing with direct broker contact",
+      },
+    });
+
+    count += 1;
+  }
+
+  return count;
+}
+
 async function main() {
   const owner = await prisma.profile.upsert({
     where: { phone: "+919900000001" },
@@ -191,7 +557,7 @@ async function main() {
             pincode: place.pincode,
             images: JSON.stringify(images),
             coverImage: images[0],
-            visibilityType: "PUBLIC_TO_CUSTOMERS",
+            visibilityType: "FULL_VISIBILITY",
             listingStatus: "AVAILABLE",
             publicBrokerName: "KrrishJazz Verified",
             status: "LIVE",
@@ -222,7 +588,7 @@ async function main() {
             pincode: place.pincode,
             images: JSON.stringify(images),
             coverImage: images[0],
-            visibilityType: "PUBLIC_TO_CUSTOMERS",
+            visibilityType: "FULL_VISIBILITY",
             listingStatus: "AVAILABLE",
             publicBrokerName: "KrrishJazz Verified",
             status: "LIVE",
@@ -252,7 +618,11 @@ async function main() {
     }
   }
 
-  console.log(`Seeded or updated ${count} sample properties across all property types.`);
+  const brokers = await seedSampleBrokers();
+  const brokerPropertyCount = await seedBrokerNetworkProperties(brokers);
+
+  console.log(`Seeded or updated ${count} sample owner properties across all property types.`);
+  console.log(`Seeded or updated ${brokers.size} approved brokers and ${brokerPropertyCount} broker network properties.`);
 }
 
 main()

@@ -38,6 +38,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { cn, formatPrice, maskPhone } from "@/lib/utils";
 import { enquirySchema } from "@/lib/validations";
+import { getVisibilityLabel } from "@/lib/visibility";
 import type { EnquiryInput } from "@/lib/validations";
 
 type EnquiryFormInput = Omit<EnquiryInput, "propertyId">;
@@ -157,6 +158,7 @@ export default function PropertyDetailPage() {
   const [similar, setSimilar] = useState<SimilarProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentImage, setCurrentImage] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [enquiryLoading, setEnquiryLoading] = useState(false);
@@ -297,6 +299,25 @@ export default function PropertyDetailPage() {
     toast("Property link copied.", "success");
   };
 
+  const handleWhatsAppOps = () => {
+    if (!property) return;
+    const platformPhone = process.env.NEXT_PUBLIC_PLATFORM_PHONE || "";
+    if (!platformPhone || platformPhone.includes("XXXX")) {
+      toast("Send an enquiry and KrrishJazz will coordinate this property.", "info");
+      openEnquiryWithIntent("callback");
+      return;
+    }
+
+    const message = [
+      "Hi KrrishJazz, I want help with this property.",
+      property.title,
+      `${property.locality ? `${property.locality}, ` : ""}${property.city}`,
+      `Price: ${formatPrice(Number(property.price))}`,
+      `${window.location.origin}/properties/${slug}`,
+    ].join("\n");
+    window.open(`https://wa.me/${platformPhone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-surface">
@@ -337,7 +358,6 @@ export default function PropertyDetailPage() {
   const images = Array.from(new Set([property.coverImage, ...property.images].filter(Boolean))) as string[];
   const activeImage = images[currentImage];
   const canShowBrokerPhone = false;
-  const brokerName = property.publicBrokerName || property.postedBy.name || "KrrishJazz";
   const freshness = getFreshness(property.updatedAt);
   const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
   const keyDetails = buildKeyDetails(property);
@@ -431,6 +451,15 @@ export default function PropertyDetailPage() {
                   <p className="text-xs text-white/70">Photo proof</p>
                   <p className="text-sm font-semibold">{images.length || 0} media item{images.length === 1 ? "" : "s"}</p>
                 </div>
+                {activeImage && (
+                  <button
+                    type="button"
+                    onClick={() => setGalleryOpen(true)}
+                    className="absolute bottom-3 right-3 rounded-btn bg-white px-3 py-2 text-xs font-semibold text-foreground shadow-card transition-colors hover:bg-primary-light hover:text-primary"
+                  >
+                    Open gallery
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-2 lg:grid-cols-1">
@@ -465,6 +494,24 @@ export default function PropertyDetailPage() {
             <SignalCard icon={<Clock size={18} />} title="Freshness" desc={freshness.label} tone="primary" />
             <SignalCard icon={<LockKeyhole size={18} />} title="Protected enquiry" desc="No lead spam" tone="accent" />
             <SignalCard icon={<Eye size={18} />} title="Ready to visit" desc="Send enquiry" tone="primary" />
+          </section>
+
+          <section className="rounded-card border border-border bg-white p-5 shadow-card">
+            <SectionTitle title="Why this is worth seeing" subtitle="Quick decision signals before a site visit" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <WorthSeeingCard title="Clear price signal" desc={pricePerUnit ? `Around Rs ${pricePerUnit}/sqft for this area.` : "Price is visible and can be discussed through KrrishJazz."} />
+              <WorthSeeingCard title="Location confidence" desc={`${property.locality || property.city} is visible before enquiry.`} />
+              <WorthSeeingCard title="Managed next step" desc="KrrishJazz coordinates callback, visit, final price, and similar options." />
+            </div>
+          </section>
+
+          <section className="rounded-card border border-border bg-white p-5 shadow-card">
+            <SectionTitle title="Trust and freshness timeline" subtitle="What KrrishJazz checks before moving a customer forward" />
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <TimelineSignal title="Listing checked" desc={freshness.label} active />
+              <TimelineSignal title="Photos reviewed" desc={images.length ? `${images.length} media item${images.length === 1 ? "" : "s"} available` : "Photos pending"} active={images.length > 0} />
+              <TimelineSignal title="Visit coordination" desc="Availability confirmed after enquiry" active={false} />
+            </div>
           </section>
 
           <section className="rounded-card border border-border bg-white p-5 shadow-card">
@@ -531,6 +578,11 @@ export default function PropertyDetailPage() {
                 </div>
               )}
             </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <LocalityInsight title="Good for" value={getUseCaseLabel(property)} />
+              <LocalityInsight title="Area signal" value={property.locality || property.city} />
+              <LocalityInsight title="Next step" value="Request callback before visit" />
+            </div>
           </section>
 
           {similar.length > 0 && (
@@ -571,7 +623,6 @@ export default function PropertyDetailPage() {
           <div className="sticky top-20 space-y-4">
             <ContactCard
               property={property}
-              brokerName={brokerName}
               canShowBrokerPhone={canShowBrokerPhone}
               showPhone={showPhone}
               setShowPhone={setShowPhone}
@@ -588,6 +639,7 @@ export default function PropertyDetailPage() {
               pricePerUnit={pricePerUnit}
               activeEnquiryIntent={activeEnquiryIntent}
               onQuickEnquiry={openEnquiryWithIntent}
+              onWhatsAppOps={handleWhatsAppOps}
             />
 
             {enquiryOpen && (
@@ -638,15 +690,16 @@ export default function PropertyDetailPage() {
       </div>
 
       <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={handleShare}
-            className="w-full"
-          >
-            <Share2 size={16} className="mr-2" />
-            Share
-          </Button>
+        <div className="mb-2 flex items-center justify-between px-1">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-text-secondary">Asking price</p>
+            <p className="truncate text-sm font-bold text-primary">{formatPrice(Number(property.price))}</p>
+          </div>
+          <button type="button" onClick={handleShare} className="flex h-9 w-9 items-center justify-center rounded-btn border border-border text-text-secondary">
+            <Share2 size={16} />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
           <Button
             variant="accent"
             onClick={() => {
@@ -662,8 +715,52 @@ export default function PropertyDetailPage() {
             <MessageCircle size={16} className="mr-2" />
             Enquire
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => openEnquiryWithIntent("visit")}
+            className="w-full"
+          >
+            <Calendar size={16} className="mr-2" />
+            Visit
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleWhatsAppOps}
+            className="w-full"
+          >
+            <Phone size={16} className="mr-2" />
+            Help
+          </Button>
         </div>
       </div>
+      {galleryOpen && (
+        <div className="fixed inset-0 z-50 bg-foreground/95 p-4 text-white">
+          <div className="mx-auto flex h-full max-w-6xl flex-col">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">{property.title}</p>
+                <p className="text-xs text-white/60">{currentImage + 1} of {images.length}</p>
+              </div>
+              <button type="button" onClick={() => setGalleryOpen(false)} className="rounded-btn bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/15">
+                Close
+              </button>
+            </div>
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-card bg-black">
+              {activeImage && <img src={activeImage} alt={property.title} className="h-full w-full object-contain" />}
+              {images.length > 1 && (
+                <>
+                  <button type="button" onClick={() => setCurrentImage((i) => (i === 0 ? images.length - 1 : i - 1))} className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Previous photo">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button type="button" onClick={() => setCurrentImage((i) => (i === images.length - 1 ? 0 : i + 1))} className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Next photo">
+                    <ChevronRight size={24} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -677,7 +774,7 @@ function buildKeyDetails(property: PropertyDetail) {
     property.ageYears != null ? { icon: <Calendar size={18} />, label: "Age", value: `${property.ageYears} years` } : null,
     property.furnishing ? { icon: <Sofa size={18} />, label: "Furnishing", value: property.furnishing } : null,
     { icon: <HomeIcon />, label: "Use", value: property.propertyType },
-    { icon: <ShieldCheck size={18} />, label: "Listing Reach", value: property.visibilityType.replaceAll("_", " ") },
+    { icon: <ShieldCheck size={18} />, label: "Listing Reach", value: getVisibilityLabel(property.visibilityType) },
   ];
 
   return details.filter(Boolean) as { icon: React.ReactNode; label: string; value: string }[];
@@ -689,7 +786,6 @@ function HomeIcon() {
 
 function ContactCard({
   property,
-  brokerName,
   canShowBrokerPhone,
   showPhone,
   setShowPhone,
@@ -706,9 +802,9 @@ function ContactCard({
   pricePerUnit,
   activeEnquiryIntent,
   onQuickEnquiry,
+  onWhatsAppOps,
 }: {
   property: PropertyDetail;
-  brokerName: string;
   canShowBrokerPhone: boolean;
   showPhone: boolean;
   setShowPhone: (value: boolean) => void;
@@ -725,6 +821,7 @@ function ContactCard({
   pricePerUnit: string | null;
   activeEnquiryIntent: EnquiryIntent;
   onQuickEnquiry: (intent: EnquiryIntent) => void;
+  onWhatsAppOps: () => void;
 }) {
   const confidenceItems = [
     { label: "Listing freshness", value: freshnessLabel },
@@ -741,16 +838,11 @@ function ContactCard({
             <User size={20} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{brokerName}</p>
+            <p className="truncate text-sm font-semibold text-foreground">KrrishJazz</p>
             <div className="mt-1 flex flex-wrap gap-1">
               <Badge variant="success">KrrishJazz Verified</Badge>
-              {property.postedBy.brokerProfile?.rera && <Badge variant="blue">RERA</Badge>}
-              {typeof property.postedBy.brokerProfile?.responseScore === "number" && (
-                <Badge variant="accent">{property.postedBy.brokerProfile.responseScore}% response</Badge>
-              )}
-              {typeof property.postedBy.brokerProfile?.completedCollaborations === "number" && property.postedBy.brokerProfile.completedCollaborations > 0 && (
-                <Badge variant="default">{property.postedBy.brokerProfile.completedCollaborations} collabs</Badge>
-              )}
+              <Badge variant="blue">Contact protected</Badge>
+              <Badge variant="accent">Visit coordinated</Badge>
             </div>
           </div>
         </div>
@@ -810,7 +902,7 @@ function ContactCard({
           <a href={`tel:${property.postedBy.phone}`}>
             <Button variant="outline" className="w-full">
               <Phone size={15} className="mr-2" />
-              Call Broker
+              Call KrrishJazz
             </Button>
           </a>
         )}
@@ -829,6 +921,11 @@ function ContactCard({
           >
             <MessageCircle size={15} className="mr-2" />
             {enquiryOpen ? "Hide Request" : "Request Callback"}
+          </Button>
+
+          <Button variant="outline" className="w-full" onClick={onWhatsAppOps}>
+            <MessageCircle size={15} className="mr-2" />
+            WhatsApp KrrishJazz
           </Button>
 
           <div className="grid grid-cols-2 gap-2">
@@ -875,6 +972,48 @@ function SignalCard({ icon, title, desc, tone }: { icon: React.ReactNode; title:
       <p className="mt-1 text-xs text-text-secondary">{desc}</p>
     </div>
   );
+}
+
+function WorthSeeingCard({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="rounded-card border border-primary/15 bg-primary-light p-4">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-text-secondary">{desc}</p>
+    </div>
+  );
+}
+
+function TimelineSignal({ title, desc, active }: { title: string; desc: string; active: boolean }) {
+  return (
+    <div className={cn("rounded-card border p-4", active ? "border-success/20 bg-success/10" : "border-border bg-surface")}>
+      <div className="flex items-center gap-2">
+        <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", active ? "bg-success text-white" : "bg-white text-text-secondary")}>
+          <CheckCircle2 size={15} />
+        </span>
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-text-secondary">{desc}</p>
+    </div>
+  );
+}
+
+function LocalityInsight({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-btn border border-border bg-surface px-3 py-2">
+      <p className="text-xs text-text-secondary">{title}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function getUseCaseLabel(property: PropertyDetail) {
+  const type = `${property.category} ${property.propertyType}`.toLowerCase();
+  if (type.includes("office") || type.includes("commercial")) return "Business use";
+  if (type.includes("warehouse") || type.includes("industrial")) return "Operations and storage";
+  if (type.includes("plot") || type.includes("land")) return "Investment or build";
+  if (type.includes("pg") || type.includes("hostel") || type.includes("serviced")) return "Managed living";
+  if (property.listingType === "RENT") return "Family rental";
+  return "Home search";
 }
 
 function QuickEnquiryButton({

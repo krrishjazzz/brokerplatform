@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { propertySchema } from "@/lib/validations";
 import { logActivity } from "@/lib/workflow";
+import { BROKER_VISIBLE_TYPES, CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,8 @@ function formatProperty(property: any, options: { publicView: boolean }) {
 
   return {
     ...safeProperty,
-    postedBy: { name: formatted.publicBrokerName, phone: "", role: "VERIFIED", brokerProfile: null },
+    publicBrokerName: "KrrishJazz",
+    postedBy: { name: "KrrishJazz", phone: "", role: "VERIFIED", brokerProfile: null },
   };
 }
 
@@ -95,7 +97,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       session?.role === "BROKER" &&
       session.brokerStatus === "APPROVED" &&
       property.status !== "REJECTED" &&
-      property.visibilityType !== "PRIVATE";
+      BROKER_VISIBLE_TYPES.includes(property.visibilityType);
 
     const canViewRestricted =
       session &&
@@ -103,7 +105,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
         session.id === property.postedById ||
         session.id === property.assignedBrokerId ||
         canViewAsBroker ||
-        (property.visibilityType === "BROKER_NETWORK_ONLY" &&
+        (BROKER_VISIBLE_TYPES.includes(property.visibilityType) &&
           session.role === "BROKER" &&
           session.brokerStatus === "APPROVED"));
 
@@ -111,7 +113,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
-    if (property.status === "LIVE" && property.visibilityType !== "PUBLIC_TO_CUSTOMERS" && !canViewRestricted) {
+    if (property.status === "LIVE" && !CUSTOMER_VISIBLE_TYPES.includes(property.visibilityType) && !canViewRestricted) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
@@ -119,7 +121,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     const similar = await prisma.property.findMany({
       where: {
         status: "LIVE",
-        visibilityType: "PUBLIC_TO_CUSTOMERS",
+        visibilityType: { in: CUSTOMER_VISIBLE_TYPES },
         city: property.city,
         category: property.category,
         id: { not: property.id },
@@ -171,6 +173,7 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       coverImage,
       ...propertyData
     } = parsed.data;
+    const normalizedVisibilityType = visibilityType === "PUBLIC_TO_CUSTOMERS" ? "FULL_VISIBILITY" : visibilityType;
 
     const nextStatus = session.role === "ADMIN" ? property.status : "PENDING_REVIEW";
     const data = {
@@ -178,7 +181,7 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       amenities: JSON.stringify(amenities),
       images: JSON.stringify(images),
       coverImage: coverImage || images[0] || null,
-      visibilityType,
+      visibilityType: normalizedVisibilityType,
       publicBrokerName: publicBrokerName || "KrrishJazz",
       assignedBrokerId:
         session.role === "ADMIN" ? assignedBrokerId || null : property.assignedBrokerId,
@@ -198,7 +201,7 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       targetType: "PROPERTY",
       targetId: property.id,
       propertyId: property.id,
-      metadata: { nextStatus, visibilityType },
+      metadata: { nextStatus, visibilityType: normalizedVisibilityType },
     });
 
     return NextResponse.json({ property: updated });

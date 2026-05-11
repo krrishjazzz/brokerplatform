@@ -5,6 +5,7 @@ import { propertySchema } from "@/lib/validations";
 import { slugify } from "@/lib/utils";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { logActivity } from "@/lib/workflow";
+import { CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,8 @@ function formatProperty(property: any, options: { publicView: boolean }) {
 
   return {
     ...safeProperty,
-    postedBy: { name: formatted.publicBrokerName, role: "VERIFIED" },
+    publicBrokerName: "KrrishJazz",
+    postedBy: { name: "KrrishJazz", role: "VERIFIED" },
   };
 }
 
@@ -78,7 +80,7 @@ export async function GET(req: NextRequest) {
         publicView = false;
       } else {
         where.status = "LIVE";
-        where.visibilityType = "PUBLIC_TO_CUSTOMERS";
+        where.visibilityType = { in: CUSTOMER_VISIBLE_TYPES };
       }
     }
 
@@ -210,6 +212,7 @@ export async function POST(req: NextRequest) {
       coverImage,
       ...propertyData
     } = parsed.data;
+    const normalizedVisibilityType = visibilityType === "PUBLIC_TO_CUSTOMERS" ? "FULL_VISIBILITY" : visibilityType;
 
     const property = await prisma.property.create({
       data: {
@@ -219,7 +222,7 @@ export async function POST(req: NextRequest) {
         postedById: session.id,
         assignedBrokerId:
           session.role === "ADMIN" && assignedBrokerId ? assignedBrokerId : session.role === "BROKER" ? session.id : null,
-        visibilityType,
+        visibilityType: normalizedVisibilityType,
         listingStatus: "PENDING",
         publicBrokerName: publicBrokerName || "KrrishJazz",
         status: "PENDING_REVIEW",
@@ -247,7 +250,7 @@ export async function POST(req: NextRequest) {
       targetType: "PROPERTY",
       targetId: property.id,
       propertyId: property.id,
-      metadata: { visibilityType, locality: property.locality, city: property.city },
+      metadata: { visibilityType: normalizedVisibilityType, locality: property.locality, city: property.city },
     });
 
     await sendSMS(session.phone, SMS_TEMPLATES.propertySubmitted());

@@ -48,8 +48,8 @@ export const propertySchema = z.object({
   coverImage: z.string().optional(),
   videoUrl: z.string().url().optional().or(z.literal("")),
   visibilityType: z
-    .enum(["PUBLIC_TO_CUSTOMERS", "BROKER_NETWORK_ONLY", "PRIVATE"])
-    .default("PUBLIC_TO_CUSTOMERS"),
+    .enum(["FULL_VISIBILITY", "DIRECT_CUSTOMERS_ONLY", "BROKER_NETWORK_ONLY", "PRIVATE", "PUBLIC_TO_CUSTOMERS"])
+    .default("FULL_VISIBILITY"),
   assignedBrokerId: z.string().optional().or(z.literal("")),
   publicBrokerName: z.string().min(2).default("KrrishJazz"),
 });
@@ -60,6 +60,18 @@ export const enquirySchema = z.object({
   phone: phoneSchema,
   message: z.string().min(5, "Message is required"),
   visitDate: z.string().optional(),
+});
+
+export const searchRequirementSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  phone: phoneSchema,
+  requirementType: z.string().min(1, "Requirement type is required"),
+  locality: z.string().optional().or(z.literal("")),
+  city: z.string().min(2, "City is required"),
+  budgetMax: z.coerce.number().positive("Budget must be positive").optional(),
+  urgency: z.enum(["IMMEDIATE", "THIS_WEEK", "THIS_MONTH", "EXPLORING"]).default("THIS_WEEK"),
+  note: z.string().optional().or(z.literal("")),
+  sourceUrl: z.string().optional().or(z.literal("")),
 });
 
 export const requirementSchema = z.object({
@@ -81,4 +93,5 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type BrokerApplicationInput = z.infer<typeof brokerApplicationSchema>;
 export type PropertyInput = z.infer<typeof propertySchema>;
 export type EnquiryInput = z.infer<typeof enquirySchema>;
+export type SearchRequirementInput = z.infer<typeof searchRequirementSchema>;
 export type RequirementInput = z.infer<typeof requirementSchema>;

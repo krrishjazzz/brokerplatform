@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { requirementSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/workflow";
+import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export async function GET(req: NextRequest) {
         include: {
           broker: {
             select: {
+              id: true,
               name: true,
               phone: true,
             },
@@ -119,7 +121,7 @@ export async function GET(req: NextRequest) {
         const matchedPropertiesCount = await prisma.property.count({
           where: {
             status: { notIn: ["REJECTED", "CLOSED"] },
-            visibilityType: { not: "PRIVATE" },
+            visibilityType: { in: BROKER_VISIBLE_TYPES },
             propertyType: req.propertyType,
             city: { contains: req.city },
             ...(req.locality ? { locality: { contains: req.locality } } : {}),
