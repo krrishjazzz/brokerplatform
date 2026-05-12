@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { propertySchema } from "@/lib/validations";
 import { logActivity } from "@/lib/workflow";
 import { BROKER_VISIBLE_TYPES, CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
+import { parseJsonArray } from "@/server/json";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,8 @@ function formatProperty(property: any, options: { publicView: boolean }) {
     listingStatus,
     publicBrokerName: property.publicBrokerName || "KrrishJazz",
     verified: property.status === "LIVE" || listingStatus === "LIVE",
-    amenities: JSON.parse(property.amenities || "[]"),
-    images: JSON.parse(property.images || "[]"),
+    amenities: parseJsonArray(property.amenities),
+    images: parseJsonArray(property.images),
     latestFreshness: property.freshnessHistory?.[0] || null,
   };
 

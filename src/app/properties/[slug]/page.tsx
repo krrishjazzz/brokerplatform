@@ -169,6 +169,7 @@ export default function PropertyDetailPage() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [savingProperty, setSavingProperty] = useState(false);
   const [savedProperty, setSavedProperty] = useState(false);
+  const [galleryTouchStart, setGalleryTouchStart] = useState<number | null>(null);
 
   const {
     register,
@@ -197,6 +198,24 @@ export default function PropertyDetailPage() {
     setValue("message", action.message, { shouldValidate: true });
     setEnquiryOpen(true);
     window.setTimeout(() => document.getElementById("enquire")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
+  const goToPreviousImage = () => {
+    setCurrentImage((i) => (i === 0 ? images.length - 1 : i - 1));
+  };
+
+  const goToNextImage = () => {
+    setCurrentImage((i) => (i === images.length - 1 ? 0 : i + 1));
+  };
+
+  const handleGalleryTouchEnd = (x: number) => {
+    if (galleryTouchStart == null || images.length < 2) return;
+    const delta = galleryTouchStart - x;
+    if (Math.abs(delta) > 42) {
+      if (delta > 0) goToNextImage();
+      else goToPreviousImage();
+    }
+    setGalleryTouchStart(null);
   };
 
   useEffect(() => {
@@ -430,7 +449,7 @@ export default function PropertyDetailPage() {
                   <>
                     <button
                       type="button"
-                      onClick={() => setCurrentImage((i) => (i === 0 ? images.length - 1 : i - 1))}
+                      onClick={goToPreviousImage}
                       className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-foreground shadow-card transition-colors hover:bg-white"
                       aria-label="Previous photo"
                     >
@@ -438,7 +457,7 @@ export default function PropertyDetailPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCurrentImage((i) => (i === images.length - 1 ? 0 : i + 1))}
+                      onClick={goToNextImage}
                       className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-foreground shadow-card transition-colors hover:bg-white"
                       aria-label="Next photo"
                     >
@@ -699,7 +718,7 @@ export default function PropertyDetailPage() {
             <Share2 size={16} />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-2">
           <Button
             variant="accent"
             onClick={() => {
@@ -713,7 +732,7 @@ export default function PropertyDetailPage() {
             className="w-full"
           >
             <MessageCircle size={16} className="mr-2" />
-            Enquire
+            Callback
           </Button>
           <Button
             variant="outline"
@@ -729,7 +748,7 @@ export default function PropertyDetailPage() {
             className="w-full"
           >
             <Phone size={16} className="mr-2" />
-            Help
+            WhatsApp
           </Button>
         </div>
       </div>
@@ -745,16 +764,31 @@ export default function PropertyDetailPage() {
                 Close
               </button>
             </div>
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-card bg-black">
+            <div
+              className="relative min-h-0 flex-1 overflow-hidden rounded-card bg-black"
+              onTouchStart={(event) => setGalleryTouchStart(event.touches[0]?.clientX ?? null)}
+              onTouchEnd={(event) => handleGalleryTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+            >
               {activeImage && <img src={activeImage} alt={property.title} className="h-full w-full object-contain" />}
               {images.length > 1 && (
                 <>
-                  <button type="button" onClick={() => setCurrentImage((i) => (i === 0 ? images.length - 1 : i - 1))} className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Previous photo">
+                  <button type="button" onClick={goToPreviousImage} className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Previous photo">
                     <ChevronLeft size={24} />
                   </button>
-                  <button type="button" onClick={() => setCurrentImage((i) => (i === images.length - 1 ? 0 : i + 1))} className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Next photo">
+                  <button type="button" onClick={goToNextImage} className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Next photo">
                     <ChevronRight size={24} />
                   </button>
+                  <div className="absolute inset-x-0 bottom-4 flex justify-center gap-1.5">
+                    {images.slice(0, 8).map((image, index) => (
+                      <button
+                        key={`${image}-${index}`}
+                        type="button"
+                        onClick={() => setCurrentImage(index)}
+                        className={cn("h-1.5 rounded-full transition-all", currentImage === index ? "w-6 bg-white" : "w-1.5 bg-white/45")}
+                        aria-label={`Open photo ${index + 1}`}
+                      />
+                    ))}
+                  </div>
                 </>
               )}
             </div>

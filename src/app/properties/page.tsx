@@ -1,169 +1,29 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
-import type { ReactNode } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  BadgeCheck,
-  Bath,
-  BedDouble,
-  BellRing,
-  Building2,
-  Eye,
-  Heart,
-  Home,
-  MapPin,
-  Maximize,
-  MessageCircle,
   Search,
-  Share2,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  Store,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
-import { PROPERTY_TYPES, PROPERTY_CATEGORY_OPTIONS, FURNISHING_OPTIONS } from "@/lib/constants";
+import { PROPERTY_TYPES, FURNISHING_OPTIONS } from "@/lib/constants";
 import { useAuth } from "@/lib/auth-context";
+import { FilterChip, FilterGroup } from "@/components/properties/filter-primitives";
+import { GuidedSearchStart } from "@/components/properties/guided-search-start";
+import { NoMatchRequirementCapture } from "@/components/properties/no-match-requirement-capture";
+import { PropertyCard } from "@/components/properties/property-card";
+import { getFreshness } from "@/components/properties/property-display";
+import { CATEGORY_OPTIONS, LISTING_TABS, QUICK_FILTERS, TRUST_FILTERS } from "@/components/properties/search-options";
+import type { Pagination, Property } from "@/components/properties/types";
 
-interface Property {
-  id: string;
-  slug: string;
-  title: string;
-  listingType: string;
-  category: string;
-  propertyType: string;
-  price: number;
-  area: number;
-  areaUnit: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  floor: number | null;
-  totalFloors: number | null;
-  locality: string;
-  city: string;
-  address: string;
-  images: string[];
-  coverImage: string | null;
-  furnishing: string | null;
-  amenities: string[];
-  listingStatus: string;
-  status: string;
-  visibilityType: string;
-  createdAt: string;
-  updatedAt: string;
-  publicBrokerName: string;
-  verified: boolean;
-  ownerListed?: boolean;
-  readyToVisit?: boolean;
-  postedBy: { name: string | null; role: string };
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-type BadgeVariant = "default" | "success" | "warning" | "error" | "blue" | "accent";
-
-const LISTING_TABS = [
-  { label: "Buy", value: "BUY" },
-  { label: "Rent", value: "RENT" },
-  { label: "Resale", value: "RESALE" },
-  { label: "Lease", value: "LEASE" },
-  { label: "Commercial", value: "COMMERCIAL" },
-];
-
-const CATEGORY_OPTIONS = PROPERTY_CATEGORY_OPTIONS.map((category) => ({
-  label: category.label,
-  value: category.value,
-}));
-
-const TRUST_FILTERS = [
-  { label: "Verified", action: "verified", icon: ShieldCheck },
-  { label: "Fresh", action: "fresh", icon: BellRing },
-  { label: "Ready to Visit", action: "ready", icon: Eye },
-  { label: "Owner Listed", action: "owner", icon: Home },
-  { label: "Budget Match", action: "budget", icon: BadgeCheck },
-];
-
-const QUICK_FILTERS = [
-  { label: "Office", action: "office" },
-  { label: "2 BHK", action: "2bhk" },
-  { label: "Warehouse", action: "warehouse" },
-];
-
-function getFreshness(updatedAt?: string) {
-  const days = updatedAt ? Math.floor((Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24)) : 99;
-  if (days < 1) return { label: "Updated today", variant: "success" as const, score: "high" as const };
-  if (days < 7) return { label: `${days}d fresh`, variant: "success" as const, score: "high" as const };
-  if (days < 21) return { label: `${days}d old`, variant: "warning" as const, score: "medium" as const };
-  return { label: "Needs check", variant: "error" as const, score: "low" as const };
-}
-
-function getSmartSpecs(property: Property) {
-  const type = property.propertyType.toLowerCase();
-  const specs: { label: string; value: string; icon?: ReactNode }[] = [];
-
-  if (/(apartment|villa|house|penthouse|studio|row|floor)/.test(type)) {
-    if (property.bedrooms) specs.push({ label: "Beds", value: `${property.bedrooms} BHK`, icon: <BedDouble size={13} /> });
-    if (property.bathrooms) specs.push({ label: "Bath", value: `${property.bathrooms}`, icon: <Bath size={13} /> });
-    if (property.floor != null) specs.push({ label: "Floor", value: property.totalFloors != null ? `${property.floor}/${property.totalFloors}` : `${property.floor}` });
-    if (property.furnishing) specs.push({ label: "Furnishing", value: property.furnishing });
-  } else if (/(office|co-working|shop|showroom|mall|restaurant|cafe|sco)/.test(type)) {
-    specs.push({ label: "Use", value: property.propertyType });
-    if (property.furnishing) specs.push({ label: "Fit-out", value: property.furnishing });
-    specs.push({ label: "Power", value: property.amenities.includes("Power Backup") ? "Backup" : "Check" });
-    specs.push({ label: "Parking", value: property.amenities.includes("Parking") ? "Yes" : "Ask" });
-  } else if (/(warehouse|godown|industrial|factory|shed|storage|logistics)/.test(type)) {
-    specs.push({ label: "Use", value: property.propertyType });
-    specs.push({ label: "Truck", value: property.amenities.includes("Visitor Parking") ? "Access" : "Ask" });
-    specs.push({ label: "Power", value: property.amenities.includes("Power Backup") ? "Backup" : "Check" });
-  } else if (/(plot|land|orchard|plantation)/.test(type)) {
-    specs.push({ label: "Type", value: property.propertyType });
-    specs.push({ label: "Road", value: "Ask" });
-    specs.push({ label: "Facing", value: "Ask" });
-  } else if (/(pg|co-living|hostel|serviced|guest|hotel|resort)/.test(type)) {
-    specs.push({ label: "Use", value: property.propertyType });
-    if (property.bedrooms) specs.push({ label: "Rooms", value: `${property.bedrooms}` });
-    if (property.furnishing) specs.push({ label: "Setup", value: property.furnishing });
-    specs.push({ label: "Food", value: property.amenities.includes("Food Service") ? "Yes" : "Ask" });
-  } else {
-    if (property.bedrooms) specs.push({ label: "Beds", value: `${property.bedrooms} BHK`, icon: <BedDouble size={13} /> });
-    if (property.furnishing) specs.push({ label: "Furnishing", value: property.furnishing });
-  }
-
-  specs.unshift({ label: "Area", value: `${Math.round(property.area).toLocaleString()} ${property.areaUnit}`, icon: <Maximize size={13} /> });
-  return specs.slice(0, 4);
-}
-
-function badgeVariant(type: string): BadgeVariant {
-  switch (type) {
-    case "BUY":
-      return "blue";
-    case "RENT":
-      return "success";
-    case "RESALE":
-      return "warning";
-    case "LEASE":
-      return "accent";
-    default:
-      return "default";
-  }
-}
-
-function listingLabel(type: string) {
-  if (type === "BUY") return "For sale";
-  if (type === "RENT") return "For rent";
-  if (type === "LEASE") return "Lease";
-  return type;
+function getInitialPage(value: string | null) {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function PropertiesContent() {
@@ -194,7 +54,7 @@ function PropertiesContent() {
   const [availability, setAvailability] = useState(searchParams.get("availability") || "");
   const [sort, setSort] = useState(searchParams.get("sort") || "");
   const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [page, setPage] = useState(parseInt(searchParams.get("page") || "1"));
+  const [page, setPage] = useState(getInitialPage(searchParams.get("page")));
   const [requirementForm, setRequirementForm] = useState({
     name: user?.name || "",
     phone: user?.phone || "",
@@ -208,23 +68,42 @@ function PropertiesContent() {
   const [requirementSubmitting, setRequirementSubmitting] = useState(false);
   const [requirementSent, setRequirementSent] = useState(false);
 
-  const specificIntentCount = [
-    propertyType,
-    locality,
-    city,
-    minPrice,
-    maxPrice,
-    bedrooms,
-    furnishing,
-    freshOnly,
-    verifiedOnly,
-    readyToVisitOnly,
-    ownerListedOnly,
-    budgetMatchOnly,
-    availability,
-    query,
-  ].filter(Boolean).length;
-  const broadIntentCount = [listingType, category].filter(Boolean).length;
+  const specificIntentCount = useMemo(
+    () =>
+      [
+        propertyType,
+        locality,
+        city,
+        minPrice,
+        maxPrice,
+        bedrooms,
+        furnishing,
+        freshOnly,
+        verifiedOnly,
+        readyToVisitOnly,
+        ownerListedOnly,
+        budgetMatchOnly,
+        availability,
+        query,
+      ].filter(Boolean).length,
+    [
+      propertyType,
+      locality,
+      city,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      furnishing,
+      freshOnly,
+      verifiedOnly,
+      readyToVisitOnly,
+      ownerListedOnly,
+      budgetMatchOnly,
+      availability,
+      query,
+    ]
+  );
+  const broadIntentCount = useMemo(() => [listingType, category].filter(Boolean).length, [listingType, category]);
   const hasSearchIntent = specificIntentCount > 0 || broadIntentCount >= 2;
   const needsMoreFilters = broadIntentCount > 0 && !hasSearchIntent;
 
@@ -367,9 +246,10 @@ function PropertiesContent() {
     return min != null || max != null;
   };
 
-  const availablePropertyTypes = category
-    ? PROPERTY_TYPES[category] || []
-    : Object.values(PROPERTY_TYPES).flat();
+  const availablePropertyTypes = useMemo(
+    () => (category ? PROPERTY_TYPES[category] || [] : Object.values(PROPERTY_TYPES).flat()),
+    [category]
+  );
 
   const submitSearchRequirement = async () => {
     setRequirementSubmitting(true);
@@ -404,33 +284,64 @@ function PropertiesContent() {
     }
   };
 
-  const activeFilters = [
-    listingType && { label: listingType, clear: () => setListingType("") },
-    category && { label: category, clear: () => { setCategory(""); setPropertyType(""); } },
-    propertyType && { label: propertyType, clear: () => setPropertyType("") },
-    locality && { label: locality, clear: () => setLocality("") },
-    city && { label: city, clear: () => setCity("") },
-    minPrice && { label: `Min ${formatPrice(Number(minPrice))}`, clear: () => setMinPrice("") },
-    maxPrice && { label: `Max ${formatPrice(Number(maxPrice))}`, clear: () => setMaxPrice("") },
-    bedrooms && { label: `${bedrooms} BHK`, clear: () => setBedrooms("") },
-    furnishing && { label: furnishing, clear: () => setFurnishing("") },
-    freshOnly && { label: "Fresh", clear: () => setFreshOnly(false) },
-    verifiedOnly && { label: "Verified", clear: () => setVerifiedOnly(false) },
-    readyToVisitOnly && { label: "Ready to Visit", clear: () => setReadyToVisitOnly(false) },
-    ownerListedOnly && { label: "Owner Listed", clear: () => setOwnerListedOnly(false) },
-    budgetMatchOnly && { label: "Budget Match", clear: () => setBudgetMatchOnly(false) },
-    availability && { label: availability.replaceAll("_", " "), clear: () => setAvailability("") },
-  ].filter(Boolean) as { label: string; clear: () => void }[];
+  const activeFilters = useMemo(
+    () =>
+      [
+        listingType && { label: listingType, clear: () => setListingType("") },
+        category && { label: category, clear: () => { setCategory(""); setPropertyType(""); } },
+        propertyType && { label: propertyType, clear: () => setPropertyType("") },
+        locality && { label: locality, clear: () => setLocality("") },
+        city && { label: city, clear: () => setCity("") },
+        minPrice && { label: `Min ${formatPrice(Number(minPrice))}`, clear: () => setMinPrice("") },
+        maxPrice && { label: `Max ${formatPrice(Number(maxPrice))}`, clear: () => setMaxPrice("") },
+        bedrooms && { label: `${bedrooms} BHK`, clear: () => setBedrooms("") },
+        furnishing && { label: furnishing, clear: () => setFurnishing("") },
+        freshOnly && { label: "Fresh", clear: () => setFreshOnly(false) },
+        verifiedOnly && { label: "Verified", clear: () => setVerifiedOnly(false) },
+        readyToVisitOnly && { label: "Ready to Visit", clear: () => setReadyToVisitOnly(false) },
+        ownerListedOnly && { label: "Owner Listed", clear: () => setOwnerListedOnly(false) },
+        budgetMatchOnly && { label: "Budget Match", clear: () => setBudgetMatchOnly(false) },
+        availability && { label: availability.replaceAll("_", " "), clear: () => setAvailability("") },
+      ].filter(Boolean) as { label: string; clear: () => void }[],
+    [
+      listingType,
+      category,
+      propertyType,
+      locality,
+      city,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      furnishing,
+      freshOnly,
+      verifiedOnly,
+      readyToVisitOnly,
+      ownerListedOnly,
+      budgetMatchOnly,
+      availability,
+    ]
+  );
 
-  const freshCount = properties.filter((property) => getFreshness(property.updatedAt).score === "high").length;
-  const verifiedCount = properties.filter((property) => property.verified).length;
-  const readyCount = properties.filter((property) => property.readyToVisit).length;
-  const ownerListedCount = properties.filter((property) => property.ownerListed).length;
+  const propertySummary = useMemo(
+    () => ({
+      freshCount: properties.filter((property) => getFreshness(property.updatedAt).score === "high").length,
+      verifiedCount: properties.filter((property) => property.verified).length,
+      readyCount: properties.filter((property) => property.readyToVisit).length,
+      ownerListedCount: properties.filter((property) => property.ownerListed).length,
+    }),
+    [properties]
+  );
 
-  const visibleProperties = properties.filter((property) => {
-    if (budgetMatchOnly && !isBudgetMatched(property)) return false;
-    return true;
-  });
+  const visibleProperties = useMemo(
+    () =>
+      properties.filter((property) => {
+        if (budgetMatchOnly && !isBudgetMatched(property)) return false;
+        return true;
+      }),
+    [properties, budgetMatchOnly, minPrice, maxPrice]
+  );
+
+  const { freshCount, verifiedCount, readyCount, ownerListedCount } = propertySummary;
 
   const shownTotal = budgetMatchOnly ? visibleProperties.length : pagination?.total ?? properties.length;
 
@@ -542,11 +453,18 @@ function PropertiesContent() {
         </div>
       </section>
 
+      {filtersOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-foreground/35 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setFiltersOpen(false)}
+        />
+      )}
+
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
         <aside
           className={cn(
             "shrink-0 space-y-4 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:block lg:h-fit lg:w-72",
-            filtersOpen && "fixed inset-x-3 bottom-20 top-24 z-40 lg:static",
+            filtersOpen && "fixed inset-x-0 bottom-0 top-0 z-40 rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4",
             filtersOpen ? "block" : "hidden"
           )}
         >
@@ -555,7 +473,12 @@ function PropertiesContent() {
               <h2 className="text-sm font-semibold text-foreground">Filters</h2>
               <p className="text-xs text-text-secondary">Pick what matters first</p>
             </div>
-            <button onClick={clearFilters} className="text-xs font-semibold text-accent hover:text-primary">Clear</button>
+            <div className="flex items-center gap-3">
+              <button onClick={clearFilters} className="text-xs font-semibold text-accent hover:text-primary">Clear</button>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-btn border border-border p-2 text-text-secondary lg:hidden" aria-label="Close filters">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <FilterGroup label="Listing Type">
@@ -697,9 +620,11 @@ function PropertiesContent() {
             </div>
           </FilterGroup>
 
-          <Button onClick={() => { setFiltersOpen(false); fetchProperties(); }} className="w-full" size="sm">
-            Show Properties
-          </Button>
+          <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-border bg-white p-4 lg:static lg:m-0 lg:border-0 lg:p-0">
+            <Button onClick={() => { setFiltersOpen(false); fetchProperties(); }} className="w-full" size="sm">
+              Show {shownTotal || ""} Properties
+            </Button>
+          </div>
         </aside>
 
         <section className="min-w-0 flex-1">
@@ -800,7 +725,7 @@ function PropertiesContent() {
                 <PropertyCard
                   key={property.id}
                   property={property}
-                  user={user}
+                  isLoggedIn={Boolean(user)}
                   onSave={handleSaveProperty}
                   onShare={shareProperty}
                 />
@@ -823,6 +748,17 @@ function PropertiesContent() {
       </div>
 
       <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-text-secondary">{hasSearchIntent ? "Matching properties" : "Start with filters"}</p>
+            <p className="truncate text-sm font-bold text-foreground">{hasSearchIntent ? shownTotal : activeFilters.length} {hasSearchIntent ? "results" : "selected"}</p>
+          </div>
+          {activeFilters.length > 0 && (
+            <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary">
+              Clear
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-[1fr_1fr_1.1fr] gap-2">
           <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="outline" className="w-full">
             <SlidersHorizontal size={16} className="mr-2" />
@@ -839,412 +775,11 @@ function PropertiesContent() {
             <option value="price_desc">High price</option>
           </select>
           <Button onClick={() => { setPage(1); fetchProperties(); }} variant="accent" className="w-full">
-            Search
+            Show
           </Button>
         </div>
       </div>
     </main>
-  );
-}
-
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-semibold uppercase text-text-secondary">{label}</p>
-      {children}
-    </div>
-  );
-}
-
-function NoMatchRequirementCapture({
-  form,
-  setForm,
-  submitting,
-  sent,
-  onSubmit,
-  onClearFilters,
-  onRelaxBudget,
-  onShowNearby,
-  propertyTypes,
-}: {
-  form: {
-    name: string;
-    phone: string;
-    requirementType: string;
-    locality: string;
-    city: string;
-    budgetMax: string;
-    urgency: string;
-    note: string;
-  };
-  setForm: (form: {
-    name: string;
-    phone: string;
-    requirementType: string;
-    locality: string;
-    city: string;
-    budgetMax: string;
-    urgency: string;
-    note: string;
-  }) => void;
-  submitting: boolean;
-  sent: boolean;
-  onSubmit: () => void;
-  onClearFilters: () => void;
-  onRelaxBudget: () => void;
-  onShowNearby: () => void;
-  propertyTypes: string[];
-}) {
-  const update = (key: keyof typeof form, value: string) => setForm({ ...form, [key]: value });
-  const [wizardStep, setWizardStep] = useState(0);
-  const wizardLabels = ["Need", "Location", "Budget", "Contact"];
-
-  return (
-    <div className="overflow-hidden rounded-card border border-border bg-white shadow-card">
-      <div className="grid gap-0 lg:grid-cols-[1fr_390px]">
-        <div className="bg-primary-light p-6 lg:p-8">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">
-            <Search size={22} />
-          </div>
-          <h3 className="mt-5 text-2xl font-semibold text-foreground">No exact match yet</h3>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-            Good search, thin supply. Share what you need and KrrishJazz can manually check owner and broker inventory instead of making you keep refreshing filters.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <button type="button" onClick={onRelaxBudget} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
-              <p className="text-sm font-semibold text-foreground">Relax budget</p>
-              <p className="mt-1 text-xs leading-5 text-text-secondary">Remove strict price filters and see near matches.</p>
-            </button>
-            <button type="button" onClick={onShowNearby} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
-              <p className="text-sm font-semibold text-foreground">Try nearby</p>
-              <p className="mt-1 text-xs leading-5 text-text-secondary">Search broader localities around your preferred area.</p>
-            </button>
-            <button type="button" onClick={onClearFilters} className="rounded-card border border-primary/15 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card">
-              <p className="text-sm font-semibold text-foreground">Reset filters</p>
-              <p className="mt-1 text-xs leading-5 text-text-secondary">Start clean with one city, type, or budget.</p>
-            </button>
-          </div>
-        </div>
-
-        <div className="border-t border-border bg-white p-5 lg:border-l lg:border-t-0">
-          {sent ? (
-            <div className="flex h-full min-h-80 flex-col items-center justify-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-light text-success">
-                <BadgeCheck size={24} />
-              </div>
-              <h4 className="mt-4 text-lg font-semibold text-foreground">Requirement received</h4>
-              <p className="mt-2 text-sm leading-6 text-text-secondary">
-                KrrishJazz ops can now follow up and look for matching supply manually.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Tell KrrishJazz your requirement</p>
-                <p className="mt-1 text-xs leading-5 text-text-secondary">This becomes an assisted-search request for admin follow-up.</p>
-              </div>
-
-              <div className="grid grid-cols-4 gap-1">
-                {wizardLabels.map((label, index) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setWizardStep(index)}
-                    className={cn(
-                      "rounded-btn border px-2 py-2 text-[11px] font-semibold transition-colors",
-                      wizardStep === index ? "border-primary bg-primary text-white" : "border-border bg-surface text-text-secondary"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {wizardStep === 0 && (
-                <>
-                  <select value={form.requirementType} onChange={(event) => update("requirementType", event.target.value)} className="min-h-11 w-full rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary">
-                    <option value="">Property type</option>
-                    {propertyTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                  <textarea value={form.note} onChange={(event) => update("note", event.target.value)} placeholder="Anything important? floor, road, visit timing, furnishing..." className="min-h-24 w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary" />
-                </>
-              )}
-
-              {wizardStep === 1 && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                  <input value={form.locality} onChange={(event) => update("locality", event.target.value)} placeholder="Preferred locality" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
-                  <input value={form.city} onChange={(event) => update("city", event.target.value)} placeholder="City" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
-                </div>
-              )}
-
-              {wizardStep === 2 && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                  <input type="number" value={form.budgetMax} onChange={(event) => update("budgetMax", event.target.value)} placeholder="Max budget" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
-                  <select value={form.urgency} onChange={(event) => update("urgency", event.target.value)} className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary">
-                    <option value="IMMEDIATE">Immediate</option>
-                    <option value="THIS_WEEK">This week</option>
-                    <option value="THIS_MONTH">This month</option>
-                    <option value="EXPLORING">Just exploring</option>
-                  </select>
-                </div>
-              )}
-
-              {wizardStep === 3 && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                  <input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Your name" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
-                  <input value={form.phone} onChange={(event) => update("phone", event.target.value)} placeholder="+91XXXXXXXXXX" className="min-h-11 rounded-btn border border-border bg-surface px-3 text-sm outline-none focus:border-primary" />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" disabled={wizardStep === 0} onClick={() => setWizardStep((step) => Math.max(0, step - 1))}>Back</Button>
-                <Button type="button" variant="outline" disabled={wizardStep === wizardLabels.length - 1} onClick={() => setWizardStep((step) => Math.min(wizardLabels.length - 1, step + 1))}>Next</Button>
-              </div>
-
-              <Button onClick={onSubmit} loading={submitting} className="w-full" disabled={!form.name || !form.phone || !form.city}>
-                Send Requirement
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GuidedSearchStart({
-  needsMoreFilters,
-  onPick,
-}: {
-  needsMoreFilters: boolean;
-  onPick: (next: { category?: string; propertyType?: string; listingType?: string; query?: string }) => void;
-}) {
-  const starters = [
-    { title: "Buy a home", desc: "Flats, villas, independent houses", icon: Home, tone: "bg-primary-light text-primary", next: { category: "RESIDENTIAL", listingType: "BUY" } },
-    { title: "Rent a home", desc: "Ready-to-move rental homes", icon: Building2, tone: "bg-accent-light text-accent", next: { category: "RESIDENTIAL", listingType: "RENT" } },
-    { title: "Commercial space", desc: "Offices, shops, showrooms", icon: Store, tone: "bg-success-light text-success", next: { category: "COMMERCIAL", propertyType: "Office Space" } },
-    { title: "Plots and land", desc: "Investment land and plots", icon: MapPin, tone: "bg-warning-light text-[#9A5B00]", next: { propertyType: "Residential Plot" } },
-  ];
-
-  const localities = ["New Town", "Salt Lake", "Rajarhat", "Park Street", "Ballygunge", "Howrah"];
-
-  return (
-    <div className="rounded-card border border-border bg-white p-5 shadow-card">
-      <div className="text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-light text-primary">
-          <SlidersHorizontal size={22} />
-        </div>
-        <h3 className="mt-4 text-xl font-semibold text-foreground">{needsMoreFilters ? "Add one more filter" : "Start with a filter"}</h3>
-        <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-          {needsMoreFilters
-            ? "Buy, Rent, or Commercial alone is too broad. Add locality, budget, BHK, or property type so the results stay useful."
-            : "We will show properties after you choose a need, location, budget, or search term. This keeps the page easy instead of overwhelming."}
-        </p>
-      </div>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {starters.map((item) => (
-          <button
-            key={item.title}
-            type="button"
-            onClick={() => onPick(item.next)}
-            className="group rounded-card border border-border bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white hover:shadow-card"
-          >
-            <div className={cn("mb-4 flex h-11 w-11 items-center justify-center rounded-btn", item.tone)}>
-              <item.icon size={21} />
-            </div>
-            <p className="font-semibold text-foreground group-hover:text-primary">{item.title}</p>
-            <p className="mt-1 text-sm text-text-secondary">{item.desc}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-6 border-t border-border pt-4">
-        <p className="mb-3 text-xs font-semibold uppercase text-text-secondary">Popular localities</p>
-        <div className="flex flex-wrap gap-2">
-          {localities.map((locality) => (
-            <button
-              key={locality}
-              type="button"
-              onClick={() => onPick({ query: locality })}
-              className="rounded-pill border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary-light hover:text-primary"
-            >
-              {locality}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-        active ? "border-primary bg-primary text-white" : "border-border bg-surface text-text-secondary hover:border-primary/40 hover:text-primary"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PropertyCard({
-  property,
-  user,
-  onSave,
-  onShare,
-}: {
-  property: Property;
-  user: ReturnType<typeof useAuth>["user"];
-  onSave: (propertyId: string) => void;
-  onShare: (property: Property) => void;
-}) {
-  const freshness = getFreshness(property.updatedAt);
-  const image = property.coverImage || property.images[0];
-  const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
-  const brokerName = "KrrishJazz";
-  const specs = getSmartSpecs(property).slice(0, 3);
-  const trustSignals = [
-    property.verified ? { label: "Verified", icon: ShieldCheck, tone: "text-success bg-success/10 border-success/20" } : null,
-    property.readyToVisit ? { label: "Ready to Visit", icon: Eye, tone: "text-accent bg-accent/10 border-accent/20" } : null,
-    getFreshness(property.updatedAt).score === "high" ? { label: "Fresh", icon: BellRing, tone: "text-primary bg-primary-light border-primary/20" } : null,
-    property.ownerListed ? { label: "Owner Listed", icon: Home, tone: "text-warning bg-warning-light border-warning/20" } : null,
-  ].filter(Boolean).slice(0, 3) as { label: string; icon: typeof ShieldCheck; tone: string }[];
-
-  return (
-    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lift">
-      <div className="grid lg:grid-cols-[310px_1fr]">
-        <div className="relative h-64 overflow-hidden bg-surface lg:h-full">
-          <Link href={`/properties/${property.slug}`} className="block h-full">
-            {image ? (
-              <img
-                src={image}
-                alt={property.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                loading="lazy"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-primary">
-                <Building2 size={48} />
-              </div>
-            )}
-          </Link>
-
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            <Badge variant={badgeVariant(property.listingType)}>{listingLabel(property.listingType)}</Badge>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onSave(property.id)}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-text-secondary shadow-card transition-colors hover:text-accent"
-            aria-label="Save property"
-          >
-            <Heart size={17} />
-          </button>
-
-          <div className="absolute bottom-3 left-3 rounded-pill bg-foreground/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-            {property.images.length || (property.coverImage ? 1 : 0)} photo{property.images.length === 1 ? "" : "s"}
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col p-4 lg:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <Link href={`/properties/${property.slug}`} className="block">
-                <h2 className="line-clamp-2 text-xl font-semibold text-foreground group-hover:text-primary">{property.title}</h2>
-              </Link>
-              <p className="mt-2 flex items-center gap-1 text-sm text-text-secondary">
-                <MapPin size={14} />
-                <span className="line-clamp-1">{property.locality ? `${property.locality}, ` : ""}{property.city}</span>
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant="blue">{property.propertyType}</Badge>
-                <Badge variant={freshness.variant}>
-                  <BellRing size={11} className="mr-1" />
-                  {freshness.label}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="shrink-0 sm:text-right">
-              <p className="text-2xl font-bold text-primary">{formatPrice(Number(property.price))}</p>
-              {pricePerUnit && <p className="mt-1 text-xs text-text-secondary">Rs {pricePerUnit}/sqft</p>}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {specs.map((spec) => (
-              <span key={spec.label} className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground">
-                {spec.icon}
-                {spec.value}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-4 grid gap-2 rounded-card border border-primary/10 bg-primary-light/60 p-3 sm:grid-cols-[1fr_auto]">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-primary text-xs font-bold">
-                {brokerName.charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{brokerName}</p>
-                <p className="text-xs text-text-secondary">KrrishJazz managed contact</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-              <ShieldCheck size={15} />
-              Contact protected
-            </div>
-          </div>
-
-          {trustSignals.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {trustSignals.map((signal) => {
-                const Icon = signal.icon;
-                return (
-                  <span key={signal.label} className={cn("inline-flex items-center gap-1.5 rounded-pill border px-3 py-1 text-xs font-semibold", signal.tone)}>
-                    <Icon size={13} />
-                    {signal.label}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
-            <Link href={user ? `/properties/${property.slug}#enquire` : `/login?redirect=/properties/${property.slug}`} className="min-w-0">
-              <Button variant="accent" className="w-full" size="sm">
-                <MessageCircle size={14} className="mr-2" />
-                Get Callback
-              </Button>
-            </Link>
-            <Link href={`/properties/${property.slug}`}>
-              <Button variant="outline" size="sm" aria-label="View details">
-                <Eye size={14} className="mr-2" />
-                <span className="hidden sm:inline">Details</span>
-              </Button>
-            </Link>
-            <button
-              type="button"
-              onClick={() => onShare(property)}
-              className="inline-flex items-center justify-center rounded-btn border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-primary-light hover:text-primary"
-              aria-label="Share property"
-            >
-              <Share2 size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </article>
   );
 }
 

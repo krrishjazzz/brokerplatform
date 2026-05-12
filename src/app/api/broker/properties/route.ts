@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
+import { countRequirementsForProperty, uniqueText } from "@/server/broker-matching";
+import { parseJsonArray } from "@/server/json";
+import { getPagination } from "@/server/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +16,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12")));
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPagination(searchParams);
 
     const where: any = {
       status: { notIn: ["REJECTED", "CLOSED"] },
@@ -102,42 +103,30 @@ export async function GET(req: NextRequest) {
       prisma.property.count({ where }),
     ]);
 
-    const processedProperties = await Promise.all(properties.map(async (property) => {
-      let images: string[] = [];
-      let amenities: string[] = [];
-      try {
-        images = property.images ? JSON.parse(property.images) : [];
-      } catch {
-        images = [];
-      }
-      try {
-        amenities = property.amenities ? JSON.parse(property.amenities) : [];
-      } catch {
-        amenities = [];
-      }
+    const propertyTypes = uniqueText(properties.map((property) => property.propertyType));
+    const propertyCities = uniqueText(properties.map((property) => property.city));
+    const candidateRequirements = properties.length
+      ? await prisma.requirement.findMany({
+          where: {
+            status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] },
+            ...(propertyTypes.length ? { propertyType: { in: propertyTypes } } : {}),
+            ...(propertyCities.length
+              ? { OR: propertyCities.map((city) => ({ city: { contains: city } })) }
+              : {}),
+          },
+          select: {
+            id: true,
+            propertyType: true,
+            city: true,
+            locality: true,
+            budgetMin: true,
+            budgetMax: true,
+          },
+        })
+      : [];
 
-      const matchingRequirementsCount = await prisma.requirement.count({
-        where: {
-          status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] },
-          propertyType: property.propertyType,
-          city: { contains: property.city },
-          ...(property.locality ? { OR: [{ locality: { contains: property.locality } }, { locality: "" }] } : {}),
-          AND: [
-            {
-              OR: [
-                { budgetMin: { lte: property.price } },
-                { budgetMin: null },
-              ],
-            },
-            {
-              OR: [
-                { budgetMax: { gte: property.price } },
-                { budgetMax: null },
-              ],
-            },
-          ],
-        },
-      });
+    const processedProperties = properties.map((property) => {
+      const matchingRequirementsCount = countRequirementsForProperty(property, candidateRequirements);
 
       const sourceType =
         property.postedById === session.id || property.assignedBrokerId === session.id
@@ -179,8 +168,8 @@ export async function GET(req: NextRequest) {
         category: property.category,
         propertyType: property.propertyType,
         coverImage: property.coverImage,
-        images,
-        amenities,
+        images: parseJsonArray(property.images),
+        amenities: parseJsonArray(property.amenities),
         assignedBrokerId: property.assignedBrokerId,
         assignedBroker: property.assignedBroker ? { name: property.assignedBroker.name, phone: property.assignedBroker.phone } : null,
         publicBrokerName: sourceLabel,
@@ -205,7 +194,7 @@ export async function GET(req: NextRequest) {
         updatedAt: property.updatedAt,
         latestFreshness: property.freshnessHistory?.[0] || null,
       };
-    }));
+    });
 
     return NextResponse.json({
       properties: processedProperties,

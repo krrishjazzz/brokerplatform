@@ -4,6 +4,8 @@ import { getSession } from "@/lib/session";
 import { requirementSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/workflow";
 import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
+import { countPropertiesForRequirement, uniqueText } from "@/server/broker-matching";
+import { getPagination } from "@/server/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12")));
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPagination(searchParams);
 
     const where: any = {};
     const andFilters: any[] = [];
@@ -109,45 +109,51 @@ export async function GET(req: NextRequest) {
       prisma.requirement.count({ where }),
     ]);
 
-    const processedRequirements = await Promise.all(
-      requirements.map(async (req) => {
-        const minBudget = req.budgetMin ? Number(req.budgetMin) : null;
-        const maxBudget = req.budgetMax ? Number(req.budgetMax) : null;
-        const matchFilters: any[] = [];
-
-        if (minBudget != null) matchFilters.push({ price: { gte: minBudget } });
-        if (maxBudget != null) matchFilters.push({ price: { lte: maxBudget } });
-
-        const matchedPropertiesCount = await prisma.property.count({
+    const requirementTypes = uniqueText(requirements.map((requirement) => requirement.propertyType));
+    const requirementCities = uniqueText(requirements.map((requirement) => requirement.city));
+    const candidateProperties = requirements.length
+      ? await prisma.property.findMany({
           where: {
             status: { notIn: ["REJECTED", "CLOSED"] },
             visibilityType: { in: BROKER_VISIBLE_TYPES },
-            propertyType: req.propertyType,
-            city: { contains: req.city },
-            ...(req.locality ? { locality: { contains: req.locality } } : {}),
-            ...(matchFilters.length > 0 ? { AND: matchFilters } : {}),
+            ...(requirementTypes.length ? { propertyType: { in: requirementTypes } } : {}),
+            ...(requirementCities.length
+              ? { OR: requirementCities.map((city) => ({ city: { contains: city } })) }
+              : {}),
           },
-        });
+          select: {
+            id: true,
+            propertyType: true,
+            city: true,
+            locality: true,
+            price: true,
+          },
+        })
+      : [];
 
-        return {
-          id: req.id,
-          description: req.description,
-          propertyType: req.propertyType,
-          locality: req.locality,
-          city: req.city,
-          budgetMin: minBudget,
-          budgetMax: maxBudget,
-          status: req.status,
-          urgency: req.urgency,
-          clientSeriousness: req.clientSeriousness,
-          notes: req.notes,
-          expiresAt: req.expiresAt?.toISOString() || null,
-          matchedPropertiesCount,
-          createdAt: req.createdAt.toISOString(),
-          broker: req.broker,
-        };
-      })
-    );
+    const processedRequirements = requirements.map((req) => {
+      const minBudget = req.budgetMin ? Number(req.budgetMin) : null;
+      const maxBudget = req.budgetMax ? Number(req.budgetMax) : null;
+      const matchedPropertiesCount = countPropertiesForRequirement(req, candidateProperties);
+
+      return {
+        id: req.id,
+        description: req.description,
+        propertyType: req.propertyType,
+        locality: req.locality,
+        city: req.city,
+        budgetMin: minBudget,
+        budgetMax: maxBudget,
+        status: req.status,
+        urgency: req.urgency,
+        clientSeriousness: req.clientSeriousness,
+        notes: req.notes,
+        expiresAt: req.expiresAt?.toISOString() || null,
+        matchedPropertiesCount,
+        createdAt: req.createdAt.toISOString(),
+        broker: req.broker,
+      };
+    });
 
     return NextResponse.json({
       requirements: processedRequirements,

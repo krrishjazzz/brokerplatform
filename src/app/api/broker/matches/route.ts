@@ -3,16 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { logActivity, scoreMatch } from "@/lib/workflow";
 import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
+import { parseJsonArray } from "@/server/json";
+import { getPagination } from "@/server/pagination";
 
 export const dynamic = "force-dynamic";
-
-function parseJsonArray(value: string | null) {
-  try {
-    return value ? JSON.parse(value) : [];
-  } catch {
-    return [];
-  }
-}
 
 function getSourceMeta(property: any, session: { id: string; name?: string | null; phone?: string | null }) {
   const sourceType =
@@ -113,7 +107,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode");
     const id = searchParams.get("id");
-    const limit = Math.min(20, Math.max(1, parseInt(searchParams.get("limit") || "8")));
+    const { limit } = getPagination(searchParams, { defaultLimit: 8, maxLimit: 20 });
 
     if (!mode || !id) {
       return NextResponse.json({ error: "mode and id are required" }, { status: 400 });

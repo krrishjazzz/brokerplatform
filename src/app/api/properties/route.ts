@@ -6,6 +6,8 @@ import { slugify } from "@/lib/utils";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { logActivity } from "@/lib/workflow";
 import { CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
+import { parseJsonArray } from "@/server/json";
+import { getPagination } from "@/server/pagination";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +31,8 @@ function formatProperty(property: any, options: { publicView: boolean }) {
     verified: property.status === "LIVE" || listingStatus === "LIVE",
     ownerListed: property.postedBy?.role === "OWNER",
     readyToVisit: property.status === "LIVE" && ["LIVE", "AVAILABLE"].includes(listingStatus),
-    amenities: JSON.parse(property.amenities || "[]"),
-    images: JSON.parse(property.images || "[]"),
+    amenities: parseJsonArray(property.amenities),
+    images: parseJsonArray(property.images),
     latestFreshness: property.freshnessHistory?.[0] || null,
   };
 
@@ -51,9 +53,7 @@ function formatProperty(property: any, options: { publicView: boolean }) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12")));
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPagination(searchParams);
 
     const where: any = {};
     let publicView = true;
@@ -131,7 +131,10 @@ export async function GET(req: NextRequest) {
     }
 
     const bedrooms = searchParams.get("bedrooms");
-    if (bedrooms) where.bedrooms = parseInt(bedrooms);
+    if (bedrooms) {
+      const bedroomCount = Number.parseInt(bedrooms, 10);
+      if (Number.isFinite(bedroomCount) && bedroomCount > 0) where.bedrooms = bedroomCount;
+    }
 
     const furnishing = searchParams.get("furnishing");
     if (furnishing) where.furnishing = furnishing;

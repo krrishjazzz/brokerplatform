@@ -1,107 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BadgeCheck,
   BellRing,
   Building2,
-  Eye,
   Filter,
   Loader2,
-  MapPin,
   MessageCircle,
   Network,
-  Phone,
   Search,
-  Share,
   Target,
-  UserCheck,
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Modal } from "@/components/ui/modal";
+import { BrokerWorkflowCard, ChipButton, FilterBlock, MetricCard } from "@/components/broker/broker-primitives";
+import { getFreshness, getRequirementBudget } from "@/components/broker/formatters";
+import { BrokerPropertyDetailsModal, BrokerPropertyCard, MatchingRequirementsDrawer } from "@/components/broker/property-workflow";
+import type {
+  BrokerMatchedRequirement as MatchedRequirement,
+  BrokerPagination as Pagination,
+  BrokerProperty as Property,
+} from "@/components/broker/types";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
 import { PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
-import { getVisibilityLabel } from "@/lib/visibility";
-
-interface Property {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  address: string;
-  locality: string;
-  city: string;
-  state: string;
-  pincode: string;
-  price: number;
-  listingType: string;
-  category: string;
-  propertyType: string;
-  coverImage: string | null;
-  images: string[];
-  amenities: string[];
-  assignedBrokerId: string | null;
-  assignedBroker?: {
-    name: string;
-    phone?: string;
-  } | null;
-  publicBrokerName: string;
-  sourceType?: string;
-  sourceLabel?: string;
-  sourceName?: string;
-  sourcePhone?: string;
-  verified: boolean;
-  area: number;
-  areaUnit: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  floor: number | null;
-  totalFloors: number | null;
-  ageYears: number | null;
-  furnishing: string | null;
-  visibilityType: string;
-  listingStatus: string;
-  status: string;
-  matchingRequirementsCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface MatchedRequirement {
-  id: string;
-  description: string;
-  propertyType: string;
-  locality: string;
-  city: string;
-  budgetMin: number | null;
-  budgetMax: number | null;
-  status: string;
-  urgency: string;
-  clientSeriousness: string;
-  match?: { score: number; label: string; variant: BadgeVariant; reasons: string[] };
-  matchedPropertiesCount: number;
-  createdAt: string;
-  broker: {
-    id: string;
-    name: string;
-    phone?: string;
-  };
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-type BadgeVariant = "default" | "success" | "warning" | "error" | "blue" | "accent";
 
 const QUICK_FILTERS = [
   { label: "High match", action: "matches" },
@@ -111,63 +37,6 @@ const QUICK_FILTERS = [
   { label: "Rent", action: "rent" },
 ];
 
-function getBrokerSpecs(property: Property) {
-  const type = property.propertyType.toLowerCase();
-  const specs: { label: string; value: string }[] = [
-    { label: "Area", value: `${Math.round(property.area).toLocaleString()} ${property.areaUnit}` },
-  ];
-
-  if (/(apartment|villa|house|penthouse|studio|row)/.test(type)) {
-    if (property.bedrooms) specs.push({ label: "Beds", value: `${property.bedrooms} BHK` });
-    if (property.bathrooms) specs.push({ label: "Bath", value: `${property.bathrooms}` });
-    if (property.floor != null) specs.push({ label: "Floor", value: property.totalFloors != null ? `${property.floor}/${property.totalFloors}` : `${property.floor}` });
-  } else if (/(office|co-working|shop|showroom)/.test(type)) {
-    specs.push({ label: "Use", value: property.propertyType });
-    specs.push({ label: "Fit-out", value: property.furnishing || "Ask" });
-    specs.push({ label: "Parking", value: property.amenities.includes("Parking") ? "Yes" : "Ask" });
-  } else if (/(warehouse|industrial|factory)/.test(type)) {
-    specs.push({ label: "Access", value: "Truck Ask" });
-    specs.push({ label: "Power", value: property.amenities.includes("Power Backup") ? "Backup" : "Check" });
-    specs.push({ label: "Use", value: property.propertyType });
-  } else if (/(plot|land)/.test(type)) {
-    specs.push({ label: "Plot", value: property.propertyType });
-    specs.push({ label: "Road", value: "Ask" });
-    specs.push({ label: "Facing", value: "Ask" });
-  } else {
-    if (property.furnishing) specs.push({ label: "Furnishing", value: property.furnishing });
-    specs.push({ label: "Type", value: property.propertyType });
-  }
-
-  return specs.slice(0, 4);
-}
-
-function getFreshness(updatedAt: string) {
-  const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-  if (days < 1) return { label: "Updated today", variant: "success" as const, isFresh: true };
-  if (days < 7) return { label: `${days}d fresh`, variant: "success" as const, isFresh: true };
-  if (days < 21) return { label: `${days}d old`, variant: "warning" as const, isFresh: false };
-  return { label: "Needs check", variant: "error" as const, isFresh: false };
-}
-
-function getAvailability(property: Property) {
-  const availability = property.listingStatus || property.status;
-  const label = availability === "ON_HOLD" ? "On Hold" : availability.replaceAll("_", " ");
-  const variant: BadgeVariant =
-    availability === "AVAILABLE" || availability === "LIVE"
-      ? "success"
-      : availability === "ON_HOLD" || availability === "PENDING"
-      ? "warning"
-      : "default";
-  return { label, variant };
-}
-
-function getListingVariant(type: string): BadgeVariant {
-  if (type === "BUY") return "blue";
-  if (type === "RENT") return "success";
-  if (type === "LEASE") return "accent";
-  return "default";
-}
-
 export default function BrokerPropertiesPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -175,7 +44,7 @@ export default function BrokerPropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListingType, setSelectedListingType] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -415,22 +284,41 @@ export default function BrokerPropertiesPage() {
     }
   };
 
+  const propertyMetrics = useMemo(() => {
+    let freshListings = 0;
+    let hotMatches = 0;
+    let highMatchListings = 0;
+    let onHold = 0;
+    let followUpCount = 0;
+
+    properties.forEach((property) => {
+      const freshness = getFreshness(property.updatedAt);
+      if (freshness.isFresh) freshListings += 1;
+      if (!freshness.isFresh || property.matchingRequirementsCount > 0) followUpCount += 1;
+      if (property.matchingRequirementsCount > 0) highMatchListings += 1;
+      if (property.listingStatus === "ON_HOLD") onHold += 1;
+      hotMatches += property.matchingRequirementsCount;
+    });
+
+    return { freshListings, hotMatches, highMatchListings, onHold, followUpCount };
+  }, [properties]);
+
+  const visibleProperties = useMemo(() => properties.filter((property) => {
+    if (clientFocus === "matches") return property.matchingRequirementsCount > 0;
+    if (clientFocus === "fresh") return getFreshness(property.updatedAt).isFresh;
+    return true;
+  }), [clientFocus, properties]);
+
+  const activeFiltersCount = useMemo(
+    () => [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort].filter(Boolean).length,
+    [maxPrice, minPrice, searchQuery, selectedCategory, selectedCity, selectedListingType, selectedLocality, selectedPropertyType, selectedSort]
+  );
+
   if (!user || user.role !== "BROKER" || user.brokerStatus !== "APPROVED") {
     return null;
   }
 
-  const freshListings = properties.filter((property) => getFreshness(property.updatedAt).isFresh).length;
-  const hotMatches = properties.reduce((sum, property) => sum + property.matchingRequirementsCount, 0);
-  const highMatchListings = properties.filter((property) => property.matchingRequirementsCount > 0).length;
-  const onHold = properties.filter((property) => property.listingStatus === "ON_HOLD").length;
-  const followUpCount = properties.filter((property) => property.matchingRequirementsCount > 0 || getFreshness(property.updatedAt).isFresh === false).length;
-  const activeFiltersCount = [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort].filter(Boolean).length;
-
-  const visibleProperties = properties.filter((property) => {
-    if (clientFocus === "matches") return property.matchingRequirementsCount > 0;
-    if (clientFocus === "fresh") return getFreshness(property.updatedAt).isFresh;
-    return true;
-  });
+  const { freshListings, hotMatches, highMatchListings, onHold, followUpCount } = propertyMetrics;
 
   return (
     <main className="min-h-screen bg-surface pb-20 lg:pb-8">
@@ -535,16 +423,28 @@ export default function BrokerPropertiesPage() {
         </div>
       </section>
 
+      {filtersOpen && (
+        <div className="fixed inset-0 z-30 bg-foreground/35 backdrop-blur-[2px] lg:hidden" onClick={() => setFiltersOpen(false)} />
+      )}
+
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
-        <aside className={cn("h-fit shrink-0 rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:w-72", filtersOpen ? "block" : "hidden")}>
+        <aside className={cn(
+          "h-fit shrink-0 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:w-72",
+          filtersOpen ? "fixed inset-x-0 bottom-0 top-0 z-40 block rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4" : "hidden"
+        )}>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Deal filters</h2>
               <p className="text-xs text-text-secondary">Narrow inventory for matching</p>
             </div>
-            <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary hover:text-accent">
-              Clear
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary hover:text-accent">
+                Clear
+              </button>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-btn border border-border p-2 text-text-secondary lg:hidden" aria-label="Close filters">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="space-y-5">
@@ -633,9 +533,11 @@ export default function BrokerPropertiesPage() {
               </select>
             </FilterBlock>
 
-            <Button onClick={() => { setFiltersOpen(false); fetchProperties(); }} className="w-full" size="sm">
-              Apply Filters
-            </Button>
+            <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-border bg-white p-4 lg:static lg:m-0 lg:border-0 lg:p-0">
+              <Button onClick={() => { setFiltersOpen(false); fetchProperties(); }} className="w-full" size="sm">
+                Show Broker Inventory
+              </Button>
+            </div>
           </div>
         </aside>
 
@@ -722,507 +624,23 @@ export default function BrokerPropertiesPage() {
       />
 
       <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <div>
+            <p className="text-xs text-text-secondary">Broker action desk</p>
+            <p className="text-sm font-bold text-foreground">{visibleProperties.length} supply, {hotMatches} matches</p>
+          </div>
+          <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary">Clear</button>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="outline" className="w-full">
             <Filter size={16} className="mr-2" />
-            Filters
+            Filters{activeFiltersCount ? ` (${activeFiltersCount})` : ""}
           </Button>
           <Button onClick={() => { setPage(1); fetchProperties(); }} variant="accent" className="w-full">
-            Search
+            Refresh
           </Button>
         </div>
       </div>
     </main>
-  );
-}
-
-interface BrokerPropertyCardProps {
-  property: Property;
-  onViewDetails: (property: Property) => void;
-  onContactBroker: (phone: string, property?: Property) => void;
-  onWhatsApp: (phone: string, property: Property) => void;
-  onShare: (property: Property) => void;
-  onFindRequirements: (property: Property) => void;
-}
-
-function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsApp, onShare, onFindRequirements }: BrokerPropertyCardProps) {
-  const sourceLabel = property.sourceLabel || property.publicBrokerName || "Broker Network Property";
-  const sourceName = property.sourceName || sourceLabel;
-  const sourcePhone = property.sourcePhone || "";
-  const sourceTone = property.sourceType === "YOUR_PROPERTY" ? "success" : property.sourceType === "KRRISHJAZZ_OWNER_PROPERTY" ? "blue" : "accent";
-  const pricePerUnit = property.area ? Math.round(property.price / property.area) : 0;
-  const freshness = getFreshness(property.updatedAt);
-  const availability = getAvailability(property);
-  const imageUrl = property.coverImage || property.images?.[0] || "";
-
-  return (
-    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="grid lg:grid-cols-[260px_1fr]">
-        <div className="relative h-56 overflow-hidden bg-surface lg:h-full">
-          {imageUrl ? (
-            <img src={imageUrl} alt={property.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-primary">
-              <Building2 size={48} />
-            </div>
-          )}
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            <Badge variant={getListingVariant(property.listingType)}>{property.listingType}</Badge>
-            <Badge variant={freshness.variant}>
-              <BellRing size={11} className="mr-1" />
-              {freshness.label}
-            </Badge>
-          </div>
-          <button
-            type="button"
-            className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary shadow-card transition-colors hover:bg-primary-light"
-            onClick={() => onContactBroker(sourcePhone, property)}
-            aria-label="Call broker"
-          >
-            <Phone size={18} />
-          </button>
-          {property.matchingRequirementsCount > 0 && (
-            <div className="absolute bottom-3 left-3 rounded-card bg-foreground/85 px-3 py-2 text-white backdrop-blur">
-              <p className="text-xs text-white/70">Demand signal</p>
-              <p className="text-sm font-semibold">{property.matchingRequirementsCount} matching req</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex min-w-0 flex-col p-4 lg:p-5">
-          <div className="grid gap-4 lg:grid-cols-[1fr_210px]">
-            <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge variant={availability.variant}>{availability.label}</Badge>
-                {property.verified && (
-                  <Badge variant="success">
-                    <BadgeCheck size={11} className="mr-1" />
-                    Verified
-                  </Badge>
-                )}
-                <Badge variant={sourceTone as any}>{sourceLabel}</Badge>
-                <Badge>{property.propertyType}</Badge>
-              </div>
-              <h2 className="line-clamp-2 text-xl font-semibold text-foreground">{property.title}</h2>
-              <p className="mt-2 flex items-center gap-1 text-sm text-text-secondary">
-                <MapPin size={14} className="shrink-0 text-primary" />
-                <span className="line-clamp-1">{property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}</span>
-              </p>
-            </div>
-
-            <div className="rounded-card border border-primary/15 bg-primary-light p-3 lg:text-right">
-              <p className="text-xs font-semibold uppercase text-text-secondary">Broker price</p>
-              <p className="mt-1 text-2xl font-bold text-primary">{formatPrice(property.price)}</p>
-              {pricePerUnit > 0 && <p className="mt-1 text-xs text-text-secondary">Rs {pricePerUnit.toLocaleString()}/sqft</p>}
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {getBrokerSpecs(property).map((spec) => (
-              <div key={spec.label} className="rounded-btn border border-border bg-surface px-3 py-2">
-                <p className="truncate text-sm font-semibold text-foreground">{spec.value}</p>
-                <p className="mt-0.5 text-xs text-text-secondary">{spec.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 grid gap-3 rounded-card border border-border bg-surface p-3 lg:grid-cols-[1fr_1fr_1fr]">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                {sourceLabel.charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{sourceName}</p>
-                <p className="text-xs text-text-secondary">{sourceLabel}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Target size={16} className="text-accent" />
-              {property.matchingRequirementsCount} matching requirement{property.matchingRequirementsCount === 1 ? "" : "s"}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <UserCheck size={16} className="text-success" />
-              {sourcePhone || "Contact via KrrishJazz"}
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-[1.4fr_1fr_auto] gap-2">
-            <Button variant="accent" size="sm" onClick={() => onContactBroker(sourcePhone, property)} className="w-full">
-              <Phone size={14} className="mr-2" />
-              Call Broker
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onWhatsApp(sourcePhone, property)} className="w-full">
-              <MessageCircle size={14} className="mr-2" />
-              WhatsApp
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onViewDetails(property)} className="w-full" aria-label="Details">
-              <Eye size={14} />
-            </Button>
-          </div>
-          <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-            <Button variant="outline" size="sm" onClick={() => onFindRequirements(property)} className="w-full">
-              <Target size={14} className="mr-2" />
-              Match Requirement
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onShare(property)} className="w-full" aria-label="Share">
-              <Share size={14} />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function BrokerPropertyDetailsModal({
-  property,
-  onClose,
-  onFindRequirements,
-  onWhatsApp,
-}: {
-  property: Property | null;
-  onClose: () => void;
-  onFindRequirements: (property: Property) => void;
-  onWhatsApp: (phone: string, property: Property) => void;
-}) {
-  if (!property) return null;
-
-  const images = property.images.length > 0 ? property.images : property.coverImage ? [property.coverImage] : [];
-  const sourceLabel = property.sourceLabel || property.publicBrokerName || "Broker Network Property";
-  const sourceName = property.sourceName || sourceLabel;
-  const brokerPhone = property.sourcePhone || "";
-  const freshness = getFreshness(property.updatedAt);
-  const availability = getAvailability(property);
-  const detailRows = [
-    ["Listing Type", property.listingType],
-    ["Category", property.category],
-    ["Property Type", property.propertyType],
-    ["Area", `${Math.round(property.area).toLocaleString()} ${property.areaUnit}`],
-    ["Bedrooms", property.bedrooms ?? "N/A"],
-    ["Bathrooms", property.bathrooms ?? "N/A"],
-    ["Floor", property.floor != null && property.totalFloors != null ? `${property.floor} / ${property.totalFloors}` : "N/A"],
-    ["Furnishing", property.furnishing || "N/A"],
-    ["Age", property.ageYears != null ? `${property.ageYears} years` : "N/A"],
-    ["Listing Reach", getVisibilityLabel(property.visibilityType)],
-    ["Status", property.listingStatus || property.status],
-    ["Matching Requirements", property.matchingRequirementsCount],
-    ["Last Updated", new Date(property.updatedAt).toLocaleDateString("en-IN")],
-  ];
-
-  return (
-    <Modal isOpen={Boolean(property)} onClose={onClose} title="Broker Property Details" className="max-w-5xl">
-      <div className="space-y-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-          <div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <Badge variant={getListingVariant(property.listingType)}>{property.listingType}</Badge>
-              <Badge variant={availability.variant}>{availability.label}</Badge>
-              <Badge variant={freshness.variant}>{freshness.label}</Badge>
-              {property.matchingRequirementsCount > 0 && <Badge variant="accent">{property.matchingRequirementsCount} matches</Badge>}
-            </div>
-            <h2 className="text-2xl font-semibold text-foreground">{property.title}</h2>
-            <p className="mt-2 flex items-start gap-1 text-sm text-text-secondary">
-              <MapPin size={14} className="mt-0.5 shrink-0" />
-              {property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}, {property.state} {property.pincode}
-            </p>
-          </div>
-          <div className="rounded-card border border-primary/20 bg-primary-light p-4 lg:text-right">
-            <p className="text-xs font-semibold uppercase text-text-secondary">Network price</p>
-            <p className="mt-1 text-2xl font-bold text-primary">{formatPrice(property.price)}</p>
-            {property.area > 0 && (
-              <p className="text-sm text-text-secondary">
-                Rs {Math.round(property.price / property.area).toLocaleString()}/sqft
-              </p>
-            )}
-          </div>
-        </div>
-
-        {images.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            {images.slice(0, 6).map((image, index) => (
-              <img key={`${image}-${index}`} src={image} alt={`${property.title} ${index + 1}`} className="h-36 w-full rounded-card border border-border object-cover" />
-            ))}
-          </div>
-        )}
-
-        <div className="grid gap-3 rounded-card border border-border bg-surface p-4 md:grid-cols-3">
-          <div>
-            <p className="text-xs text-text-secondary">Supply Source</p>
-            <p className="mt-1 font-semibold text-foreground">{sourceName}</p>
-            <p className="text-xs text-text-secondary">{sourceLabel} · {brokerPhone || "Phone unavailable"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-text-secondary">Deal action</p>
-            <p className="mt-1 font-semibold text-foreground">Call, WhatsApp, match requirements</p>
-            <p className="text-xs text-text-secondary">Broker-to-broker contact is available here</p>
-          </div>
-          <div>
-            <p className="text-xs text-text-secondary">Demand signal</p>
-            <p className="mt-1 font-semibold text-accent">{property.matchingRequirementsCount} requirement matches</p>
-            <p className="text-xs text-text-secondary">Use Match to filter demand</p>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-2 font-semibold text-foreground">Description</h3>
-          <p className="text-sm leading-6 text-text-secondary">{property.description}</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {detailRows.map(([label, value]) => (
-            <div key={label} className="rounded-card border border-border bg-surface px-3 py-2">
-              <p className="text-xs text-text-secondary">{label}</p>
-              <p className="mt-0.5 text-sm font-medium text-foreground">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {property.amenities.length > 0 && (
-          <div>
-            <h3 className="mb-2 font-semibold text-foreground">Amenities</h3>
-            <div className="flex flex-wrap gap-2">
-              {property.amenities.map((amenity) => (
-                <Badge key={amenity} variant="default">{amenity}</Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-3 pt-2 sm:grid-cols-3">
-          <Button onClick={() => window.open(`tel:${brokerPhone}`, "_self")} disabled={!brokerPhone}>
-            <Phone size={14} className="mr-2" />
-            Call Broker
-          </Button>
-          <Button variant="outline" onClick={() => onWhatsApp(brokerPhone, property)}>
-            <MessageCircle size={14} className="mr-2" />
-            WhatsApp
-          </Button>
-          <Button variant="accent" onClick={() => onFindRequirements(property)}>
-            <Target size={14} className="mr-2" />
-            Match Requirements
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function MatchingRequirementsDrawer({
-  property,
-  requirements,
-  loading,
-  onClose,
-  onCallBroker,
-  onSendProperty,
-  onShareProperty,
-  onTrackAction,
-}: {
-  property: Property | null;
-  requirements: MatchedRequirement[];
-  loading: boolean;
-  onClose: () => void;
-  onCallBroker: (phone: string) => void;
-  onSendProperty: (requirement: MatchedRequirement, property: Property) => void;
-  onShareProperty: (property: Property) => void;
-  onTrackAction: (payload: Record<string, unknown>) => void;
-}) {
-  if (!property) return null;
-
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-foreground/35 backdrop-blur-[2px]" onClick={onClose} />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-2xl flex-col bg-white shadow-modal sm:border-l sm:border-border">
-        <div className="border-b border-border bg-primary p-4 text-white">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-2 rounded-pill border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85">
-                <Target size={13} />
-                Requirement matches
-              </div>
-              <h2 className="line-clamp-1 text-xl font-semibold">{property.title}</h2>
-              <p className="mt-1 text-sm text-white/70">
-                {property.locality || property.city} - {property.propertyType} - {formatPrice(property.price)}
-              </p>
-            </div>
-            <button type="button" onClick={onClose} className="rounded-btn p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white" aria-label="Close matches">
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="mb-4 grid grid-cols-3 gap-2">
-            <MatchSignal label="Matched demand" value={requirements.length} />
-            <MatchSignal label="Area" value={Math.round(property.area).toLocaleString()} />
-            <MatchSignal label="Freshness" value={getFreshness(property.updatedAt).label} />
-          </div>
-
-          {loading ? (
-            <div className="flex h-72 items-center justify-center rounded-card border border-border bg-surface">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            </div>
-          ) : requirements.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border bg-surface p-8 text-center">
-              <Target size={46} className="mx-auto mb-3 text-primary" />
-              <h3 className="font-semibold text-foreground">No exact requirement match yet</h3>
-              <p className="mt-2 text-sm leading-6 text-text-secondary">
-                This inventory is still useful. Share it in broker groups or adjust budget/location filters from the requirements desk.
-              </p>
-              <Button variant="outline" className="mt-4" onClick={() => onShareProperty(property)}>
-                <Share size={14} className="mr-2" />
-                Share Property
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {requirements.map((requirement) => {
-                const score = requirement.match || getRequirementFit(property, requirement);
-                return (
-                  <div key={requirement.id} className="rounded-card border border-border bg-surface p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={score.variant}>{score.label}</Badge>
-                      <Badge variant="blue">{requirement.propertyType}</Badge>
-                      <Badge variant="accent">{getRequirementBudget(requirement)}</Badge>
-                    </div>
-                    <p className="mt-3 text-sm font-semibold leading-6 text-foreground">{requirement.description}</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                      <InfoPill label="City" value={requirement.city} />
-                      <InfoPill label="Broker" value={requirement.broker.name} />
-                      <InfoPill label="Posted" value={new Date(requirement.createdAt).toLocaleDateString("en-IN")} />
-                    </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      <Button size="sm" variant="accent" onClick={() => onSendProperty(requirement, property)}>
-                        <MessageCircle size={14} className="mr-2" />
-                        Send Property
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        onTrackAction({
-                          propertyId: property.id,
-                          requirementId: requirement.id,
-                          eventType: "BROKER_REQUIREMENT_CALL_CLICKED",
-                          recipientId: requirement.broker.id,
-                          metadata: { matchScore: score.score },
-                        });
-                        onCallBroker(requirement.broker.phone || "");
-                      }}>
-                        <Phone size={14} className="mr-2" />
-                        Call Broker
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => {
-                        onTrackAction({
-                          propertyId: property.id,
-                          requirementId: requirement.id,
-                          eventType: "PROPERTY_SHARED",
-                          recipientId: requirement.broker.id,
-                          metadata: { channel: "NATIVE_SHARE", matchScore: score.score },
-                        });
-                        onShareProperty(property);
-                      }}>
-                        <Share size={14} className="mr-2" />
-                        Share
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function getRequirementBudget(requirement: MatchedRequirement) {
-  if (requirement.budgetMin && requirement.budgetMax) return `${formatPrice(requirement.budgetMin)} - ${formatPrice(requirement.budgetMax)}`;
-  if (requirement.budgetMin) return `From ${formatPrice(requirement.budgetMin)}`;
-  if (requirement.budgetMax) return `Up to ${formatPrice(requirement.budgetMax)}`;
-  return "Budget open";
-}
-
-function getRequirementFit(property: Property, requirement: MatchedRequirement) {
-  let score = 0;
-  const cityMatch = property.city.toLowerCase().includes(requirement.city.toLowerCase()) || requirement.city.toLowerCase().includes(property.city.toLowerCase());
-  const typeMatch = property.propertyType === requirement.propertyType;
-  const budgetMatch = (!requirement.budgetMin || property.price >= requirement.budgetMin) && (!requirement.budgetMax || property.price <= requirement.budgetMax);
-
-  if (cityMatch) score += 35;
-  if (typeMatch) score += 35;
-  if (budgetMatch) score += 30;
-
-  if (score >= 90) return { score, label: "Strong fit", variant: "success" as const, reasons: [] };
-  if (score >= 65) return { score, label: "Good fit", variant: "accent" as const, reasons: [] };
-  return { score, label: "Review fit", variant: "warning" as const, reasons: [] };
-}
-
-function MatchSignal({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-card border border-border bg-surface p-3">
-      <p className="truncate text-sm font-semibold text-foreground">{value}</p>
-      <p className="mt-0.5 text-xs text-text-secondary">{label}</p>
-    </div>
-  );
-}
-
-function InfoPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-btn border border-border bg-white px-3 py-2">
-      <p className="truncate text-sm font-semibold text-foreground">{value}</p>
-      <p className="mt-0.5 text-xs text-text-secondary">{label}</p>
-    </div>
-  );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: number; tone: "default" | "success" | "accent" | "warning" }) {
-  const toneClass = {
-    default: "border-border bg-surface text-foreground",
-    success: "border-success/20 bg-success/10 text-success",
-    accent: "border-accent/20 bg-accent/10 text-accent",
-    warning: "border-warning/20 bg-warning/10 text-warning",
-  }[tone];
-
-  return (
-    <div className={cn("rounded-card border px-4 py-3", toneClass)}>
-      <p className="text-xs text-text-secondary">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function BrokerWorkflowCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return (
-    <div className="rounded-card border border-white/15 bg-white p-4 shadow-card">
-      <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">{icon}</span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-text-secondary">{text}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterBlock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-semibold uppercase text-text-secondary">{label}</p>
-      {children}
-    </div>
-  );
-}
-
-function ChipButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-pill border px-3 py-1.5 text-xs font-semibold transition-colors",
-        active ? "border-primary bg-primary text-white" : "border-border bg-surface text-text-secondary hover:border-primary hover:text-primary"
-      )}
-    >
-      {children}
-    </button>
   );
 }

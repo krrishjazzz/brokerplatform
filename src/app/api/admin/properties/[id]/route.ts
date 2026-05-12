@@ -1,25 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { parseJsonArray, parseJsonObject } from "@/server/json";
 
 export const dynamic = "force-dynamic";
-
-function parseJsonArray(value: string | null) {
-  try {
-    const parsed = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function parseMetadata(value: string | null) {
-  try {
-    return value ? JSON.parse(value) : {};
-  } catch {
-    return {};
-  }
-}
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -153,7 +137,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         })),
         activity: activity.map((event) => ({
           ...event,
-          metadata: parseMetadata(event.metadata),
+          metadata: parseJsonObject(event.metadata),
           createdAt: event.createdAt.toISOString(),
         })),
       },

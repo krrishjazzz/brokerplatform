@@ -2,19 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { logActivity } from "@/lib/workflow";
+import { parseJsonObject } from "@/server/json";
 
 export const dynamic = "force-dynamic";
 
 const ALLOWED_STATUSES = new Set(["NEW", "CONTACTED", "VISIT_SCHEDULED", "NEGOTIATING", "CLOSED", "LOST"]);
 const ALLOWED_PRIORITIES = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
-
-function parseMetadata(value: string) {
-  try {
-    return JSON.parse(value || "{}");
-  } catch {
-    return {};
-  }
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -143,7 +136,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       eventType: event.eventType,
       createdAt: event.createdAt.toISOString(),
       actorName: event.actor?.name || event.actor?.phone || "KrrishJazz Ops",
-      metadata: parseMetadata(event.metadata),
+      metadata: parseJsonObject(event.metadata),
     }));
     const latestNote = notes.find((event) => event.metadata?.note);
 

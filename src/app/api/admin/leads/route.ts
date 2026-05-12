@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { parseJsonObject } from "@/server/json";
 
 export const dynamic = "force-dynamic";
-
-function parseMetadata(value: string) {
-  try {
-    return JSON.parse(value || "{}");
-  } catch {
-    return {};
-  }
-}
 
 export async function GET() {
   try {
@@ -46,7 +39,7 @@ export async function GET() {
         eventType: event.eventType,
         createdAt: event.createdAt.toISOString(),
         actorName: event.actor?.name || event.actor?.phone || "KrrishJazz Ops",
-        metadata: parseMetadata(event.metadata),
+        metadata: parseJsonObject(event.metadata),
       });
       return acc;
     }, {});
