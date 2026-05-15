@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2, Menu, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Menu, X, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { ApplicationStatusSection, ProfileSection } from "@/components/dashboard
 import { RequirementsSection } from "@/components/dashboard/requirements-section";
 import { EnquiriesSection, LeadsSection } from "@/components/dashboard/lead-sections";
 import { PostPropertySection } from "@/components/dashboard/post-property-section";
+import { BecomeBrokerSection } from "@/components/dashboard/become-broker-section";
 import { getDefaultTab, getNavItems, validTabs } from "@/components/dashboard/navigation";
 import type { DashboardTab as Tab } from "@/components/dashboard/types";
 
@@ -136,6 +137,13 @@ function DashboardContent() {
 
       {/* Main content */}
       <div className="lg:ml-64">
+        <BrokerStatusBanner
+          role={user.role}
+          brokerStatus={user.brokerStatus ?? null}
+          appliedAt={user.brokerApplicationAt ?? null}
+          rejectionReason={user.brokerRejectionReason ?? null}
+          onView={() => setActiveTab("application")}
+        />
         <div className="hidden items-center justify-center gap-3 bg-primary-light px-4 py-4 text-sm font-semibold text-foreground lg:flex">
           <AlertTriangle size={20} className="text-primary" />
           <span>Post property for free. KrrishJazz charges one month brokerage only after a successful closure.</span>
@@ -159,10 +167,75 @@ function DashboardContent() {
           {activeTab === "enquiries" && <EnquiriesSection />}
           {activeTab === "saved" && <SavedSection />}
           {activeTab === "profile" && <ProfileSection user={user} />}
-          {activeTab === "application" && <ApplicationStatusSection brokerStatus={user.brokerStatus} />}
+          {activeTab === "application" && (
+            <ApplicationStatusSection
+              brokerStatus={user.brokerStatus}
+              appliedAt={user.brokerApplicationAt ?? null}
+              rejectionReason={user.brokerRejectionReason ?? null}
+            />
+          )}
           {activeTab === "requirements" && <RequirementsSection />}
+          {activeTab === "apply-broker" && <BecomeBrokerSection onSubmitted={() => setActiveTab("application")} />}
         </main>
       </div>
     </div>
   );
+}
+
+function BrokerStatusBanner({
+  role,
+  brokerStatus,
+  appliedAt,
+  rejectionReason,
+  onView,
+}: {
+  role: string;
+  brokerStatus: string | null;
+  appliedAt: string | null;
+  rejectionReason: string | null;
+  onView: () => void;
+}) {
+  if (role !== "BROKER" || !brokerStatus || brokerStatus === "APPROVED") return null;
+
+  const isPending = brokerStatus === "PENDING";
+  const tone = isPending
+    ? "border-warning/20 bg-warning/10 text-warning"
+    : "border-error/20 bg-error/10 text-error";
+  const Icon = isPending ? Clock : XCircle;
+  const title = isPending ? "Broker application under review" : "Broker application needs attention";
+  const desc = isPending
+    ? `${appliedAt ? `Submitted ${formatRelative(appliedAt)}. ` : ""}KrrishJazz ops typically responds within 1 business day.`
+    : rejectionReason
+    ? `Reason: ${rejectionReason}. Update your details and re-apply.`
+    : "Update your details and send a stronger re-application.";
+
+  return (
+    <div className={cn("flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between", tone)}>
+      <div className="flex items-start gap-3">
+        <Icon size={18} className="mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-xs leading-5 text-text-secondary">{desc}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onView}
+        className="inline-flex items-center gap-1.5 self-start rounded-btn border border-current bg-white px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface sm:self-auto"
+      >
+        <CheckCircle2 size={14} />
+        View status
+      </button>
+    </div>
+  );
+}
+
+function formatRelative(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  const days = Math.floor(diff / 86_400_000);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }

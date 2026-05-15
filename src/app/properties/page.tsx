@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
+  Bell,
+  BookmarkPlus,
   Search,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +24,58 @@ import { getFreshness } from "@/components/properties/property-display";
 import { CATEGORY_OPTIONS, LISTING_TABS, QUICK_FILTERS, TRUST_FILTERS } from "@/components/properties/search-options";
 import type { Pagination, Property } from "@/components/properties/types";
 
+const SAVED_SEARCH_KEY = "krrishjazz:saved-searches:v1";
+
+type SavedSearchFilters = {
+  listingType: string;
+  category: string;
+  propertyType: string;
+  locality: string;
+  city: string;
+  minPrice: string;
+  maxPrice: string;
+  bedrooms: string;
+  furnishing: string;
+  freshOnly: boolean;
+  verifiedOnly: boolean;
+  readyToVisitOnly: boolean;
+  ownerListedOnly: boolean;
+  budgetMatchOnly: boolean;
+  availability: string;
+  sort: string;
+  query: string;
+};
+
+type SavedSearch = {
+  id: string;
+  label: string;
+  filters: SavedSearchFilters;
+  savedAt: number;
+};
+
+function buildSearchLabel(filters: SavedSearchFilters) {
+  const parts: string[] = [];
+  if (filters.bedrooms) parts.push(`${filters.bedrooms} BHK`);
+  if (filters.propertyType) parts.push(filters.propertyType);
+  else if (filters.category) parts.push(filters.category);
+  if (filters.locality) parts.push(`in ${filters.locality}`);
+  else if (filters.city) parts.push(`in ${filters.city}`);
+  else if (filters.query) parts.push(filters.query);
+  if (filters.listingType) parts.push(`(${filters.listingType})`);
+  return parts.join(" ").trim();
+}
+
 function getInitialPage(value: string | null) {
   const parsed = Number.parseInt(value || "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function resolveIntentPreset(intent: string | null) {
+  if (intent === "buy") return { listingType: "BUY", category: "" };
+  if (intent === "rent") return { listingType: "RENT", category: "" };
+  if (intent === "commercial") return { listingType: "", category: "COMMERCIAL" };
+  if (intent === "land") return { listingType: "", category: "", propertyType: "Residential Plot" };
+  return { listingType: "", category: "" };
 }
 
 function PropertiesContent() {
@@ -32,14 +84,15 @@ function PropertiesContent() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const intentPreset = useMemo(() => resolveIntentPreset(searchParams.get("intent")), [searchParams]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [listingType, setListingType] = useState(searchParams.get("listingType") || "");
-  const [category, setCategory] = useState(searchParams.get("category") || "");
-  const [propertyType, setPropertyType] = useState(searchParams.get("propertyType") || "");
+  const [listingType, setListingType] = useState(searchParams.get("listingType") || intentPreset.listingType || "");
+  const [category, setCategory] = useState(searchParams.get("category") || intentPreset.category || "");
+  const [propertyType, setPropertyType] = useState(searchParams.get("propertyType") || intentPreset.propertyType || "");
   const [locality, setLocality] = useState(searchParams.get("locality") || "");
   const [city, setCity] = useState(searchParams.get("city") || "");
   const [minPrice, setMinPrice] = useState(searchParams.get("minPrice") || "");
@@ -331,6 +384,84 @@ function PropertiesContent() {
     }),
     [properties]
   );
+
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [savedOpen, setSavedOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SAVED_SEARCH_KEY);
+      if (stored) setSavedSearches(JSON.parse(stored));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const persistSaved = (next: SavedSearch[]) => {
+    setSavedSearches(next);
+    try {
+      localStorage.setItem(SAVED_SEARCH_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const currentFiltersObject = useMemo<SavedSearchFilters>(() => ({
+    listingType, category, propertyType, locality, city,
+    minPrice, maxPrice, bedrooms, furnishing,
+    freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly,
+    availability, sort, query,
+  }), [
+    listingType, category, propertyType, locality, city,
+    minPrice, maxPrice, bedrooms, furnishing,
+    freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly,
+    availability, sort, query,
+  ]);
+
+  const saveCurrentSearch = () => {
+    if (!hasSearchIntent) {
+      toast("Add at least one filter or search term before saving.", "info");
+      return;
+    }
+    const label = buildSearchLabel(currentFiltersObject) || "Saved search";
+    const next: SavedSearch = {
+      id: `${Date.now()}`,
+      label,
+      filters: currentFiltersObject,
+      savedAt: Date.now(),
+    };
+    const deduped = [next, ...savedSearches.filter((item) => item.label !== label)].slice(0, 10);
+    persistSaved(deduped);
+    toast("Search saved. Reopen anytime from Saved.", "success");
+  };
+
+  const applySavedSearch = (item: SavedSearch) => {
+    const f = item.filters;
+    setListingType(f.listingType || "");
+    setCategory(f.category || "");
+    setPropertyType(f.propertyType || "");
+    setLocality(f.locality || "");
+    setCity(f.city || "");
+    setMinPrice(f.minPrice || "");
+    setMaxPrice(f.maxPrice || "");
+    setBedrooms(f.bedrooms || "");
+    setFurnishing(f.furnishing || "");
+    setFreshOnly(Boolean(f.freshOnly));
+    setVerifiedOnly(Boolean(f.verifiedOnly));
+    setReadyToVisitOnly(Boolean(f.readyToVisitOnly));
+    setOwnerListedOnly(Boolean(f.ownerListedOnly));
+    setBudgetMatchOnly(Boolean(f.budgetMatchOnly));
+    setAvailability(f.availability || "");
+    setSort(f.sort || "");
+    setQuery(f.query || "");
+    setPage(1);
+    setSavedOpen(false);
+    toast(`Applied: ${item.label}`, "success");
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    persistSaved(savedSearches.filter((item) => item.id !== id));
+  };
 
   const visibleProperties = useMemo(
     () =>
@@ -639,11 +770,45 @@ function PropertiesContent() {
                   {hasSearchIntent ? `${freshCount} fresh, ${verifiedCount} verified, ${readyCount} ready to visit, ${ownerListedCount} owner listed.` : "Use search or filters to reveal properties."}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="ghost" size="sm" className="hidden lg:inline-flex">
                   <SlidersHorizontal size={14} className="mr-2" />
                   Filters
                 </Button>
+                <Button
+                  onClick={saveCurrentSearch}
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                  disabled={!hasSearchIntent}
+                  title={hasSearchIntent ? "Save these filters" : "Add filters to save"}
+                >
+                  <BookmarkPlus size={14} className="mr-2" />
+                  Save Search
+                </Button>
+                <div className="relative">
+                  <Button
+                    onClick={() => setSavedOpen((open) => !open)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <Bell size={14} className="mr-2" />
+                    Saved
+                    {savedSearches.length > 0 && (
+                      <span className="ml-1.5 rounded-pill bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                        {savedSearches.length}
+                      </span>
+                    )}
+                  </Button>
+                  {savedOpen && (
+                    <SavedSearchesDropdown
+                      items={savedSearches}
+                      onApply={applySavedSearch}
+                      onDelete={deleteSavedSearch}
+                      onClose={() => setSavedOpen(false)}
+                    />
+                  )}
+                </div>
                 <select
                   value={sort}
                   onChange={(e) => { setSort(e.target.value); setPage(1); }}
@@ -780,6 +945,60 @@ function PropertiesContent() {
         </div>
       </div>
     </main>
+  );
+}
+
+function SavedSearchesDropdown({
+  items,
+  onApply,
+  onDelete,
+  onClose,
+}: {
+  items: SavedSearch[];
+  onApply: (item: SavedSearch) => void;
+  onDelete: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-20" onClick={onClose} aria-hidden />
+      <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-72 overflow-hidden rounded-card border border-border bg-white shadow-modal">
+        <div className="border-b border-border px-3 py-2">
+          <p className="text-sm font-semibold text-foreground">Saved Searches</p>
+          <p className="text-[11px] text-text-secondary">Quickly reload your filter combos.</p>
+        </div>
+        {items.length === 0 ? (
+          <div className="px-3 py-4 text-center text-xs text-text-secondary">
+            No saved searches yet. Tap <span className="font-semibold text-primary">Save Search</span> to add one.
+          </div>
+        ) : (
+          <ul className="max-h-72 overflow-y-auto py-1">
+            {items.map((item) => (
+              <li key={item.id} className="group flex items-center gap-2 px-2 py-1.5 hover:bg-surface">
+                <button
+                  type="button"
+                  onClick={() => onApply(item)}
+                  className="min-w-0 flex-1 rounded-btn px-2 py-1 text-left text-xs"
+                >
+                  <p className="truncate text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-[11px] text-text-secondary">
+                    {new Date(item.savedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(item.id)}
+                  className="rounded-btn p-1.5 text-text-secondary hover:text-error"
+                  aria-label="Delete saved search"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
   );
 }
 

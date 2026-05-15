@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, ClipboardList, Clock, Loader2, Phone, PlusCircle, TrendingUp } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, Clock, Loader2, Phone, PlusCircle, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -167,6 +167,12 @@ export function OverviewSection() {
                     <Button variant="outline" onClick={() => router.push("/broker/requirements")}>
                       <ClipboardList size={16} className="mr-2" />
                       Open Demand
+                    </Button>
+                  )}
+                  {user?.role === "OWNER" && (
+                    <Button variant="outline" onClick={() => router.push("/dashboard?tab=apply-broker")}>
+                      <Briefcase size={16} className="mr-2" />
+                      Become a Broker
                     </Button>
                   )}
                 </div>

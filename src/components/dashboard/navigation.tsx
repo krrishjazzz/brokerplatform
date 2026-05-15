@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, Heart, LayoutDashboard, MessageSquare, PlusCircle, User, Users } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, Heart, LayoutDashboard, MessageSquare, PlusCircle, User, Users } from "lucide-react";
 import type { DashboardNavItem, DashboardTab } from "./types";
 
 export function getNavItems(role: string, brokerStatus?: string | null): DashboardNavItem[] {
@@ -8,6 +8,7 @@ export function getNavItems(role: string, brokerStatus?: string | null): Dashboa
       { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
       { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
       { id: "post", label: "Post Property", icon: <PlusCircle size={iconSize} /> },
+      { id: "apply-broker", label: "Become a Broker", icon: <Briefcase size={iconSize} /> },
       { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
     ];
   }
@@ -26,7 +27,8 @@ export function getNavItems(role: string, brokerStatus?: string | null): Dashboa
   if (role === "OWNER") {
     items.push(
       { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-      { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> }
+      { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
+      { id: "apply-broker", label: "Become a Broker", icon: <Briefcase size={iconSize} /> }
     );
   }
   if (role === "BROKER") {
@@ -52,4 +54,5 @@ export const validTabs: DashboardTab[] = [
   "profile",
   "application",
   "requirements",
+  "apply-broker",
 ];

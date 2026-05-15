@@ -400,29 +400,32 @@ export default function PropertyDetailPage() {
                 <Badge variant={property.listingType === "RENT" ? "success" : property.listingType === "LEASE" ? "accent" : "blue"}>
                   {listingLabel(property.listingType)}
                 </Badge>
-                <Badge variant={freshness.variant}>
-                  <BellRing size={11} className="mr-1" />
-                  {freshness.label}
-                </Badge>
                 {property.verified && (
                   <Badge variant="success">
                     <BadgeCheck size={11} className="mr-1" />
                     Verified
                   </Badge>
                 )}
-                <Badge>{property.propertyType}</Badge>
               </div>
 
               <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-foreground lg:text-4xl">{property.title}</h1>
               <p className="mt-3 flex max-w-3xl items-start gap-2 text-sm leading-6 text-text-secondary">
                 <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
-                <span>{property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}, {property.state} - {property.pincode}</span>
+                <span>{property.locality ? `${property.locality}, ` : ""}{property.city}, {property.state}</span>
+              </p>
+              <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
+                <span className="font-medium text-foreground">{property.propertyType}</span>
+                <span className="text-text-secondary">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <BellRing size={11} className="text-primary" />
+                  {freshness.label}
+                </span>
               </p>
             </div>
 
-            <div className="rounded-card border border-border bg-white p-4 shadow-card">
-              <p className="text-xs font-semibold uppercase text-text-secondary">Asking price</p>
-              <p className="mt-1 text-3xl font-bold text-primary">{formatPrice(Number(property.price))}</p>
+            <div className="rounded-card border border-border bg-white p-5 shadow-card">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Asking price</p>
+              <p className="mt-1 text-3xl font-bold text-primary lg:text-4xl">{formatPrice(Number(property.price))}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
                 {pricePerUnit && <span>Rs {pricePerUnit}/sqft</span>}
                 {property.priceNegotiable && <Badge variant="accent">Negotiable</Badge>}
@@ -508,28 +511,27 @@ export default function PropertyDetailPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <SignalCard icon={<ShieldCheck size={18} />} title="Verified flow" desc="KrrishJazz checked" tone="success" />
-            <SignalCard icon={<Clock size={18} />} title="Freshness" desc={freshness.label} tone="primary" />
-            <SignalCard icon={<LockKeyhole size={18} />} title="Protected enquiry" desc="No lead spam" tone="accent" />
-            <SignalCard icon={<Eye size={18} />} title="Ready to visit" desc="Send enquiry" tone="primary" />
-          </section>
-
           <section className="rounded-card border border-border bg-white p-5 shadow-card">
-            <SectionTitle title="Why this is worth seeing" subtitle="Quick decision signals before a site visit" />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <WorthSeeingCard title="Clear price signal" desc={pricePerUnit ? `Around Rs ${pricePerUnit}/sqft for this area.` : "Price is visible and can be discussed through KrrishJazz."} />
-              <WorthSeeingCard title="Location confidence" desc={`${property.locality || property.city} is visible before enquiry.`} />
-              <WorthSeeingCard title="Managed next step" desc="KrrishJazz coordinates callback, visit, final price, and similar options." />
-            </div>
-          </section>
-
-          <section className="rounded-card border border-border bg-white p-5 shadow-card">
-            <SectionTitle title="Trust and freshness timeline" subtitle="What KrrishJazz checks before moving a customer forward" />
+            <SectionTitle title="Why see this property" subtitle="Trust signals KrrishJazz checks before showing this listing" />
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <TimelineSignal title="Listing checked" desc={freshness.label} active />
-              <TimelineSignal title="Photos reviewed" desc={images.length ? `${images.length} media item${images.length === 1 ? "" : "s"} available` : "Photos pending"} active={images.length > 0} />
-              <TimelineSignal title="Visit coordination" desc="Availability confirmed after enquiry" active={false} />
+              <TrustSignalCard
+                icon={<ShieldCheck size={18} />}
+                title="Listing checked"
+                desc={freshness.label}
+                tone="success"
+              />
+              <TrustSignalCard
+                icon={<Clock size={18} />}
+                title="Photos reviewed"
+                desc={images.length ? `${images.length} media item${images.length === 1 ? "" : "s"} available` : "Photos pending"}
+                tone={images.length > 0 ? "success" : "warning"}
+              />
+              <TrustSignalCard
+                icon={<LockKeyhole size={18} />}
+                title="Protected enquiry"
+                desc="No spam, KrrishJazz coordinates"
+                tone="primary"
+              />
             </div>
           </section>
 
@@ -990,43 +992,30 @@ function ContactCard({
   );
 }
 
-function SignalCard({ icon, title, desc, tone }: { icon: React.ReactNode; title: string; desc: string; tone: "success" | "primary" | "accent" }) {
+function TrustSignalCard({
+  icon,
+  title,
+  desc,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  tone: "success" | "primary" | "warning";
+}) {
   const toneClass = {
     success: "bg-success/10 text-success border-success/20",
     primary: "bg-primary-light text-primary border-primary/20",
-    accent: "bg-accent/10 text-accent border-accent/20",
+    warning: "bg-warning-light text-warning border-warning/20",
   }[tone];
 
   return (
-    <div className="rounded-card border border-border bg-white p-4 shadow-card">
+    <div className="rounded-card border border-border bg-surface p-4">
       <div className={cn("mb-3 flex h-10 w-10 items-center justify-center rounded-btn border", toneClass)}>
         {icon}
       </div>
       <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 text-xs text-text-secondary">{desc}</p>
-    </div>
-  );
-}
-
-function WorthSeeingCard({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="rounded-card border border-primary/15 bg-primary-light p-4">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
       <p className="mt-1 text-xs leading-5 text-text-secondary">{desc}</p>
-    </div>
-  );
-}
-
-function TimelineSignal({ title, desc, active }: { title: string; desc: string; active: boolean }) {
-  return (
-    <div className={cn("rounded-card border p-4", active ? "border-success/20 bg-success/10" : "border-border bg-surface")}>
-      <div className="flex items-center gap-2">
-        <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", active ? "bg-success text-white" : "bg-white text-text-secondary")}>
-          <CheckCircle2 size={15} />
-        </span>
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-      </div>
-      <p className="mt-2 text-xs leading-5 text-text-secondary">{desc}</p>
     </div>
   );
 }

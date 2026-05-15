@@ -57,6 +57,10 @@ export async function getSession() {
       role: profile.role,
       avatarUrl: profile.avatarUrl,
       brokerStatus: profile.brokerProfile?.status,
+      brokerApplicationAt: profile.brokerProfile?.createdAt
+        ? profile.brokerProfile.createdAt.toISOString()
+        : null,
+      brokerRejectionReason: profile.brokerProfile?.rejectionReason ?? null,
     };
   } catch {
     return null;

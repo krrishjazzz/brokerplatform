@@ -12,14 +12,35 @@
 body {
   font-family: 'Inter', sans-serif;
   color: #001F4D;
-  background: #F7F8FA;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(0, 92, 168, 0.08) 0%, transparent 42%),
+    radial-gradient(circle at 100% 0%, rgba(217, 119, 6, 0.04) 0%, transparent 36%),
+    #F7F8FA;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
 }
 
 ::selection {
   background: #EAF5FF;
   color: #005CA8;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: inherit;
+  }
+
+  p {
+    line-height: 1.65;
+  }
+
+  button, input, select, textarea {
+    letter-spacing: -0.01em;
+  }
 }
 
 @layer utilities {
@@ -32,5 +53,18 @@ body {
       linear-gradient(rgba(0, 92, 168, 0.035) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 92, 168, 0.035) 1px, transparent 1px);
     background-size: 32px 32px;
+  }
+
+  .premium-section {
+    padding-top: clamp(2.25rem, 4vw, 4rem);
+    padding-bottom: clamp(2.25rem, 4vw, 4rem);
+  }
+
+  .premium-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, #FFFFFF 100%);
+    border: 1px solid rgba(0, 31, 77, 0.08);
+    box-shadow:
+      0 1px 1px rgba(0, 31, 77, 0.05),
+      0 10px 28px rgba(0, 31, 77, 0.06);
   }
 }

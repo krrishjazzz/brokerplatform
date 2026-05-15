@@ -13,6 +13,8 @@ export interface User {
   role: UserRole;
   avatarUrl: string | null;
   brokerStatus?: BrokerStatusType;
+  brokerApplicationAt?: string | null;
+  brokerRejectionReason?: string | null;
 }
 
 interface AuthContextType {

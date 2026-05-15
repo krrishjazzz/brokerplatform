@@ -120,7 +120,15 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
   );
 }
 
-export function ApplicationStatusSection({ brokerStatus }: { brokerStatus?: string | null }) {
+export function ApplicationStatusSection({
+  brokerStatus,
+  appliedAt,
+  rejectionReason,
+}: {
+  brokerStatus?: string | null;
+  appliedAt?: string | null;
+  rejectionReason?: string | null;
+}) {
   const { toast } = useToast();
   const [showReapply, setShowReapply] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -131,6 +139,17 @@ export function ApplicationStatusSection({ brokerStatus }: { brokerStatus?: stri
     serviceAreas: "",
     bio: "",
   });
+
+  const submittedLabel = appliedAt
+    ? new Date(appliedAt).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+  const hoursSince = appliedAt ? Math.floor((Date.now() - new Date(appliedAt).getTime()) / 3_600_000) : null;
 
   const submitReapply = async () => {
     if (!form.rera || !form.experience || !form.city || !form.bio) return;
@@ -159,51 +178,90 @@ export function ApplicationStatusSection({ brokerStatus }: { brokerStatus?: stri
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-foreground mb-6">Application Status</h2>
-      <div className="bg-white rounded-card shadow-card border border-border p-8 max-w-lg">
+      <h2 className="text-xl font-semibold text-foreground mb-2">Application Status</h2>
+      <p className="mb-6 text-sm text-text-secondary">Track where your broker application is and what happens next.</p>
+      <div className="max-w-2xl">
         {brokerStatus === "PENDING" && (
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
-              <Clock size={32} className="text-warning" />
+          <div className="rounded-card border border-warning/20 bg-white shadow-card">
+            <div className="flex items-start gap-4 p-6">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
+                <Clock size={26} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">Under review</h3>
+                  <Badge variant="warning">PENDING</Badge>
+                </div>
+                <p className="mt-1 text-sm leading-6 text-text-secondary">
+                  KrrishJazz ops typically responds within <span className="font-semibold text-foreground">1 business day</span>. We will SMS you once approved.
+                </p>
+                {submittedLabel && (
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Submitted {submittedLabel}{hoursSince !== null && hoursSince > 0 ? ` · ${hoursSince}h ago` : ""}
+                  </p>
+                )}
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Under Review</h3>
-            <p className="text-text-secondary">
-              Your broker application is currently being reviewed by our admin team. We&apos;ll notify you once a decision has been made.
-            </p>
-            <Badge variant="warning" className="mt-4">PENDING</Badge>
+            <div className="border-t border-border bg-surface px-6 py-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">What happens next</p>
+              <ol className="space-y-2 text-sm">
+                <TimelineStep state="done" label="Application submitted" />
+                <TimelineStep state="active" label="Ops verifying RERA, experience, and references" />
+                <TimelineStep state="pending" label="Approval and broker workspace access" />
+              </ol>
+            </div>
           </div>
         )}
         {brokerStatus === "REJECTED" && (
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center mx-auto mb-4">
-              <XCircle size={32} className="text-error" />
+          <div className="rounded-card border border-error/20 bg-white shadow-card">
+            <div className="flex items-start gap-4 p-6">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-error/10 text-error">
+                <XCircle size={26} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">Application not approved</h3>
+                  <Badge variant="error">REJECTED</Badge>
+                </div>
+                <p className="mt-1 text-sm leading-6 text-text-secondary">
+                  Update your details and send it back to KrrishJazz ops for review.
+                </p>
+                {rejectionReason && (
+                  <div className="mt-3 rounded-btn border border-error/15 bg-error-light p-3 text-sm text-foreground">
+                    <p className="font-semibold text-error">Reason</p>
+                    <p className="mt-1 text-text-secondary">{rejectionReason}</p>
+                  </div>
+                )}
+                <Button className="mt-5" variant="outline" onClick={() => setShowReapply((value) => !value)}>
+                  {showReapply ? "Hide Re-application" : "Re-apply as Broker"}
+                </Button>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Application Rejected</h3>
-            <p className="text-text-secondary">
-              Update your details and send it back to KrrishJazz ops for review.
-            </p>
-            <Badge variant="error" className="mt-4">REJECTED</Badge>
-            <Button className="mt-5" variant="outline" onClick={() => setShowReapply((value) => !value)}>
-              {showReapply ? "Hide Re-application" : "Re-apply as Broker"}
-            </Button>
           </div>
         )}
         {brokerStatus === "APPROVED" && (
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-              <Check size={32} className="text-success" />
+          <div className="rounded-card border border-success/20 bg-white p-6 shadow-card">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                <Check size={26} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">Approved</h3>
+                  <Badge variant="success">APPROVED</Badge>
+                </div>
+                <p className="mt-1 text-sm text-text-secondary">Your broker workspace is unlocked. Head to broker properties to start matching demand.</p>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Approved</h3>
-            <p className="text-text-secondary">Your broker application has been approved. You can now list properties.</p>
-            <Badge variant="success" className="mt-4">APPROVED</Badge>
           </div>
         )}
         {!brokerStatus && (
-          <div className="text-center">
-            <p className="text-text-secondary">No broker application found.</p>
+          <div className="rounded-card border border-border bg-white p-6 shadow-card">
+            <p className="text-sm text-text-secondary">No broker application found.</p>
           </div>
         )}
       </div>
+      {/* timeline helper rendered above; component declared at file bottom */}
       {brokerStatus === "REJECTED" && showReapply && (
         <div className="mt-5 max-w-lg rounded-card border border-border bg-white p-5 shadow-card">
           <h3 className="text-sm font-semibold text-foreground">Broker Re-application</h3>
@@ -228,5 +286,24 @@ export function ApplicationStatusSection({ brokerStatus }: { brokerStatus?: stri
         </div>
       )}
     </div>
+  );
+}
+
+function TimelineStep({ state, label }: { state: "done" | "active" | "pending"; label: string }) {
+  const dot =
+    state === "done"
+      ? "bg-success text-white"
+      : state === "active"
+      ? "bg-warning text-white animate-pulse"
+      : "bg-border text-text-secondary";
+  const text =
+    state === "pending" ? "text-text-secondary" : "text-foreground";
+  return (
+    <li className="flex items-start gap-3">
+      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${dot}`}>
+        {state === "done" ? <Check size={11} /> : state === "active" ? <Clock size={11} /> : null}
+      </span>
+      <span className={`text-sm ${text}`}>{label}</span>
+    </li>
   );
 }

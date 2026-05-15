@@ -13,7 +13,7 @@ export function Badge({ children, variant = "default", className }: BadgeProps) 
     warning: "bg-warning-light text-[#9A5B00] border-warning/20",
     error: "bg-error-light text-error border-error/20",
     blue: "bg-primary-light text-primary border-primary/20",
-    accent: "bg-primary-light text-accent border-accent/20",
+    accent: "bg-accent-light text-[#92400E] border-accent/30",
   };
   return (
     <span className={cn("inline-flex items-center border px-2 py-0.5 rounded-pill text-xs font-medium", variants[variant], className)}>

@@ -9,7 +9,8 @@ export type DashboardTab =
   | "saved"
   | "profile"
   | "application"
-  | "requirements";
+  | "requirements"
+  | "apply-broker";
 
 export interface DashboardNavItem {
   id: DashboardTab;

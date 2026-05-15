@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, BadgeCheck, Building2, CheckCircle2, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Briefcase, Building2, CheckCircle2, ClipboardList, Phone, ShieldCheck, TrendingUp, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -22,8 +22,10 @@ function LoginPageContent() {
   const redirectParam = searchParams.get("redirect") || "/";
   const redirect = redirectParam.startsWith("/") ? redirectParam : "/";
   const intent = searchParams.get("intent");
+  const asParam = searchParams.get("as");
+  const isBrokerFlow = asParam === "broker";
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(isBrokerFlow ? "register" : "login");
   const [step, setStep] = useState<"phone" | "otp" | "register">("phone");
   const [phone, setPhone] = useState("+91");
   const [registerName, setRegisterName] = useState("");
@@ -46,11 +48,15 @@ function LoginPageContent() {
     if (!authLoading && user) {
       if (user.role === "BROKER" && user.brokerStatus === "APPROVED") {
         router.replace("/broker/properties");
+      } else if (isBrokerFlow && user.role !== "BROKER") {
+        router.replace("/dashboard?tab=apply-broker");
+      } else if (isBrokerFlow && user.role === "BROKER") {
+        router.replace("/dashboard?tab=application");
       } else {
         router.replace(intent === "post" ? "/dashboard?tab=post" : redirect);
       }
     }
-  }, [authLoading, user, intent, redirect, router]);
+  }, [authLoading, user, intent, redirect, router, isBrokerFlow]);
 
   const handleSendOtp = async () => {
     if (phone.length !== 13) {
@@ -127,6 +133,8 @@ function LoginPageContent() {
       }
       if (result.isNew) {
         setStep("register");
+      } else if (isBrokerFlow) {
+        router.push("/dashboard?tab=apply-broker");
       } else {
         router.push(intent === "post" ? "/dashboard?tab=post" : redirect);
       }
@@ -154,12 +162,27 @@ function LoginPageContent() {
     resolver: zodResolver(brokerApplicationSchema) as any,
   });
 
+  if (authLoading || user) {
+    return (
+      <main className="flex min-h-[calc(100vh-76px)] items-center justify-center bg-surface">
+        <div className="flex flex-col items-center gap-3 text-text-secondary">
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm font-medium">{user ? "Redirecting to your dashboard..." : "Loading..."}</p>
+        </div>
+      </main>
+    );
+  }
+
   const onRegister = async (data: RegisterInput) => {
     setLoading(true);
     try {
       await registerUser(data);
       toast("Profile completed.", "success");
-      router.push(intent === "post" ? "/dashboard?tab=post" : redirect);
+      if (isBrokerFlow) {
+        setBrokerModalOpen(true);
+      } else {
+        router.push(intent === "post" ? "/dashboard?tab=post" : redirect);
+      }
     } catch {
       setError("Registration failed");
       toast("Registration failed.", "error");
@@ -196,20 +219,35 @@ function LoginPageContent() {
   return (
     <main className="min-h-[calc(100vh-76px)] bg-surface">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-6 lg:py-12">
-        <section className="hidden overflow-hidden rounded-card border border-border bg-primary text-white shadow-card lg:block">
+        <section className="hidden overflow-hidden rounded-card border border-border bg-primary-dark text-white shadow-card lg:block">
           <div className="p-8">
-            <Badge className="border-white/20 bg-white/10 text-white">KrrishJazz Account</Badge>
-            <h1 className="mt-8 max-w-xl text-4xl font-bold leading-tight">Login once. Search, shortlist, post and manage property with confidence.</h1>
+            <Badge className="border-white/20 bg-white/10 text-white">
+              {isBrokerFlow ? "Broker Network" : "KrrishJazz Account"}
+            </Badge>
+            <h1 className="mt-8 max-w-xl text-4xl font-bold leading-tight">
+              {isBrokerFlow
+                ? "Join the KrrishJazz broker network. Get matched to live demand."
+                : "Login once. Search, shortlist, post and manage property with confidence."}
+            </h1>
             <p className="mt-4 max-w-lg text-sm leading-6 text-white/75">
-              A clean property workflow for buyers, owners and trusted brokers, styled for fast Indian real estate decisions.
+              {isBrokerFlow
+                ? "Access verified inventory, curated buyer requirements, and a clean closure workflow. Approval typically within 1 business day."
+                : "A clean property workflow for buyers, owners and trusted brokers, styled for fast Indian real estate decisions."}
             </p>
 
             <div className="mt-8 grid gap-3">
-              {[
-                ["Search verified listings", "Use filters and saved properties for faster decisions.", SearchIcon],
-                ["Post as owner", "List free and pay brokerage only after a successful closure.", Building2],
-                ["Broker network", "Approved brokers can match demand and inventory.", ShieldCheck],
-              ].map(([title, desc, Icon]) => (
+              {(isBrokerFlow
+                ? ([
+                    ["Active demand desk", "Curated buyer and tenant requirements that match your city.", ClipboardList],
+                    ["Verified inventory", "Owner-listed and network supply, verified by KrrishJazz ops.", ShieldCheck],
+                    ["Free to apply", "No upfront fee. KrrishJazz only earns when you close.", TrendingUp],
+                  ] as const)
+                : ([
+                    ["Search verified listings", "Use filters and saved properties for faster decisions.", SearchIcon],
+                    ["Post as owner", "List free and pay brokerage only after a successful closure.", Building2],
+                    ["Broker network", "Approved brokers can match demand and inventory.", ShieldCheck],
+                  ] as const)
+              ).map(([title, desc, Icon]) => (
                 <div key={title as string} className="flex items-start gap-3 rounded-card border border-white/15 bg-white/10 p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn bg-white text-primary">
                     {typeof Icon !== "string" && <Icon size={20} />}
@@ -229,11 +267,15 @@ function LoginPageContent() {
             <div className="mb-5 rounded-card border border-primary/15 bg-primary-light p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-btn bg-white text-primary shadow-sm">
-                  <UserRound size={21} />
+                  {isBrokerFlow ? <Briefcase size={20} /> : <UserRound size={21} />}
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Welcome to KrrishJazz</p>
-                  <p className="text-sm text-text-secondary">Continue with mobile OTP</p>
+                  <p className="font-semibold text-foreground">
+                    {isBrokerFlow ? "Join as a broker" : "Welcome to KrrishJazz"}
+                  </p>
+                  <p className="text-sm text-text-secondary">
+                    {isBrokerFlow ? "Login with mobile to apply" : "Continue with mobile OTP"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -258,14 +300,22 @@ function LoginPageContent() {
             </div>
 
             <h1 className="text-2xl font-bold text-foreground">
-              {step === "phone" && (mode === "register" ? "Register on KrrishJazz" : "Login to KrrishJazz")}
+              {step === "phone" && (
+                isBrokerFlow
+                  ? (mode === "register" ? "Register as Broker" : "Broker Login")
+                  : (mode === "register" ? "Register on KrrishJazz" : "Login to KrrishJazz")
+              )}
               {step === "otp" && "Enter OTP"}
-              {step === "register" && "Complete Your Profile"}
+              {step === "register" && (isBrokerFlow ? "Set up your broker profile" : "Complete Your Profile")}
             </h1>
             <p className="text-sm text-text-secondary mt-1">
-              {step === "phone" && (mode === "register" ? "Enter your mobile number to register" : "Enter your mobile number to continue")}
+              {step === "phone" && (
+                isBrokerFlow
+                  ? "Same login as buyers and owners. We'll route you to the broker application."
+                  : (mode === "register" ? "Enter your mobile number to register" : "Enter your mobile number to continue")
+              )}
               {step === "otp" && `We've sent a 6-digit code to ${phone}`}
-              {step === "register" && "Just a few details to get started"}
+              {step === "register" && (isBrokerFlow ? "Add your name to continue to the broker application." : "Just a few details to get started")}
             </p>
           </div>
 
@@ -311,13 +361,13 @@ function LoginPageContent() {
               </Button>
               <div className="grid gap-2 pt-2 sm:grid-cols-3">
                 {[
-                  ["Buyer", "Search"],
-                  ["Owner", "Post"],
-                  ["Broker", "Match"],
-                ].map(([title, label]) => (
-                  <div key={title} className="rounded-btn border border-border bg-surface px-3 py-2 text-center">
-                    <p className="text-sm font-semibold text-foreground">{title}</p>
-                    <p className="text-xs text-text-secondary">{label}</p>
+                  { title: "Buyer", label: "Search", tone: "border-primary/25 bg-primary-light" },
+                  { title: "Owner", label: "Post", tone: "border-primary/25 bg-white" },
+                  { title: "Broker", label: "Match", tone: "border-accent/35 bg-accent-light" },
+                ].map((item) => (
+                  <div key={item.title} className={`rounded-btn border px-3 py-2 text-center ${item.tone}`}>
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <p className="text-xs text-text-secondary">{item.label}</p>
                   </div>
                 ))}
               </div>

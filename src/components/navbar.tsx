@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Bell,
   ChevronDown,
   Menu,
   X,
@@ -13,6 +12,7 @@ import {
   Heart,
   Phone,
   User,
+  Briefcase,
   Building2,
   FileText,
   LogOut,
@@ -24,14 +24,6 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-const CUSTOMER_NAV_LINKS = [
-  { label: "Buy", href: "/properties?listingType=BUY" },
-  { label: "Rent", href: "/properties?listingType=RENT" },
-  { label: "Commercial", href: "/properties?category=COMMERCIAL" },
-  { label: "Plots/Land", href: "/properties?propertyType=Residential%20Plot" },
-  { label: "Post Property", href: "/dashboard?tab=post", badge: "FREE" },
-];
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -50,10 +42,10 @@ export function Navbar() {
 
   const runHeaderSearch = () => {
     const params = new URLSearchParams();
-    if (headerMode === "Rent") params.set("listingType", "RENT");
-    else if (headerMode === "Commercial") params.set("category", "COMMERCIAL");
-    else if (headerMode === "Plots/Land") params.set("propertyType", "Residential Plot");
-    else params.set("listingType", "BUY");
+    if (headerMode === "Rent") params.set("intent", "rent");
+    else if (headerMode === "Commercial") params.set("intent", "commercial");
+    else if (headerMode === "Plots/Land") params.set("intent", "land");
+    else params.set("intent", "buy");
     if (headerSearch.trim()) params.set("q", headerSearch.trim());
     navigateTo(`/properties?${params.toString()}`);
   };
@@ -82,11 +74,10 @@ export function Navbar() {
             </Link>
           </div>
           <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">My Activity</p>
-            <DropdownItem icon={<Clock size={16} />} label="Recently Searched" href="/properties" onClick={navigateTo} />
-            <DropdownItem icon={<Eye size={16} />} label="Recently Viewed" href="/properties" onClick={navigateTo} />
-            <DropdownItem icon={<Heart size={16} />} label="Shortlisted" href="/login?redirect=/dashboard" onClick={navigateTo} />
-            <DropdownItem icon={<Phone size={16} />} label="Contacted" href="/login?redirect=/dashboard" onClick={navigateTo} />
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">Quick Access</p>
+            <DropdownItem icon={<Search size={16} />} label="Search Properties" href="/properties" onClick={navigateTo} />
+            <DropdownItem icon={<Plus size={16} />} label="Post Property Free" href="/login?intent=post" onClick={navigateTo} />
+            <DropdownItem icon={<Briefcase size={16} />} label="Join as Broker" href="/login?as=broker" onClick={navigateTo} />
           </div>
           <div className="px-4 py-3 border-t border-border">
             <Link
@@ -241,7 +232,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-primary text-white shadow-[0_2px_8px_rgb(0_31_77/0.18)]">
+    <nav className="sticky top-0 z-40 bg-primary-dark text-white shadow-[0_4px_16px_rgb(0_31_77/0.28)]">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-3">
           {/* Logo */}
@@ -275,65 +266,21 @@ export function Navbar() {
             </button>
           </div>
 
-          {/* Center Nav Tabs - Desktop */}
-          <div className="hidden items-center gap-1 xl:flex">
-            {user?.role === "BROKER" && user.brokerStatus === "APPROVED" ? (
-              <>
-                <Link
-                  href="/broker/properties"
-                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  Properties
-                </Link>
-                <Link
-                  href="/broker/requirements"
-                  className="relative px-3 py-2 rounded-btn text-sm font-semibold text-white/90 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  Requirements
-                </Link>
-                <Link
-                  href="/dashboard?tab=post"
-                  className="relative px-4 py-2 rounded-btn text-sm font-semibold bg-white text-foreground hover:bg-primary-light transition-colors shadow-sm"
-                >
-                  Post Property
-                </Link>
-              </>
-            ) : (
-              CUSTOMER_NAV_LINKS.map((tab) => (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  className={cn(
-                    "relative rounded-btn px-3 py-2 text-sm font-semibold text-white/90 transition-colors hover:bg-white/10 hover:text-white",
-                    tab.badge && "bg-white text-foreground hover:bg-primary-light hover:text-foreground"
-                  )}
-                >
-                  {tab.label}
-                  {tab.badge && (
-                    <span
-                      className="ml-1 rounded-pill bg-success px-1.5 py-0.5 text-[10px] font-bold text-white"
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </Link>
-              ))
-            )}
-          </div>
-
           {/* Right side */}
           <div className="flex items-center gap-3">
             <Link
-              href="/properties"
-              className="hidden items-center gap-2 rounded-btn border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/15 md:inline-flex xl:hidden"
+              href="/dashboard?tab=post"
+              className="hidden rounded-btn bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-primary-light md:inline-flex"
+            >
+              Post Property
+            </Link>
+            <Link
+              href="/properties?intent=discover"
+              className="inline-flex items-center gap-2 rounded-btn border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/15"
             >
               <Search size={16} />
               Search
             </Link>
-            <button className="relative hidden rounded-btn border border-transparent p-2 transition-colors hover:bg-white/10 md:block">
-              <Bell size={20} className="text-white" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success" />
-            </button>
 
             {/* User dropdown */}
             <div className="relative" ref={dropdownRef}>
@@ -370,51 +317,36 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-white/10 bg-primary text-white">
+        <div className="lg:hidden border-t border-white/10 bg-primary-dark text-white">
           <div className="px-4 py-2 space-y-1">
             <button
               type="button"
-              onClick={() => navigateTo("/properties")}
+              onClick={() => navigateTo("/properties?intent=discover")}
               className="block w-full text-left px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 rounded-btn transition-colors"
             >
-              Search Properties
+              Explore Properties
             </button>
-            {user?.role === "BROKER" && user.brokerStatus === "APPROVED" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => navigateTo("/broker/properties")}
-                  className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
-                >
-                  Properties
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigateTo("/broker/requirements")}
-                  className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
-                >
-                  Requirements
-                </button>
-              </>
-            ) : (
-              CUSTOMER_NAV_LINKS.map((tab) => (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  className="block px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {tab.label}
-                  {tab.badge && (
-                    <span
-                      className="ml-2 rounded-pill bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success"
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </Link>
-              ))
-            )}
+            <button
+              type="button"
+              onClick={() => navigateTo("/dashboard?tab=saved")}
+              className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
+            >
+              Saved Properties
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo("/dashboard?tab=enquiries")}
+              className="block w-full text-left px-3 py-2 text-sm text-white/85 hover:bg-white/10 rounded-btn transition-colors"
+            >
+              My Enquiries
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo("/dashboard?tab=post")}
+              className="mt-1 block w-full rounded-btn bg-white px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-primary-light"
+            >
+              Post Property
+            </button>
           </div>
         </div>
       )}
