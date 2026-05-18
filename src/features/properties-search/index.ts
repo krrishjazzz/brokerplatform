@@ -1,6 +1,19 @@
 export * from "./types";
+export type { PropertiesSearchFiltersState } from "./types/filters-state";
+export { PropertiesFiltersSidebar } from "./components/properties-filters-sidebar";
+export { PropertiesSearchHero } from "./components/properties-search-hero";
+export { PropertiesResultsSection } from "./components/properties-results-section";
+export { PropertiesResultsToolbar } from "./components/properties-results-toolbar";
+export { PropertiesMobileActionBar } from "./components/properties-mobile-action-bar";
+export { SavedSearchesDropdown } from "./components/saved-searches-dropdown";
+export { buildActiveFilters } from "./utils/active-filters";
+export type { ActiveFilterChip } from "./utils/active-filters";
+export { summarizeProperties } from "./utils/property-summary";
 export { usePropertiesSearch } from "./hooks/use-properties-search";
 export { useSavedSearches } from "./hooks/use-saved-searches";
+export { useSearchRequirement } from "./hooks/use-search-requirement";
+export { usePropertyListingActions } from "./hooks/use-property-listing-actions";
+export { usePropertiesPageDerived } from "./hooks/use-properties-page-derived";
 export { buildSearchLabel, SAVED_SEARCH_STORAGE_KEY } from "./utils/saved-search";
 export {
   countSearchIntent,

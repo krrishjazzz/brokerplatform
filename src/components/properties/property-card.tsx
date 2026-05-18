@@ -5,17 +5,18 @@ import { BellRing, Building2, Eye, Heart, Home, MapPin, MessageCircle, Share2, S
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
-import type { Property } from "./types";
+import type { Property, PropertySaveTarget } from "./types";
 import { badgeVariant, getFreshness, getSmartSpecs, listingLabel } from "./property-display";
 
 interface PropertyCardProps {
   property: Property;
   isLoggedIn: boolean;
-  onSave: (propertyId: string) => void;
+  isSaved?: boolean;
+  onSave: (property: PropertySaveTarget) => void | Promise<void>;
   onShare: (property: Property) => void;
 }
 
-export function PropertyCard({ property, isLoggedIn, onSave, onShare }: PropertyCardProps) {
+export function PropertyCard({ property, isLoggedIn, isSaved = false, onSave, onShare }: PropertyCardProps) {
   const freshness = getFreshness(property.updatedAt);
   const image = property.coverImage || property.images[0];
   const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
@@ -53,11 +54,15 @@ export function PropertyCard({ property, isLoggedIn, onSave, onShare }: Property
 
           <button
             type="button"
-            onClick={() => onSave(property.id)}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-text-secondary shadow-card transition-colors hover:text-accent"
-            aria-label="Save property"
+            onClick={() => onSave(property)}
+            className={cn(
+              "absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/92 shadow-card transition-colors",
+              isSaved ? "text-error" : "text-text-secondary hover:text-accent"
+            )}
+            aria-label={isSaved ? "Remove from saved" : "Save property"}
+            aria-pressed={isSaved}
           >
-            <Heart size={17} />
+            <Heart size={17} className={cn(isSaved && "fill-current")} />
           </button>
 
           <div className="absolute bottom-3 left-3 rounded-pill bg-foreground/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">

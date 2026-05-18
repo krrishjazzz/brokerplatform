@@ -1,4 +1,4 @@
-export type { Pagination, Property } from "@/components/properties/types";
+export type { Pagination, Property, PropertySaveTarget } from "@/components/properties/types";
 
 export type SavedSearchFilters = {
   listingType: string;

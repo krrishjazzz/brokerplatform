@@ -6,49 +6,11 @@ import { slugify } from "@/lib/utils";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { logActivity } from "@/lib/workflow";
 import { CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
-import { parseJsonArray } from "@/server/json";
 import { getPagination } from "@/server/pagination";
+import { formatProperty } from "@/server/public-property";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
-
-function toListingStatus(status: string) {
-  if (status === "PENDING_REVIEW") return "PENDING";
-  if (status === "LIVE") return "LIVE";
-  if (status === "REJECTED") return "REJECTED";
-  return status;
-}
-
-function formatProperty(property: any, options: { publicView: boolean }) {
-  const listingStatus = ["LIVE", "REJECTED"].includes(property.status)
-    ? toListingStatus(property.status)
-    : property.listingStatus || toListingStatus(property.status);
-
-  const formatted = {
-    ...property,
-    listingStatus,
-    publicBrokerName: property.publicBrokerName || "KrrishJazz",
-    verified: property.status === "LIVE" || listingStatus === "LIVE",
-    ownerListed: property.postedBy?.role === "OWNER",
-    readyToVisit: property.status === "LIVE" && ["LIVE", "AVAILABLE"].includes(listingStatus),
-    amenities: parseJsonArray(property.amenities),
-    images: parseJsonArray(property.images),
-    latestFreshness: property.freshnessHistory?.[0] || null,
-  };
-
-  if (!options.publicView) return formatted;
-
-  const safeProperty = { ...formatted };
-  delete safeProperty.postedById;
-  delete safeProperty.assignedBrokerId;
-  delete safeProperty.assignedBroker;
-
-  return {
-    ...safeProperty,
-    publicBrokerName: "KrrishJazz",
-    postedBy: { name: "KrrishJazz", role: "VERIFIED" },
-  };
-}
 
 export async function GET(req: NextRequest) {
   try {

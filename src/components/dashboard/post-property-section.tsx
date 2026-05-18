@@ -1,59 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  AlertTriangle,
-  Building2,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CloudOff,
-  Home,
-  RotateCcw,
-  Save,
-  Upload,
-  X,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Check, Home, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import {
-  AMENITIES,
-  AREA_UNITS,
-  CATEGORY_AMENITIES,
-  FURNISHING_OPTIONS,
-  INDIAN_STATES,
-  PROPERTY_CATEGORY_OPTIONS,
-  PROPERTY_TYPE_GUIDE,
-  PROPERTY_TYPES,
-} from "@/lib/constants";
-import { cn, formatPrice } from "@/lib/utils";
+import { AMENITIES, CATEGORY_AMENITIES, PROPERTY_TYPE_GUIDE } from "@/lib/constants";
+import { formatPrice } from "@/lib/utils";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
-import { getVisibilityLabel, VISIBILITY_OPTIONS } from "@/lib/visibility";
-import { CATEGORY_ICON_MAP } from "@/features/post-property/category-icons";
+import { getVisibilityLabel } from "@/lib/visibility";
 import {
-  POST_PROPERTY_DRAFT_DEBOUNCE_MS,
-  POST_PROPERTY_DRAFT_KEY,
   POST_PROPERTY_FIELD_STEP_MAP,
   POST_PROPERTY_STEPS,
 } from "@/features/post-property/constants";
-import type { PostPropertyDraftPayload as DraftPayload } from "@/features/post-property/types";
 import { usePropertyTypeFlags } from "@/features/post-property/hooks/use-property-type-flags";
 import { ListingLivePreview } from "@/features/post-property/components/listing-live-preview";
-import { UploadFocusChecklist } from "@/features/post-property/components/upload-focus-checklist";
 import { WizardProgress } from "@/features/post-property/components/wizard-progress";
 import { formatRelativeTime } from "@/features/post-property/utils/format-relative-time";
 import { uploadPropertyImages } from "@/features/post-property/services/upload-images";
+import { DraftResumeBanner } from "@/features/post-property/components/draft-resume-banner";
+import { PostPropertyWizardBody } from "@/features/post-property/components/post-property-wizard-body";
+import { WizardNavigation } from "@/features/post-property/components/wizard-navigation";
+import { usePostPropertyDraft } from "@/features/post-property/hooks/use-post-property-draft";
 
 const STEPS = [...POST_PROPERTY_STEPS];
-const DRAFT_KEY = POST_PROPERTY_DRAFT_KEY;
-const DRAFT_DEBOUNCE_MS = POST_PROPERTY_DRAFT_DEBOUNCE_MS;
 
 export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -89,53 +61,27 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     },
   });
 
-  const [draftMeta, setDraftMeta] = useState<{ savedAt: number } | null>(null);
-  const [pendingDraft, setPendingDraft] = useState<DraftPayload | null>(null);
-  const [draftSaving, setDraftSaving] = useState(false);
-  const draftLoadedRef = useRef(false);
-  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || draftLoadedRef.current) return;
-    draftLoadedRef.current = true;
-    try {
-      const stored = localStorage.getItem(DRAFT_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored) as DraftPayload;
-      if (!parsed?.savedAt) return;
-      setPendingDraft(parsed);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const clearDraft = () => {
-    try {
-      localStorage.removeItem(DRAFT_KEY);
-    } catch {
-      // ignore
-    }
-    setDraftMeta(null);
-  };
-
-  const resumeDraft = (draft: DraftPayload) => {
-    if (draft.formValues) {
-      reset({ ...draft.formValues } as PropertyInput);
-    }
-    if (draft.images?.length) setImages(draft.images);
-    if (draft.selectedAmenities?.length) setSelectedAmenities(draft.selectedAmenities);
-    if (typeof draft.categoryNotes === "string") setCategoryNotes(draft.categoryNotes);
-    if (typeof draft.step === "number") setStep(Math.min(Math.max(draft.step, 0), STEPS.length - 1));
-    setDraftMeta({ savedAt: draft.savedAt });
-    setPendingDraft(null);
-    toast("Draft restored. Continue where you left off.", "success");
-  };
-
-  const discardDraft = () => {
-    clearDraft();
-    setPendingDraft(null);
-    toast("Draft discarded.", "info");
-  };
+  const {
+    draftMeta,
+    pendingDraft,
+    draftSaving,
+    clearDraft,
+    resumeDraft,
+    discardDraft,
+  } = usePostPropertyDraft({
+    watch,
+    reset,
+    step,
+    images,
+    selectedAmenities,
+    categoryNotes,
+    setImages,
+    setSelectedAmenities,
+    setCategoryNotes,
+    setStep,
+    onResumeToast: (msg) => toast(msg, "success"),
+    onDiscardToast: (msg) => toast(msg, "info"),
+  });
 
   const category = watch("category");
   const selectedPropertyType = watch("propertyType");
@@ -143,50 +89,6 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const watchedTitle = watch("title");
   const watchedDescription = watch("description");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (pendingDraft) return;
-
-    const subscription = watch((formValues) => {
-      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
-      setDraftSaving(true);
-      draftSaveTimer.current = setTimeout(() => {
-        try {
-          const payload: DraftPayload = {
-            formValues: formValues as Partial<PropertyInput>,
-            step,
-            images,
-            selectedAmenities,
-            categoryNotes,
-            savedAt: Date.now(),
-          };
-          const hasContent =
-            !!payload.formValues?.title ||
-            !!payload.formValues?.listingType ||
-            !!payload.formValues?.category ||
-            !!payload.formValues?.propertyType ||
-            !!payload.formValues?.city ||
-            !!payload.formValues?.locality ||
-            images.length > 0;
-          if (!hasContent) {
-            setDraftSaving(false);
-            return;
-          }
-          localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-          setDraftMeta({ savedAt: payload.savedAt });
-        } catch {
-          // ignore quota errors
-        } finally {
-          setDraftSaving(false);
-        }
-      }, DRAFT_DEBOUNCE_MS);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
-    };
-  }, [watch, pendingDraft, step, images, selectedAmenities, categoryNotes]);
   const watchedPrice = watch("price");
   const watchedArea = watch("area");
   const watchedCity = watch("city");
@@ -440,27 +342,12 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
         )}
       </div>
 
-      {pendingDraft && (
-        <div className="mb-6 rounded-card border border-primary/25 bg-primary-light p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">Resume your draft?</p>
-              <p className="mt-1 text-xs text-text-secondary">
-                We saved your last property draft {formatRelativeTime(pendingDraft.savedAt)}. Continue or start fresh.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={discardDraft}>
-                <CloudOff size={14} className="mr-1.5" />
-                Discard
-              </Button>
-              <Button size="sm" onClick={() => resumeDraft(pendingDraft)}>
-                <RotateCcw size={14} className="mr-1.5" />
-                Resume
-              </Button>
-            </div>
-          </div>
-        </div>
+            {pendingDraft && (
+        <DraftResumeBanner
+          draft={pendingDraft}
+          onResume={() => resumeDraft(pendingDraft)}
+          onDiscard={discardDraft}
+        />
       )}
 
       <div className="mb-6 rounded-card border border-primary/20 bg-primary-light p-4">
@@ -473,488 +360,53 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="bg-white rounded-card shadow-card border border-border p-6">
-          {/* Step 1: Listing Type -> Category -> Property Type -> Title & Description */}
-          {step === 0 && (
-            <div className="space-y-6">
-              <div className="rounded-card border border-primary/20 bg-primary-light p-4">
-                <p className="text-sm font-semibold text-primary">Start with what you are listing</p>
-                <p className="text-xs text-text-secondary mt-1">Choose intent, then category and exact property type. Title and description come after, like other portals.</p>
-              </div>
+          <PostPropertyWizardBody
+            step={step}
+            register={register}
+            errors={errors}
+            setValue={setValue}
+            category={category}
+            selectedListingType={selectedListingType}
+            selectedPropertyType={selectedPropertyType}
+            watchedTitle={watchedTitle}
+            watchedVisibility={watchedVisibility}
+            watchedPrice={watchedPrice}
+            watchedArea={watchedArea}
+            watchedCity={watchedCity}
+            uploadFocusItems={uploadFocusItems}
+            activeTypeGuide={activeTypeGuide}
+            isPlotDetail={isPlotDetail}
+            isCommercialDetail={isCommercialDetail}
+            isIndustrialDetail={isIndustrialDetail}
+            isHospitalityDetail={isHospitalityDetail}
+            shouldShowRooms={shouldShowRooms}
+            shouldShowFurnishing={shouldShowFurnishing}
+            categoryNotes={categoryNotes}
+            setCategoryNotes={setCategoryNotes}
+            images={images}
+            uploadError={uploadError}
+            uploadingImages={uploadingImages}
+            fileInputRef={fileInputRef}
+            uploadImages={uploadImages}
+            removeImage={removeImage}
+            selectedAmenities={selectedAmenities}
+            toggleAmenity={toggleAmenity}
+            suggestedAmenities={suggestedAmenities}
+            reviewChecklist={reviewChecklist}
+            termsAccepted={termsAccepted}
+            setTermsAccepted={setTermsAccepted}
+          />
 
-              <input type="hidden" {...register("category")} />
-              <input type="hidden" {...register("propertyType")} />
-              <input type="hidden" {...register("listingType")} />
+          <WizardNavigation
+            step={step}
+            submitting={submitting}
+            uploadingImages={uploadingImages}
+            termsAccepted={termsAccepted}
+            onBack={handleBack}
+            onNext={handleNext}
+            onSubmit={handleFinalSubmit}
+          />
 
-              {/* 1. Listing Type */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-foreground">
-                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">1</span>
-                    I want to
-                  </label>
-                  {errors.listingType?.message && <p className="text-xs text-error">{errors.listingType.message}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  {[
-                    { value: "BUY", label: "Sell" },
-                    { value: "RENT", label: "Rent Out" },
-                    { value: "RESALE", label: "Resell" },
-                    { value: "LEASE", label: "Lease" },
-                    { value: "COMMERCIAL", label: "Commercial" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setValue("listingType", option.value as PropertyInput["listingType"], { shouldValidate: true })}
-                      className={cn(
-                        "rounded-btn border px-3 py-2.5 text-sm font-semibold transition-colors",
-                        selectedListingType === option.value
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-white text-text-secondary hover:border-primary/40 hover:text-primary"
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Category */}
-              {selectedListingType && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">2</span>
-                      Category
-                    </label>
-                    {errors.category?.message && <p className="text-xs text-error">{errors.category.message}</p>}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                    {PROPERTY_CATEGORY_OPTIONS.map((item) => (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() => {
-                          setValue("category", item.value as PropertyInput["category"], { shouldValidate: true });
-                          setValue("propertyType", "", { shouldValidate: true });
-                        }}
-                        className={cn(
-                          "rounded-card border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card",
-                          category === item.value
-                            ? "border-primary bg-primary-light text-primary shadow-card"
-                            : "border-border bg-surface text-foreground hover:border-primary/40"
-                        )}
-                      >
-                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-btn bg-white text-primary">
-                          {CATEGORY_ICON_MAP[item.value] || <Building2 size={20} />}
-                        </div>
-                        <p className="text-sm font-semibold">{item.label}</p>
-                        <p className="mt-1 text-xs leading-5 text-text-secondary">{item.hint}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Property Type */}
-              {category && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">3</span>
-                      Property Type
-                    </label>
-                    {errors.propertyType?.message && <p className="text-xs text-error">{errors.propertyType.message}</p>}
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    {(PROPERTY_TYPES[category] || []).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          setValue("propertyType", type, { shouldValidate: true });
-                          if (!watchedTitle) {
-                            setValue("title", `${type} in `.trim(), { shouldValidate: false });
-                          }
-                        }}
-                        className={cn(
-                          "rounded-btn border px-3 py-2 text-left text-sm font-medium transition-colors",
-                          selectedPropertyType === type
-                            ? "border-primary bg-primary-light text-primary"
-                            : "border-border bg-white text-text-secondary hover:border-primary/30 hover:text-primary"
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Title + Description (only after property type is picked) */}
-              {selectedPropertyType && (
-                <div className="space-y-4 rounded-card border border-border bg-surface p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">4</span>
-                      Describe your {selectedPropertyType}
-                    </p>
-                    <p className="mt-1 text-xs text-text-secondary">A clear title and short description help buyers shortlist faster.</p>
-                  </div>
-                  <Input
-                    label="Title"
-                    placeholder={`e.g. 3BHK ${selectedPropertyType} in Salt Lake`}
-                    error={errors.title?.message}
-                    {...register("title")}
-                  />
-                  <Textarea
-                    label="Description"
-                    placeholder={`Describe your ${selectedPropertyType}: highlights, amenities, surroundings...`}
-                    error={errors.description?.message}
-                    {...register("description")}
-                  />
-                </div>
-              )}
-
-              <UploadFocusChecklist selectedType={selectedPropertyType} items={uploadFocusItems} />
-            </div>
-          )}
-
-          {/* Step 2: Details */}
-          {step === 1 && (
-            <div className="space-y-4">
-              {selectedPropertyType && (
-                <div className="rounded-card border border-primary/20 bg-primary-light p-4">
-                  <p className="text-sm font-semibold text-primary">{selectedPropertyType} details</p>
-                  <p className="text-xs text-text-secondary mt-1">
-                    {activeTypeGuide?.hint ||
-                      (isPlotDetail
-                        ? "Rooms and furnishing are skipped for plot/land inventory."
-                        : isCommercialDetail
-                        ? "Commercial cards will highlight area, fit-out, parking and power backup."
-                        : isIndustrialDetail
-                        ? "Industrial cards will highlight area, access, power and use case."
-                        : isHospitalityDetail
-                        ? "Hospitality cards will highlight capacity, services, security and stay terms."
-                        : "Residential cards will highlight BHK, bathrooms, floor and furnishing.")}
-                  </p>
-                  {activeTypeGuide?.fields?.length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {activeTypeGuide.fields.map((field) => (
-                        <span key={field} className="rounded-pill border border-primary/20 bg-white px-3 py-1 text-xs font-medium text-primary">
-                          {field}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Price (â‚¹)" type="number" placeholder="e.g. 5000000" error={errors.price?.message} {...register("price")} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="Area" type="number" placeholder="e.g. 1200" error={errors.area?.message} {...register("area")} />
-                  <Select
-                    label="Unit"
-                    options={AREA_UNITS.map((unit) => ({ value: unit, label: unit.toUpperCase() }))}
-                    {...register("areaUnit")}
-                  />
-                </div>
-              </div>
-              {shouldShowRooms && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Input label="Bedrooms" type="number" placeholder="0" {...register("bedrooms")} />
-                  <Input label="Bathrooms" type="number" placeholder="0" {...register("bathrooms")} />
-                  <Input label="Floor" type="number" placeholder="0" {...register("floor")} />
-                  <Input label="Total Floors" type="number" placeholder="0" {...register("totalFloors")} />
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Age (years)" type="number" placeholder="0" {...register("ageYears")} />
-                {shouldShowFurnishing && (
-                  <Select
-                    label={isCommercialDetail ? "Fit-out / Furnishing" : "Furnishing"}
-                    options={FURNISHING_OPTIONS.map((f) => ({ value: f, label: f }))}
-                    {...register("furnishing")}
-                  />
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                <input type="checkbox" className="rounded border-border" {...register("priceNegotiable")} />
-                Price Negotiable
-              </label>
-              <Textarea
-                label={selectedPropertyType ? `${selectedPropertyType} specific details` : "Category-specific details"}
-                placeholder={
-                  isCommercialDetail
-                    ? "Seats/cabins, frontage, floor, pantry, parking, power backup..."
-                    : isIndustrialDetail
-                    ? "Clear height, dock, truck access, power load, road width..."
-                    : isPlotDetail
-                    ? "Facing, road width, boundary, approvals, conversion status..."
-                    : isHospitalityDetail
-                    ? "Beds/rooms, sharing, food, rules, housekeeping, license..."
-                    : "Maintenance, society, balcony, parking, lift, facing..."
-                }
-                value={categoryNotes}
-                onChange={(event) => setCategoryNotes(event.target.value)}
-              />
-            </div>
-          )}
-
-          {/* Step 3: Location */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <Textarea label="Address" placeholder="Full address..." error={errors.address?.message} {...register("address")} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Input label="Locality" placeholder="e.g. Salt Lake, Park Street" error={errors.locality?.message} {...register("locality")} />
-                <Input label="City" placeholder="e.g. Kolkata" error={errors.city?.message} {...register("city")} />
-                <Select
-                  label="State"
-                  options={INDIAN_STATES.map((s) => ({ value: s, label: s }))}
-                  error={errors.state?.message}
-                  {...register("state")}
-                />
-                <Input label="Pincode" placeholder="400001" error={errors.pincode?.message} {...register("pincode")} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Latitude (optional)" type="number" step="any" placeholder="19.076" {...register("lat")} />
-                <Input label="Longitude (optional)" type="number" step="any" placeholder="72.877" {...register("lng")} />
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Images & Amenities */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Displayed Contact / Managed By"
-                  placeholder="KrrishJazz"
-                  error={errors.publicBrokerName?.message}
-                  {...register("publicBrokerName")}
-                />
-              </div>
-
-              <input type="hidden" {...register("visibilityType")} />
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-foreground">Listing Reach</label>
-                  {errors.visibilityType?.message && <p className="text-xs text-error">{errors.visibilityType.message}</p>}
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {VISIBILITY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setValue("visibilityType", option.value, { shouldValidate: true })}
-                      className={cn(
-                        "rounded-card border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card",
-                        watchedVisibility === option.value
-                          ? "border-primary bg-primary-light shadow-card"
-                          : "border-border bg-white hover:border-primary/40"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{option.label}</p>
-                          <p className="mt-1 text-xs leading-5 text-text-secondary">{option.description}</p>
-                        </div>
-                        <span className={cn("mt-0.5 h-4 w-4 rounded-full border", watchedVisibility === option.value ? "border-primary bg-primary" : "border-border")} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-2">Property Images</label>
-                <div
-                  className="border-2 border-dashed border-border rounded-card p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "copy";
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (e.dataTransfer.files.length > 0) uploadImages(e.dataTransfer.files);
-                  }}
-                >
-                  <Upload size={32} className="mx-auto text-text-secondary mb-2" />
-                  <p className="text-sm text-text-secondary">
-                    {uploadingImages ? "Uploading images..." : "Drag & drop images here or click to browse"}
-                  </p>
-                  <p className="text-xs text-text-secondary mt-1">PNG, JPG up to 5MB each</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) uploadImages(files);
-                    }}
-                  />
-                </div>
-                {uploadError && <p className="text-xs text-error mt-2">{uploadError}</p>}
-                {errors.images?.message && <p className="text-xs text-error mt-2">{errors.images.message}</p>}
-                {images.length > 0 && (
-                  <div className="flex gap-2 mt-3 flex-wrap">
-                    {images.map((img, i) => (
-                      <div key={`${img}-${i}`} className="relative w-20 h-20 rounded-btn bg-surface border border-border overflow-hidden group">
-                        <img src={img} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
-                        {i === 0 && (
-                          <span className="absolute left-1 bottom-1 bg-primary text-white text-[10px] font-medium px-1.5 py-0.5 rounded-pill">
-                            Cover
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(i);
-                          }}
-                          className="absolute right-1 top-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label={`Remove image ${i + 1}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-3">Amenities</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {suggestedAmenities.map((a) => (
-                    <label
-                      key={a}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-btn border cursor-pointer text-sm transition-colors",
-                        selectedAmenities.includes(a)
-                          ? "border-primary bg-primary-light text-primary"
-                          : "border-border text-text-secondary hover:border-primary/30"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={selectedAmenities.includes(a)}
-                        onChange={() => toggleAmenity(a)}
-                      />
-                      {selectedAmenities.includes(a) && <Check size={14} />}
-                      {a}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Review */}
-          {step === 4 && (
-            <div className="space-y-4">
-              <div className="rounded-card border border-primary/20 bg-primary-light p-4">
-                <p className="text-sm font-semibold text-primary">Review before publishing</p>
-                <p className="text-xs text-text-secondary mt-1">This is what brokers and customers will scan first. Your listing stays free; brokerage applies only when KrrishJazz helps close the deal.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-card border border-border bg-surface p-4">
-                  <p className="text-xs text-text-secondary">Listing</p>
-                  <p className="font-semibold text-foreground mt-1">{selectedListingType || "Not selected"} - {selectedPropertyType || "Property"}</p>
-                  <p className="text-sm text-text-secondary mt-1">{watchedCity || "City pending"}</p>
-                </div>
-                <div className="rounded-card border border-border bg-surface p-4">
-                  <p className="text-xs text-text-secondary">Price & Area</p>
-                  <p className="font-semibold text-foreground mt-1">{watchedPrice ? formatPrice(Number(watchedPrice)) : "Price pending"}</p>
-                  <p className="text-sm text-text-secondary mt-1">{watchedArea ? `${Number(watchedArea).toLocaleString()} sqft approx.` : "Area pending"}</p>
-                </div>
-                <div className="rounded-card border border-border bg-surface p-4">
-                  <p className="text-xs text-text-secondary">Listing Reach</p>
-                  <p className="font-semibold text-foreground mt-1">{getVisibilityLabel(watchedVisibility)}</p>
-                  <p className="text-sm text-text-secondary mt-1">{selectedAmenities.length} amenit{selectedAmenities.length === 1 ? "y" : "ies"} selected</p>
-                </div>
-                <div className="rounded-card border border-border bg-surface p-4">
-                  <p className="text-xs text-text-secondary">Photos</p>
-                  <p className="font-semibold text-foreground mt-1">{images.length} uploaded</p>
-                  <p className="text-sm text-text-secondary mt-1">First image will be used as cover.</p>
-                </div>
-              </div>
-              {images.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {images.slice(0, 6).map((image, index) => (
-                    <img key={`${image}-${index}`} src={image} alt={`Review ${index + 1}`} className="h-20 w-24 rounded-card object-cover border border-border" />
-                  ))}
-                </div>
-              )}
-
-              <div className="rounded-card border border-border bg-white p-4 shadow-card">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Final listing checklist</p>
-                    <p className="mt-1 text-xs leading-5 text-text-secondary">Complete these checks before sending the listing for KrrishJazz verification.</p>
-                  </div>
-                  <Badge variant={reviewChecklist.every((item) => item.complete) ? "success" : "warning"}>
-                    {reviewChecklist.filter((item) => item.complete).length}/{reviewChecklist.length} ready
-                  </Badge>
-                </div>
-
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {reviewChecklist.map((item) => (
-                    <div key={item.label} className={cn("flex items-start gap-3 rounded-btn border px-3 py-3", item.complete ? "border-success/20 bg-success-light" : "border-warning/20 bg-warning-light")}>
-                      <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full", item.complete ? "bg-success text-white" : "bg-warning text-white")}>
-                        {item.complete ? <Check size={13} /> : <AlertTriangle size={12} />}
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{item.label}</p>
-                        <p className="mt-0.5 text-xs leading-5 text-text-secondary">{item.detail}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-card border border-primary/20 bg-primary-light p-4">
-                  <input
-                    type="checkbox"
-                    checked={termsAccepted}
-                    onChange={(event) => setTermsAccepted(event.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-primary text-primary"
-                  />
-                  <span>
-                    <span className="block text-sm font-semibold text-foreground">I understand KrrishJazz listing terms</span>
-                    <span className="mt-1 block text-xs leading-5 text-text-secondary">
-                      Posting is free. KrrishJazz will verify details and coordinate enquiries. One month brokerage applies only after successful deal closure.
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation buttons */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 0}>
-              <ChevronLeft size={16} className="mr-1" /> Back
-            </Button>
-            {step < STEPS.length - 1 ? (
-              <Button type="button" onClick={handleNext}>
-                Next <ChevronRight size={16} className="ml-1" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleFinalSubmit}
-                loading={submitting || uploadingImages}
-                disabled={uploadingImages || !termsAccepted}
-                className="relative z-10"
-              >
-                Submit Property
-              </Button>
-            )}
-          </div>
         </div>
       </form>
       <ListingLivePreview

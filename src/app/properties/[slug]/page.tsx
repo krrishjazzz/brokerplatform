@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Eye,
   Heart,
   LockKeyhole,
   MapPin,
@@ -36,7 +35,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { cn, formatPrice, maskPhone } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
+import { buildPropertySaveLoginUrl } from "@/lib/auth-redirect";
+import {
+  parseSavedToggleResponse,
+  savedPropertyToastMessage,
+} from "@/lib/saved-property-feedback";
+import {
+  PLATFORM_PHONE,
+  normalizePlatformPhoneForTel,
+  normalizePlatformPhoneForWhatsApp,
+} from "@/lib/platform";
 import { enquirySchema } from "@/lib/validations";
 import { getVisibilityLabel } from "@/lib/visibility";
 import type { EnquiryInput } from "@/lib/validations";
@@ -101,6 +110,7 @@ interface PropertyDetail {
   listingStatus: string;
   visibilityType: string;
   publicBrokerName: string;
+  platformPhone?: string;
   verified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -150,16 +160,17 @@ function listingLabel(type: string) {
 export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const slug = params.slug as string;
+  const pendingSaveHandled = useRef(false);
 
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [similar, setSimilar] = useState<SimilarProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentImage, setCurrentImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [showPhone, setShowPhone] = useState(false);
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [enquiryLoading, setEnquiryLoading] = useState(false);
   const [enquirySent, setEnquirySent] = useState(false);
@@ -242,6 +253,42 @@ export default function PropertyDetailPage() {
     if (slug) fetchProperty();
   }, [slug]);
 
+  useEffect(() => {
+    if (!user || !property || searchParams.get("intent") !== "save") return;
+    if (pendingSaveHandled.current) return;
+    pendingSaveHandled.current = true;
+
+    const completePendingSave = async () => {
+      setSavingProperty(true);
+      try {
+        const res = await fetch("/api/saved", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId: property.id }),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok) {
+          const saved = parseSavedToggleResponse(data);
+          if (saved === null) {
+            toast("Could not save property.", "error");
+            return;
+          }
+          setSavedProperty(saved);
+          toast(savedPropertyToastMessage(saved), saved ? "success" : "info");
+        } else {
+          toast(String(data?.error || "Could not save property."), "error");
+        }
+      } catch {
+        toast("Could not save property.", "error");
+      } finally {
+        setSavingProperty(false);
+        router.replace(`/properties/${slug}`, { scroll: false });
+      }
+    };
+
+    void completePendingSave();
+  }, [user, property, searchParams, slug, router, toast]);
+
   const onEnquiry = async (data: EnquiryFormInput) => {
     if (!user) {
       router.push(`/login?redirect=/properties/${slug}`);
@@ -279,7 +326,7 @@ export default function PropertyDetailPage() {
 
   const handleSaveProperty = async () => {
     if (!user) {
-      router.push(`/login?redirect=/properties/${slug}`);
+      router.push(buildPropertySaveLoginUrl(slug));
       return;
     }
     if (!property) return;
@@ -294,8 +341,13 @@ export default function PropertyDetailPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setSavedProperty(data.saved);
-        toast(data.saved ? "Property saved." : "Property removed from saved.", "success");
+        const saved = parseSavedToggleResponse(data);
+        if (saved === null) {
+          toast("Could not update saved property.", "error");
+          return;
+        }
+        setSavedProperty(saved);
+        toast(savedPropertyToastMessage(saved), saved ? "success" : "info");
       } else {
         toast(data.error || "Could not update saved property.", "error");
       }
@@ -320,12 +372,7 @@ export default function PropertyDetailPage() {
 
   const handleWhatsAppOps = () => {
     if (!property) return;
-    const platformPhone = process.env.NEXT_PUBLIC_PLATFORM_PHONE || "";
-    if (!platformPhone || platformPhone.includes("XXXX")) {
-      toast("Send an enquiry and KrrishJazz will coordinate this property.", "info");
-      openEnquiryWithIntent("callback");
-      return;
-    }
+    const platformPhone = property.platformPhone || PLATFORM_PHONE;
 
     const message = [
       "Hi KrrishJazz, I want help with this property.",
@@ -334,7 +381,10 @@ export default function PropertyDetailPage() {
       `Price: ${formatPrice(Number(property.price))}`,
       `${window.location.origin}/properties/${slug}`,
     ].join("\n");
-    window.open(`https://wa.me/${platformPhone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
+    window.open(
+      `https://wa.me/${normalizePlatformPhoneForWhatsApp(platformPhone)}?text=${encodeURIComponent(message)}`,
+      "_blank"
+    );
   };
 
   if (loading) {
@@ -376,7 +426,7 @@ export default function PropertyDetailPage() {
 
   const images = Array.from(new Set([property.coverImage, ...property.images].filter(Boolean))) as string[];
   const activeImage = images[currentImage];
-  const canShowBrokerPhone = false;
+  const platformPhone = property.platformPhone || PLATFORM_PHONE;
   const freshness = getFreshness(property.updatedAt);
   const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
   const keyDetails = buildKeyDetails(property);
@@ -643,13 +693,7 @@ export default function PropertyDetailPage() {
         <aside className="w-full lg:w-[360px]">
           <div className="sticky top-20 space-y-4">
             <ContactCard
-              property={property}
-              canShowBrokerPhone={canShowBrokerPhone}
-              showPhone={showPhone}
-              setShowPhone={setShowPhone}
-              user={user}
-              slug={slug}
-              routerPush={(href) => router.push(href)}
+              platformPhone={platformPhone}
               enquiryOpen={enquiryOpen}
               setEnquiryOpen={setEnquiryOpen}
               onSave={handleSaveProperty}
@@ -821,13 +865,7 @@ function HomeIcon() {
 }
 
 function ContactCard({
-  property,
-  canShowBrokerPhone,
-  showPhone,
-  setShowPhone,
-  user,
-  slug,
-  routerPush,
+  platformPhone,
   enquiryOpen,
   setEnquiryOpen,
   onSave,
@@ -840,13 +878,7 @@ function ContactCard({
   onQuickEnquiry,
   onWhatsAppOps,
 }: {
-  property: PropertyDetail;
-  canShowBrokerPhone: boolean;
-  showPhone: boolean;
-  setShowPhone: (value: boolean) => void;
-  user: ReturnType<typeof useAuth>["user"];
-  slug: string;
-  routerPush: (href: string) => void;
+  platformPhone: string;
   enquiryOpen: boolean;
   setEnquiryOpen: (value: boolean) => void;
   onSave: () => void;
@@ -902,46 +934,25 @@ function ContactCard({
           <p className="mt-1 text-xs leading-5 text-text-secondary">Owners list for free. KrrishJazz brokerage is one month only after a successful deal closure.</p>
         </div>
 
-        {canShowBrokerPhone ? (
-          <div className="rounded-card border border-border bg-surface p-3">
-            <p className="text-xs text-text-secondary">Phone</p>
-            <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Phone size={14} className="text-primary" />
-              {showPhone ? property.postedBy.phone : maskPhone(property.postedBy.phone)}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-card border border-border bg-surface p-3">
-            <p className="text-sm font-semibold text-foreground">Contact handled by KrrishJazz</p>
-            <p className="mt-1 text-xs leading-5 text-text-secondary">Send an enquiry and the team will coordinate availability, visit timing, and brokerage terms.</p>
-          </div>
-        )}
+                <div className="rounded-card border border-border bg-surface p-3">
+          <p className="text-xs text-text-secondary">KrrishJazz helpline</p>
+          <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Phone size={14} className="text-primary" />
+            <a href={`tel:${normalizePlatformPhoneForTel(platformPhone)}`} className="hover:text-primary">
+              {platformPhone}
+            </a>
+          </p>
+          <p className="mt-1 text-xs leading-5 text-text-secondary">
+            Call or WhatsApp KrrishJazz for visits, pricing, and closure support. Owner/broker numbers stay private.
+          </p>
+        </div>
 
-        {canShowBrokerPhone && !showPhone && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              if (!user) {
-                routerPush(`/login?redirect=/properties/${slug}`);
-                return;
-              }
-              setShowPhone(true);
-            }}
-          >
+        <a href={`tel:${normalizePlatformPhoneForTel(platformPhone)}`}>
+          <Button variant="outline" className="w-full">
             <Phone size={15} className="mr-2" />
-            Request Managed Callback
+            Call KrrishJazz
           </Button>
-        )}
-
-        {canShowBrokerPhone && showPhone && (
-          <a href={`tel:${property.postedBy.phone}`}>
-            <Button variant="outline" className="w-full">
-              <Phone size={15} className="mr-2" />
-              Call KrrishJazz
-            </Button>
-          </a>
-        )}
+        </a>
 
         <div className="space-y-2">
           <Button

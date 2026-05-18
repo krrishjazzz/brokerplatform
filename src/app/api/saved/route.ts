@@ -13,8 +13,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { propertyId } = await req.json();
-    if (!propertyId) {
+    if (!propertyId || typeof propertyId !== "string") {
       return NextResponse.json({ error: "Property ID required" }, { status: 400 });
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true },
+    });
+    if (!property) {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
     const existing = await prisma.savedProperty.findUnique({
@@ -48,6 +56,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ saved: true });
   } catch (error) {
     console.error("Save error:", error);
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+    if (code === "P2003") {
+      return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    }
     return NextResponse.json({ error: "Failed to save property" }, { status: 500 });
   }
 }

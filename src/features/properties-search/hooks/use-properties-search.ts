@@ -87,22 +87,8 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   );
 
   const fetchProperties = useCallback(async () => {
-    if (!hasSearchIntent) {
-      setProperties([]);
-      setPagination(null);
-      setLoading(false);
-      if (needsMoreFilters) {
-        const params = new URLSearchParams();
-        if (listingType) params.set("listingType", listingType);
-        if (category) params.set("category", category);
-        router.replace(`/properties?${params.toString()}`, { scroll: false });
-      } else {
-        router.replace("/properties", { scroll: false });
-      }
-      return;
-    }
-
     setLoading(true);
+
     const params = new URLSearchParams();
     if (listingType) params.set("listingType", listingType);
     if (category) params.set("category", category);
@@ -123,7 +109,20 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     if (query) params.set("q", query);
     params.set("page", page.toString());
 
-    router.replace(`/properties?${params.toString()}`, { scroll: false });
+    if (hasSearchIntent) {
+      router.replace(`/properties?${params.toString()}`, { scroll: false });
+    } else {
+      const browseParams = new URLSearchParams();
+      if (needsMoreFilters) {
+        if (listingType) browseParams.set("listingType", listingType);
+        if (category) browseParams.set("category", category);
+      }
+      if (page > 1) browseParams.set("page", page.toString());
+      if (sort) browseParams.set("sort", sort);
+      const qs = browseParams.toString();
+      router.replace(qs ? `/properties?${qs}` : "/properties", { scroll: false });
+    }
+
     const { ok, data } = await fetchJson<{ properties: Property[]; pagination: Pagination }>(
       "/api/properties",
       { params: Object.fromEntries(params.entries()) }

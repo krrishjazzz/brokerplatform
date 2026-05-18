@@ -5,6 +5,7 @@ import { enquirySchema } from "@/lib/validations";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { rateLimit } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/workflow";
+import { canSubmitEnquiry } from "@/server/property-enquiry-access";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,13 @@ export async function POST(req: NextRequest) {
 
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    }
+
+    if (!canSubmitEnquiry(property, session)) {
+      return NextResponse.json(
+        { error: "This property is not available for enquiries yet." },
+        { status: 403 }
+      );
     }
 
     const enquiry = await prisma.enquiry.create({

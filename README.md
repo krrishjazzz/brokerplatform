@@ -54,7 +54,9 @@ npm run db:test
 npm run db:setup
 ```
 
-If `db:test` fails with **P1001**, check: project not paused, password correct, region in pooler URL matches dashboard, and try **Connect → IPv4 add-on** if on a restricted network.
+`npm run db:test` loads `.env` / `.env.local`, prefers **`DIRECT_URL`** for CLI checks, and appends `sslmode=require` for Supabase hosts.
+
+If `db:test` fails with **P1001** or TLS/credential errors, check: project not paused, password correct, region in pooler URL matches dashboard, `DIRECT_URL` uses session pooler port **5432** (not PgBouncer 6543), and try **Connect → IPv4 add-on** if on a restricted network.
 
 ### Production (Vercel / hosted Postgres)
 

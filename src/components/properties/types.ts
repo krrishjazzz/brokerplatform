@@ -31,6 +31,9 @@ export interface Property {
   postedBy: { name: string | null; role: string };
 }
 
+/** Minimum fields needed to save a listing (login redirect + API). */
+export type PropertySaveTarget = Pick<Property, "id" | "slug">;
+
 export interface Pagination {
   page: number;
   limit: number;
