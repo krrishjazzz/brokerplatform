@@ -5,6 +5,7 @@ import { logActivity, scoreMatch } from "@/lib/workflow";
 import { BROKER_VISIBLE_TYPES } from "@/lib/visibility";
 import { parseJsonArray } from "@/server/json";
 import { getPagination } from "@/server/pagination";
+import { matchesPropertyAndRequirement } from "@/server/broker-matching";
 
 export const dynamic = "force-dynamic";
 
@@ -126,19 +127,31 @@ export async function GET(req: NextRequest) {
         where: {
           status: { in: ["ACTIVE", "MATCHING", "IN_DISCUSSION"] },
           propertyType: property.propertyType,
-          city: { contains: property.city },
-          ...(property.locality ? { OR: [{ locality: { contains: property.locality } }, { locality: "" }] } : {}),
-          AND: [
-            { OR: [{ budgetMin: { lte: property.price } }, { budgetMin: null }] },
-            { OR: [{ budgetMax: { gte: property.price } }, { budgetMax: null }] },
-          ],
         },
         orderBy: [{ urgency: "desc" }, { createdAt: "desc" }],
-        take: limit,
+        take: Math.min(limit * 8, 120),
         include: { broker: { select: { id: true, name: true, phone: true } } },
       });
 
-      const matches = requirements.map((requirement) => {
+      const propertyMatchable = {
+        propertyType: property.propertyType,
+        city: property.city,
+        locality: property.locality,
+        price: property.price,
+      };
+
+      const matches = requirements
+        .filter((requirement) =>
+          matchesPropertyAndRequirement(propertyMatchable, {
+            propertyType: requirement.propertyType,
+            city: requirement.city,
+            locality: requirement.locality,
+            budgetMin: requirement.budgetMin,
+            budgetMax: requirement.budgetMax,
+          })
+        )
+        .slice(0, limit)
+        .map((requirement) => {
         const formatted = formatRequirement(requirement);
         return {
           ...formatted,
@@ -172,22 +185,14 @@ export async function GET(req: NextRequest) {
       const requirement = await prisma.requirement.findUnique({ where: { id } });
       if (!requirement) return NextResponse.json({ error: "Requirement not found" }, { status: 404 });
 
-      const where: any = {
-        status: { notIn: ["REJECTED", "CLOSED"] },
-        visibilityType: { in: BROKER_VISIBLE_TYPES },
-        propertyType: requirement.propertyType,
-        city: { contains: requirement.city },
-      };
-      if (requirement.locality) where.locality = { contains: requirement.locality };
-      const andFilters: any[] = [];
-      if (requirement.budgetMin) andFilters.push({ price: { gte: requirement.budgetMin } });
-      if (requirement.budgetMax) andFilters.push({ price: { lte: requirement.budgetMax } });
-      if (andFilters.length > 0) where.AND = andFilters;
-
       const properties = await prisma.property.findMany({
-        where,
+        where: {
+          status: { notIn: ["REJECTED", "CLOSED"] },
+          visibilityType: { in: BROKER_VISIBLE_TYPES },
+          propertyType: requirement.propertyType,
+        },
         orderBy: { updatedAt: "desc" },
-        take: limit,
+        take: Math.min(limit * 8, 120),
         include: {
           assignedBroker: { select: { id: true, name: true, phone: true } },
           postedBy: { select: { id: true, name: true, phone: true, role: true } },
@@ -195,11 +200,32 @@ export async function GET(req: NextRequest) {
         },
       });
 
+      const requirementMatchable = {
+        propertyType: requirement.propertyType,
+        city: requirement.city,
+        locality: requirement.locality,
+        budgetMin: requirement.budgetMin,
+        budgetMax: requirement.budgetMax,
+      };
+
       const formattedRequirement = formatRequirement({
         ...requirement,
         broker: { id: session.id, name: session.name, phone: session.phone },
       });
-      const matches = properties.map((property) => ({
+      const matches = properties
+        .filter((property) =>
+          matchesPropertyAndRequirement(
+            {
+              propertyType: property.propertyType,
+              city: property.city,
+              locality: property.locality,
+              price: property.price,
+            },
+            requirementMatchable
+          )
+        )
+        .slice(0, limit)
+        .map((property) => ({
         ...formatProperty(property, session),
         match: scoreMatch({
           propertyCity: property.city,

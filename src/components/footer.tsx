@@ -1,56 +1,84 @@
 import Link from "next/link";
+import { Globe, Mail, MapPin, Phone, Share2, Users } from "lucide-react";
 
 export function Footer() {
-  const linkClass = "text-sm text-text-secondary transition-colors hover:text-primary";
+  const linkClass = "text-sm text-white/75 transition-colors hover:text-white";
 
   return (
-    <footer className="border-t border-border bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-10">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-          <div>
-            <h3 className="mb-3 text-xl font-bold text-primary">KrrishJazz</h3>
-            <p className="mb-4 text-sm leading-6 text-text-secondary">
-              Free owner listings, managed callbacks, and KrrishJazz-assisted closures with brokerage only after a successful deal.
+    <footer className="bg-primary-dark text-white">
+      <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <h3 className="text-2xl font-bold text-white">KrrishJazz</h3>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-white/75">
+              Premium property discovery with verified listings, managed callbacks, and brokerage only on successful closure.
             </p>
-            <p className="text-sm font-semibold text-foreground">Trusted property search with managed support.</p>
-          </div>
-
-          <div>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Explore by Need</h4>
-            <ul className="space-y-2">
-              <li><Link href="/properties?intent=buy" className={linkClass}>Buy Home</Link></li>
-              <li><Link href="/properties?intent=rent" className={linkClass}>Rent Home</Link></li>
-              <li><Link href="/properties?intent=commercial" className={linkClass}>Commercial Space</Link></li>
-              <li><Link href="/properties?intent=land" className={linkClass}>Plots / Land</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Explore by City</h4>
-            <ul className="space-y-2">
-              {["Kolkata", "Mumbai", "Delhi", "Bengaluru"].map((city) => (
-                <li key={city}>
-                  <Link href={`/properties?intent=discover&city=${encodeURIComponent(city)}`} className={linkClass}>{city}</Link>
-                </li>
+            <div className="mt-4 flex items-center gap-3">
+              {[Share2, Globe, Users, Mail].map((Icon, index) => (
+                <span
+                  key={index}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
+                  aria-hidden
+                >
+                  <Icon size={16} />
+                </span>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Quick Links</h4>
+            <ul className="space-y-2.5">
+              <li><Link href="/properties?listingType=BUY" className={linkClass}>Buy Property</Link></li>
+              <li><Link href="/properties?listingType=RENT" className={linkClass}>Rent Property</Link></li>
+              <li><Link href="/properties?category=COMMERCIAL" className={linkClass}>Commercial</Link></li>
+              <li><Link href="/properties?listingType=BUY&q=project" className={linkClass}>Projects</Link></li>
+              <li><Link href="/properties?propertyType=Residential%20Plot" className={linkClass}>Plots / Land</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-foreground">Support</h4>
-            <ul className="space-y-2">
-              <li className="text-sm text-text-secondary">support@krrishjazz.com</li>
-              <li className="text-sm text-text-secondary">+91 98765 43210</li>
-              <li><Link href="/dashboard?tab=post" className={linkClass}>Post Property</Link></li>
-              <li><Link href="/login?as=broker" className={linkClass}>For Brokers</Link></li>
-              <li className="text-sm text-text-secondary">Brokerage: one month on closure</li>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Company</h4>
+            <ul className="space-y-2.5">
+              <li><Link href="/properties?verified=true" className={linkClass}>About Us</Link></li>
+              <li><Link href="/brokers" className={linkClass}>Broker Network</Link></li>
+              <li><Link href="/login?as=broker" className={linkClass}>Broker Login</Link></li>
+              <li><Link href="/dashboard?tab=post" className={linkClass}>List Property</Link></li>
+              <li><Link href="/properties" className={linkClass}>Careers</Link></li>
+              <li><Link href="/properties" className={linkClass}>Blog</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Support</h4>
+            <ul className="space-y-2.5">
+              <li><Link href="/properties" className={linkClass}>Help Center</Link></li>
+              <li><Link href="/properties" className={linkClass}>Privacy Policy</Link></li>
+              <li><Link href="/properties" className={linkClass}>Terms of Service</Link></li>
               <li><Link href="/login" className={linkClass}>Login / Register</Link></li>
-              <li><Link href="/properties?intent=discover" className={linkClass}>Search Properties</Link></li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-border pt-6 text-center text-sm text-text-secondary">
+        <div className="mt-10 border-t border-white/15 pt-8">
+          <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-white">Get in Touch</h4>
+          <ul className="space-y-3 text-sm text-white/80">
+            <li className="flex items-start gap-2">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-primary-light" />
+              <span>Salt Lake, Sector V, Kolkata, West Bengal 700091</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Phone size={16} className="shrink-0 text-primary-light" />
+              <span>+91 98765 43210</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Mail size={16} className="shrink-0 text-primary-light" />
+              <span>support@krrishjazz.com</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mt-8 border-t border-white/15 pt-6 text-center text-sm text-white/60">
           &copy; {new Date().getFullYear()} KrrishJazz. All rights reserved.
         </div>
       </div>

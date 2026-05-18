@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KrrishJazz
 
-## Getting Started
+Next.js property marketplace with Prisma and PostgreSQL.
 
-First, run the development server:
+## Database setup
+
+### Local development (Docker)
+
+1. Copy environment variables:
+
+```bash
+cp .env.example .env
+```
+
+2. Start PostgreSQL:
+
+```bash
+npm run db:up
+```
+
+3. Run migrations and generate the Prisma client:
+
+```bash
+npm run db:migrate
+```
+
+4. (Optional) Seed sample listings:
+
+```bash
+npm run seed:properties
+```
+
+5. Start the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Supabase Postgres
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Important:** `DATABASE_URL` / `DIRECT_URL` must use the **same project** as `NEXT_PUBLIC_SUPABASE_URL`  
+(e.g. if the URL contains `cdimaijpnpfxccendzuu`, the DB host must be `db.cdimaijpnpfxccendzuu.supabase.co`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Supabase Dashboard → **Connect** → **ORMs** → **Prisma**.
+2. Copy into `.env`:
+   - **Session pooler** (port 5432) → `DATABASE_URL`
+   - **Direct connection** → `DIRECT_URL`
+3. Add `?sslmode=require` if not already in the string.
+4. In your terminal (stop `npm run dev` first):
 
-## Learn More
+```bash
+npx prisma generate
+npm run db:test
+npm run db:setup
+```
 
-To learn more about Next.js, take a look at the following resources:
+If `db:test` fails with **P1001**, check: project not paused, password correct, region in pooler URL matches dashboard, and try **Connect → IPv4 add-on** if on a restricted network.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Production (Vercel / hosted Postgres)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Set `DATABASE_URL` in Vercel environment variables.
+2. Run migrations on deploy:
 
-## Deploy on Vercel
+```bash
+npm run db:migrate:deploy
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Recommended Vercel build command: `prisma generate && prisma migrate deploy && next build`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Useful commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run db:up` | Start local Postgres via Docker |
+| `npm run db:migrate` | Create/apply dev migrations |
+| `npm run db:migrate:deploy` | Apply migrations in production |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run seed:properties` | Seed rich property data |
+
+## Migrating from SQLite
+
+If you have data in `prisma/dev.db`, export it before switching, then import into Postgres after migrations. Fresh setups can skip this and use `npm run seed:properties` instead.

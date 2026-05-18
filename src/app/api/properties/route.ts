@@ -90,8 +90,9 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category");
     if (category) where.category = category as any;
 
-    const propertyType = searchParams.get("propertyType");
-    if (propertyType) where.propertyType = propertyType;
+    const propertyTypes = searchParams.getAll("propertyType").filter(Boolean);
+    if (propertyTypes.length === 1) where.propertyType = propertyTypes[0];
+    else if (propertyTypes.length > 1) where.propertyType = { in: propertyTypes };
 
     const city = searchParams.get("city");
     if (city) where.city = { contains: city };

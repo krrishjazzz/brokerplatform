@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -10,12 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   CloudOff,
-  Factory,
   Home,
   RotateCcw,
   Save,
-  Store,
-  Trees,
   Upload,
   X,
 } from "lucide-react";
@@ -39,50 +36,24 @@ import {
 import { cn, formatPrice } from "@/lib/utils";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
 import { getVisibilityLabel, VISIBILITY_OPTIONS } from "@/lib/visibility";
+import { CATEGORY_ICON_MAP } from "@/features/post-property/category-icons";
+import {
+  POST_PROPERTY_DRAFT_DEBOUNCE_MS,
+  POST_PROPERTY_DRAFT_KEY,
+  POST_PROPERTY_FIELD_STEP_MAP,
+  POST_PROPERTY_STEPS,
+} from "@/features/post-property/constants";
+import type { PostPropertyDraftPayload as DraftPayload } from "@/features/post-property/types";
+import { usePropertyTypeFlags } from "@/features/post-property/hooks/use-property-type-flags";
+import { ListingLivePreview } from "@/features/post-property/components/listing-live-preview";
+import { UploadFocusChecklist } from "@/features/post-property/components/upload-focus-checklist";
+import { WizardProgress } from "@/features/post-property/components/wizard-progress";
+import { formatRelativeTime } from "@/features/post-property/utils/format-relative-time";
+import { uploadPropertyImages } from "@/features/post-property/services/upload-images";
 
-const STEPS = ["Type", "Details", "Location", "Media", "Review"];
-
-const DRAFT_KEY = "krrishjazz:post-property-draft:v1";
-const DRAFT_DEBOUNCE_MS = 1200;
-
-type DraftPayload = {
-  formValues: Partial<PropertyInput>;
-  step: number;
-  images: string[];
-  selectedAmenities: string[];
-  categoryNotes: string;
-  savedAt: number;
-};
-
-const CATEGORY_ICON_MAP: Record<string, ReactNode> = {
-  RESIDENTIAL: <Home size={20} />,
-  COMMERCIAL: <Store size={20} />,
-  INDUSTRIAL: <Factory size={20} />,
-  AGRICULTURAL: <Trees size={20} />,
-  HOSPITALITY: <Building2 size={20} />,
-};
-
-function UploadFocusChecklist({ selectedType, items }: { selectedType?: string; items: string[] }) {
-  return (
-    <div className="rounded-card border border-border bg-surface p-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{selectedType ? `${selectedType} upload checklist` : "Upload checklist"}</p>
-          <p className="text-xs leading-5 text-text-secondary">KrrishJazz uses these signals to verify, match, and coordinate faster.</p>
-        </div>
-        <Badge variant={selectedType ? "success" : "warning"}>{selectedType ? "Type selected" : "Pick type"}</Badge>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {items.map((item) => (
-          <span key={item} className="inline-flex items-center gap-1.5 rounded-pill border border-primary/15 bg-white px-3 py-1 text-xs font-semibold text-primary">
-            <Check size={12} />
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+const STEPS = [...POST_PROPERTY_STEPS];
+const DRAFT_KEY = POST_PROPERTY_DRAFT_KEY;
+const DRAFT_DEBOUNCE_MS = POST_PROPERTY_DRAFT_DEBOUNCE_MS;
 
 export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -230,14 +201,14 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     ? ["Price", "Area", "Location", "Photos"]
     : ["Category", "Property type", "Price", "Location"];
 
-  const propertyTypeLower = (selectedPropertyType || "").toLowerCase();
-  const isResidentialDetail = /(apartment|villa|house|penthouse|studio|row|floor)/.test(propertyTypeLower);
-  const isCommercialDetail = /(office|co-working|shop|showroom|mall|restaurant|cafe|sco)/.test(propertyTypeLower);
-  const isIndustrialDetail = /(warehouse|godown|industrial|factory|shed|storage|logistics)/.test(propertyTypeLower);
-  const isPlotDetail = /(plot|land|orchard|plantation)/.test(propertyTypeLower);
-  const isHospitalityDetail = /(pg|co-living|hostel|serviced|guest|hotel|resort)/.test(propertyTypeLower);
-  const shouldShowRooms = isResidentialDetail || (!selectedPropertyType && category === "RESIDENTIAL");
-  const shouldShowFurnishing = !isPlotDetail && !/(land)/.test(propertyTypeLower);
+  const {
+    isCommercialDetail,
+    isIndustrialDetail,
+    isPlotDetail,
+    isHospitalityDetail,
+    shouldShowRooms,
+    shouldShowFurnishing,
+  } = usePropertyTypeFlags(selectedPropertyType, category);
   const suggestedAmenities = (() => {
     if (category && CATEGORY_AMENITIES[category]) return CATEGORY_AMENITIES[category];
     if (isCommercialDetail) return CATEGORY_AMENITIES.COMMERCIAL;
@@ -341,37 +312,6 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     if (step > 0) setStep(step - 1);
   };
 
-  const fieldStepMap: Record<string, number> = {
-    title: 0,
-    description: 0,
-    listingType: 0,
-    category: 0,
-    propertyType: 0,
-    price: 1,
-    area: 1,
-    areaUnit: 1,
-    bedrooms: 1,
-    bathrooms: 1,
-    floor: 1,
-    totalFloors: 1,
-    ageYears: 1,
-    furnishing: 1,
-    priceNegotiable: 1,
-    address: 2,
-    locality: 2,
-    city: 2,
-    state: 2,
-    pincode: 2,
-    lat: 2,
-    lng: 2,
-    amenities: 3,
-    images: 3,
-    coverImage: 3,
-    visibilityType: 3,
-    publicBrokerName: 3,
-    videoUrl: 3,
-  };
-
   const handleFinalSubmit = async () => {
     if (!termsAccepted) {
       toast("Please acknowledge the free listing and brokerage terms before submitting.", "error");
@@ -381,7 +321,7 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     if (!valid) {
       const firstErrorField = Object.keys(errors)[0];
       if (firstErrorField) {
-        setStep(fieldStepMap[firstErrorField] ?? 0);
+        setStep(POST_PROPERTY_FIELD_STEP_MAP[firstErrorField] ?? 0);
       }
       return;
     }
@@ -450,45 +390,7 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     setUploadError("");
 
     try {
-      const signRes = await fetch("/api/upload/sign", {
-        method: "POST",
-        credentials: "include",
-      });
-      const sign = await signRes.json();
-
-      if (!signRes.ok) {
-        throw new Error(sign.error || "Failed to prepare upload");
-      }
-
-      const uploadedUrls = await Promise.all(
-        Array.from(files).map(async (file) => {
-          if (file.size > 5 * 1024 * 1024) {
-            throw new Error(`${file.name} is larger than 5MB`);
-          }
-
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("api_key", sign.apiKey);
-          formData.append("timestamp", String(sign.timestamp));
-          formData.append("signature", sign.signature);
-          formData.append("folder", "krishjazz");
-          if (sign.uploadPreset) {
-            formData.append("upload_preset", sign.uploadPreset);
-          }
-
-          const uploadRes = await fetch(
-            `https://api.cloudinary.com/v1_1/${sign.cloudName}/image/upload`,
-            { method: "POST", body: formData }
-          );
-          const upload = await uploadRes.json();
-
-          if (!uploadRes.ok || !upload.secure_url) {
-            throw new Error(upload.error?.message || `Failed to upload ${file.name}`);
-          }
-
-          return upload.secure_url as string;
-        })
-      );
+      const uploadedUrls = await uploadPropertyImages(files);
 
       setImages((prev) => {
         const nextImages = [...prev, ...uploadedUrls];
@@ -566,33 +468,7 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
         <p className="mt-1 text-xs leading-5 text-text-secondary">No upfront posting charge. KrrishJazz verifies details, coordinates enquiries, and charges one month brokerage only after a successful closure.</p>
       </div>
 
-      {/* Progress bar */}
-      <div className="bg-white rounded-card shadow-card border border-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                    i < step
-                      ? "bg-primary text-white"
-                      : i === step
-                      ? "bg-primary text-white ring-4 ring-primary/20"
-                      : "bg-surface text-text-secondary border border-border"
-                  )}
-                >
-                  {i < step ? <Check size={16} /> : i + 1}
-                </div>
-                <span className="text-xs mt-1 text-text-secondary hidden sm:block">{label}</span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={cn("w-8 sm:w-16 h-0.5 mx-1", i < step ? "bg-primary" : "bg-border")} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      <WizardProgress step={step} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -1098,88 +974,4 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       </div>
     </div>
   );
-}
-
-// â”€â”€â”€ Leads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function ListingLivePreview({
-  title,
-  description,
-  listingType,
-  propertyType,
-  city,
-  locality,
-  price,
-  area,
-  image,
-  visibility,
-  managedBy,
-  amenitiesCount,
-}: {
-  title?: string;
-  description?: string;
-  listingType?: string;
-  propertyType?: string;
-  city?: string;
-  locality?: string;
-  price?: unknown;
-  area?: unknown;
-  image?: string;
-  visibility?: string;
-  managedBy?: string;
-  amenitiesCount: number;
-}) {
-  return (
-    <aside className="hidden xl:block">
-      <div className="sticky top-24 rounded-card border border-border bg-white p-4 shadow-card">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Live listing preview</p>
-            <p className="text-xs text-text-secondary">How buyers and brokers will scan it.</p>
-          </div>
-          <Badge variant="blue">{getVisibilityLabel(visibility)}</Badge>
-        </div>
-        <div className="overflow-hidden rounded-card border border-border bg-white">
-          <div className="relative h-44 bg-surface">
-            {image ? (
-              <img src={image} alt="Listing preview" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-primary">
-                <Building2 size={42} />
-              </div>
-            )}
-            <div className="absolute left-3 top-3 flex gap-1.5">
-              <Badge variant="blue">{listingType || "Listing"}</Badge>
-              <Badge variant="success">Managed</Badge>
-            </div>
-          </div>
-          <div className="p-4">
-            <p className="text-xl font-bold text-primary">{price ? formatPrice(Number(price)) : "Price pending"}</p>
-            <h3 className="mt-2 line-clamp-2 text-base font-semibold text-foreground">{title || "Property title will appear here"}</h3>
-            <p className="mt-1 line-clamp-1 text-sm text-text-secondary">{[locality, city].filter(Boolean).join(", ") || "Location pending"}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{propertyType || "Type"}</span>
-              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{area ? `${Number(area).toLocaleString("en-IN")} sqft` : "Area"}</span>
-              <span className="rounded-pill border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground">{amenitiesCount} amenities</span>
-            </div>
-            <p className="mt-3 line-clamp-3 text-xs leading-5 text-text-secondary">{description || "Description preview helps you spot missing details before submission."}</p>
-            <div className="mt-4 rounded-card border border-primary/20 bg-primary-light p-3">
-              <p className="text-xs font-semibold text-primary">{managedBy || "KrrishJazz"} coordinates enquiries</p>
-              <p className="mt-1 text-[11px] leading-4 text-text-secondary">Contact remains protected. Listing is free until deal closure.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function formatRelativeTime(timestamp: number) {
-  const diff = Date.now() - timestamp;
-  if (diff < 60_000) return "just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  const days = Math.floor(diff / 86_400_000);
-  if (days < 7) return `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }

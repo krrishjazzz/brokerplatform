@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Bell,
@@ -22,92 +22,65 @@ import { NoMatchRequirementCapture } from "@/components/properties/no-match-requ
 import { PropertyCard } from "@/components/properties/property-card";
 import { getFreshness } from "@/components/properties/property-display";
 import { CATEGORY_OPTIONS, LISTING_TABS, QUICK_FILTERS, TRUST_FILTERS } from "@/components/properties/search-options";
-import type { Pagination, Property } from "@/components/properties/types";
-
-const SAVED_SEARCH_KEY = "krrishjazz:saved-searches:v1";
-
-type SavedSearchFilters = {
-  listingType: string;
-  category: string;
-  propertyType: string;
-  locality: string;
-  city: string;
-  minPrice: string;
-  maxPrice: string;
-  bedrooms: string;
-  furnishing: string;
-  freshOnly: boolean;
-  verifiedOnly: boolean;
-  readyToVisitOnly: boolean;
-  ownerListedOnly: boolean;
-  budgetMatchOnly: boolean;
-  availability: string;
-  sort: string;
-  query: string;
-};
-
-type SavedSearch = {
-  id: string;
-  label: string;
-  filters: SavedSearchFilters;
-  savedAt: number;
-};
-
-function buildSearchLabel(filters: SavedSearchFilters) {
-  const parts: string[] = [];
-  if (filters.bedrooms) parts.push(`${filters.bedrooms} BHK`);
-  if (filters.propertyType) parts.push(filters.propertyType);
-  else if (filters.category) parts.push(filters.category);
-  if (filters.locality) parts.push(`in ${filters.locality}`);
-  else if (filters.city) parts.push(`in ${filters.city}`);
-  else if (filters.query) parts.push(filters.query);
-  if (filters.listingType) parts.push(`(${filters.listingType})`);
-  return parts.join(" ").trim();
-}
-
-function getInitialPage(value: string | null) {
-  const parsed = Number.parseInt(value || "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-}
-
-function resolveIntentPreset(intent: string | null) {
-  if (intent === "buy") return { listingType: "BUY", category: "" };
-  if (intent === "rent") return { listingType: "RENT", category: "" };
-  if (intent === "commercial") return { listingType: "", category: "COMMERCIAL" };
-  if (intent === "land") return { listingType: "", category: "", propertyType: "Residential Plot" };
-  return { listingType: "", category: "" };
-}
+import type { Property, SavedSearch } from "@/features/properties-search/types";
+import { isBudgetMatched, usePropertiesSearch, useSavedSearches } from "@/features/properties-search";
 
 function PropertiesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
-
-  const intentPreset = useMemo(() => resolveIntentPreset(searchParams.get("intent")), [searchParams]);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [loading, setLoading] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [listingType, setListingType] = useState(searchParams.get("listingType") || intentPreset.listingType || "");
-  const [category, setCategory] = useState(searchParams.get("category") || intentPreset.category || "");
-  const [propertyType, setPropertyType] = useState(searchParams.get("propertyType") || intentPreset.propertyType || "");
-  const [locality, setLocality] = useState(searchParams.get("locality") || "");
-  const [city, setCity] = useState(searchParams.get("city") || "");
-  const [minPrice, setMinPrice] = useState(searchParams.get("minPrice") || "");
-  const [maxPrice, setMaxPrice] = useState(searchParams.get("maxPrice") || "");
-  const [bedrooms, setBedrooms] = useState(searchParams.get("bedrooms") || "");
-  const [furnishing, setFurnishing] = useState(searchParams.get("furnishing") || "");
-  const [freshOnly, setFreshOnly] = useState(searchParams.get("fresh") === "true");
-  const [verifiedOnly, setVerifiedOnly] = useState(searchParams.get("verified") === "true");
-  const [readyToVisitOnly, setReadyToVisitOnly] = useState(searchParams.get("readyToVisit") === "true");
-  const [ownerListedOnly, setOwnerListedOnly] = useState(searchParams.get("ownerListed") === "true");
-  const [budgetMatchOnly, setBudgetMatchOnly] = useState(searchParams.get("budgetMatch") === "true");
-  const [availability, setAvailability] = useState(searchParams.get("availability") || "");
-  const [sort, setSort] = useState(searchParams.get("sort") || "");
-  const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [page, setPage] = useState(getInitialPage(searchParams.get("page")));
+  const search = usePropertiesSearch({ searchParams });
+  const {
+    properties,
+    pagination,
+    loading,
+    hasSearchIntent,
+    needsMoreFilters,
+    page,
+    setPage,
+    listingType,
+    setListingType,
+    category,
+    setCategory,
+    propertyType,
+    setPropertyType,
+    locality,
+    setLocality,
+    city,
+    setCity,
+    minPrice,
+    setMinPrice,
+    maxPrice,
+    setMaxPrice,
+    bedrooms,
+    setBedrooms,
+    furnishing,
+    setFurnishing,
+    freshOnly,
+    setFreshOnly,
+    verifiedOnly,
+    setVerifiedOnly,
+    readyToVisitOnly,
+    setReadyToVisitOnly,
+    ownerListedOnly,
+    setOwnerListedOnly,
+    budgetMatchOnly,
+    setBudgetMatchOnly,
+    availability,
+    setAvailability,
+    sort,
+    setSort,
+    query,
+    setQuery,
+    fetchProperties,
+    clearFilters,
+    applyQuickFilter,
+    currentFiltersObject,
+    applySavedFilters,
+  } = search;
   const [requirementForm, setRequirementForm] = useState({
     name: user?.name || "",
     phone: user?.phone || "",
@@ -120,99 +93,6 @@ function PropertiesContent() {
   });
   const [requirementSubmitting, setRequirementSubmitting] = useState(false);
   const [requirementSent, setRequirementSent] = useState(false);
-
-  const specificIntentCount = useMemo(
-    () =>
-      [
-        propertyType,
-        locality,
-        city,
-        minPrice,
-        maxPrice,
-        bedrooms,
-        furnishing,
-        freshOnly,
-        verifiedOnly,
-        readyToVisitOnly,
-        ownerListedOnly,
-        budgetMatchOnly,
-        availability,
-        query,
-      ].filter(Boolean).length,
-    [
-      propertyType,
-      locality,
-      city,
-      minPrice,
-      maxPrice,
-      bedrooms,
-      furnishing,
-      freshOnly,
-      verifiedOnly,
-      readyToVisitOnly,
-      ownerListedOnly,
-      budgetMatchOnly,
-      availability,
-      query,
-    ]
-  );
-  const broadIntentCount = useMemo(() => [listingType, category].filter(Boolean).length, [listingType, category]);
-  const hasSearchIntent = specificIntentCount > 0 || broadIntentCount >= 2;
-  const needsMoreFilters = broadIntentCount > 0 && !hasSearchIntent;
-
-  const fetchProperties = useCallback(async () => {
-    if (!hasSearchIntent) {
-      setProperties([]);
-      setPagination(null);
-      setLoading(false);
-      if (needsMoreFilters) {
-        const params = new URLSearchParams();
-        if (listingType) params.set("listingType", listingType);
-        if (category) params.set("category", category);
-        router.replace(`/properties?${params.toString()}`, { scroll: false });
-      } else {
-        router.replace("/properties", { scroll: false });
-      }
-      return;
-    }
-
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (listingType) params.set("listingType", listingType);
-    if (category) params.set("category", category);
-    if (propertyType) params.set("propertyType", propertyType);
-    if (locality) params.set("locality", locality);
-    if (city) params.set("city", city);
-    if (minPrice) params.set("minPrice", minPrice);
-    if (maxPrice) params.set("maxPrice", maxPrice);
-    if (bedrooms) params.set("bedrooms", bedrooms);
-    if (furnishing) params.set("furnishing", furnishing);
-    if (freshOnly) params.set("fresh", "true");
-    if (verifiedOnly) params.set("verified", "true");
-    if (readyToVisitOnly) params.set("readyToVisit", "true");
-    if (ownerListedOnly) params.set("ownerListed", "true");
-    if (budgetMatchOnly) params.set("budgetMatch", "true");
-    if (availability) params.set("availability", availability);
-    if (sort) params.set("sort", sort);
-    if (query) params.set("q", query);
-    params.set("page", page.toString());
-
-    try {
-      router.replace(`/properties?${params.toString()}`, { scroll: false });
-      const res = await fetch(`/api/properties?${params.toString()}`);
-      const data = await res.json();
-      setProperties(data.properties || []);
-      setPagination(data.pagination || null);
-    } catch {
-      console.error("Failed to fetch properties");
-    } finally {
-      setLoading(false);
-    }
-  }, [hasSearchIntent, needsMoreFilters, listingType, category, propertyType, locality, city, minPrice, maxPrice, bedrooms, furnishing, freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly, availability, sort, query, page, router]);
-
-  useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
 
   const handleSaveProperty = async (propertyId: string) => {
     if (!user) {
@@ -245,59 +125,8 @@ function PropertiesContent() {
     toast("Property share text copied.", "success");
   };
 
-  const clearFilters = () => {
-    setListingType("");
-    setCategory("");
-    setPropertyType("");
-    setLocality("");
-    setCity("");
-    setMinPrice("");
-    setMaxPrice("");
-    setBedrooms("");
-    setFurnishing("");
-    setFreshOnly(false);
-    setVerifiedOnly(false);
-    setReadyToVisitOnly(false);
-    setOwnerListedOnly(false);
-    setBudgetMatchOnly(false);
-    setAvailability("");
-    setSort("");
-    setQuery("");
-    setPage(1);
-  };
-
-  const applyQuickFilter = (action: string) => {
-    setPage(1);
-    if (action === "office") {
-      setCategory("COMMERCIAL");
-      setPropertyType("Office Space");
-    }
-    if (action === "2bhk") {
-      setCategory("RESIDENTIAL");
-      setBedrooms("2");
-    }
-    if (action === "warehouse") {
-      setCategory("INDUSTRIAL");
-      setPropertyType("Warehouse / Godown");
-    }
-    if (action === "verified") setVerifiedOnly((value) => !value);
-    if (action === "fresh") setFreshOnly((value) => !value);
-    if (action === "ready") setReadyToVisitOnly((value) => !value);
-    if (action === "owner") setOwnerListedOnly((value) => !value);
-    if (action === "budget") {
-      setBudgetMatchOnly((value) => !value);
-      if (!minPrice && !maxPrice) setMaxPrice(listingType === "RENT" ? "50000" : "10000000");
-    }
-  };
-
-  const isBudgetMatched = (property: Property) => {
-    const price = Number(property.price);
-    const min = minPrice ? Number(minPrice) : null;
-    const max = maxPrice ? Number(maxPrice) : null;
-    if (min != null && price < min) return false;
-    if (max != null && price > max) return false;
-    return min != null || max != null;
-  };
+  const matchesBudget = (property: Property) =>
+    isBudgetMatched(Number(property.price), minPrice, maxPrice);
 
   const availablePropertyTypes = useMemo(
     () => (category ? PROPERTY_TYPES[category] || [] : Object.values(PROPERTY_TYPES).flat()),
@@ -385,88 +214,32 @@ function PropertiesContent() {
     [properties]
   );
 
-  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [savedOpen, setSavedOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SAVED_SEARCH_KEY);
-      if (stored) setSavedSearches(JSON.parse(stored));
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
+  const { savedSearches, saveCurrentSearch, deleteSavedSearch } = useSavedSearches(
+    currentFiltersObject,
+    hasSearchIntent
+  );
 
-  const persistSaved = (next: SavedSearch[]) => {
-    setSavedSearches(next);
-    try {
-      localStorage.setItem(SAVED_SEARCH_KEY, JSON.stringify(next));
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  const currentFiltersObject = useMemo<SavedSearchFilters>(() => ({
-    listingType, category, propertyType, locality, city,
-    minPrice, maxPrice, bedrooms, furnishing,
-    freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly,
-    availability, sort, query,
-  }), [
-    listingType, category, propertyType, locality, city,
-    minPrice, maxPrice, bedrooms, furnishing,
-    freshOnly, verifiedOnly, readyToVisitOnly, ownerListedOnly, budgetMatchOnly,
-    availability, sort, query,
-  ]);
-
-  const saveCurrentSearch = () => {
-    if (!hasSearchIntent) {
+  const handleSaveCurrentSearch = () => {
+    const result = saveCurrentSearch();
+    if (!result.ok) {
       toast("Add at least one filter or search term before saving.", "info");
       return;
     }
-    const label = buildSearchLabel(currentFiltersObject) || "Saved search";
-    const next: SavedSearch = {
-      id: `${Date.now()}`,
-      label,
-      filters: currentFiltersObject,
-      savedAt: Date.now(),
-    };
-    const deduped = [next, ...savedSearches.filter((item) => item.label !== label)].slice(0, 10);
-    persistSaved(deduped);
     toast("Search saved. Reopen anytime from Saved.", "success");
   };
 
   const applySavedSearch = (item: SavedSearch) => {
-    const f = item.filters;
-    setListingType(f.listingType || "");
-    setCategory(f.category || "");
-    setPropertyType(f.propertyType || "");
-    setLocality(f.locality || "");
-    setCity(f.city || "");
-    setMinPrice(f.minPrice || "");
-    setMaxPrice(f.maxPrice || "");
-    setBedrooms(f.bedrooms || "");
-    setFurnishing(f.furnishing || "");
-    setFreshOnly(Boolean(f.freshOnly));
-    setVerifiedOnly(Boolean(f.verifiedOnly));
-    setReadyToVisitOnly(Boolean(f.readyToVisitOnly));
-    setOwnerListedOnly(Boolean(f.ownerListedOnly));
-    setBudgetMatchOnly(Boolean(f.budgetMatchOnly));
-    setAvailability(f.availability || "");
-    setSort(f.sort || "");
-    setQuery(f.query || "");
-    setPage(1);
+    applySavedFilters(item.filters);
     setSavedOpen(false);
     toast(`Applied: ${item.label}`, "success");
-  };
-
-  const deleteSavedSearch = (id: string) => {
-    persistSaved(savedSearches.filter((item) => item.id !== id));
   };
 
   const visibleProperties = useMemo(
     () =>
       properties.filter((property) => {
-        if (budgetMatchOnly && !isBudgetMatched(property)) return false;
+        if (budgetMatchOnly && !matchesBudget(property)) return false;
         return true;
       }),
     [properties, budgetMatchOnly, minPrice, maxPrice]
@@ -776,7 +549,7 @@ function PropertiesContent() {
                   Filters
                 </Button>
                 <Button
-                  onClick={saveCurrentSearch}
+                  onClick={handleSaveCurrentSearch}
                   variant="outline"
                   size="sm"
                   className="hidden sm:inline-flex"

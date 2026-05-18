@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -13,21 +13,28 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { BrokerWorkflowCard, ChipButton, FilterBlock, MetricCard } from "@/components/broker/broker-primitives";
 import { getFreshness, getRequirementBudget } from "@/components/broker/formatters";
 import { BrokerPropertyDetailsModal, BrokerPropertyCard, MatchingRequirementsDrawer } from "@/components/broker/property-workflow";
-import type {
-  BrokerMatchedRequirement as MatchedRequirement,
-  BrokerPagination as Pagination,
-  BrokerProperty as Property,
-} from "@/components/broker/types";
+import type { BrokerMatchedRequirement as MatchedRequirement, BrokerProperty as Property } from "@/features/broker-exchange/types";
+import {
+  buildPropertyShareText,
+  buildPropertyWhatsAppMessage,
+  openPhone,
+  openWhatsApp,
+  trackBrokerAction,
+  useBrokerAuthGuard,
+  useBrokerInventory,
+  useBrokerMatches,
+  useBrokerUrlFilters,
+} from "@/features/broker-exchange";
+import { PaginationBar } from "@/shared/components/pagination-bar";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
-import { PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
+import { BROKER_QUICK_FILTER_TYPES, PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
 
 const QUICK_FILTERS = [
   { label: "High match", action: "matches" },
@@ -38,12 +45,9 @@ const QUICK_FILTERS = [
 ];
 
 export default function BrokerPropertiesPage() {
-  const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading, isReady } = useBrokerAuthGuard();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListingType, setSelectedListingType] = useState<string>("");
@@ -55,64 +59,39 @@ export default function BrokerPropertiesPage() {
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [selectedSort, setSelectedSort] = useState<string>("");
   const [clientFocus, setClientFocus] = useState<"all" | "matches" | "fresh">("all");
-  const [page, setPage] = useState(1);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [matchProperty, setMatchProperty] = useState<Property | null>(null);
-  const [matchedRequirements, setMatchedRequirements] = useState<MatchedRequirement[]>([]);
-  const [matchesLoading, setMatchesLoading] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const nextCity = params.get("city") || "";
-    const nextLocality = params.get("locality") || "";
-    const nextPropertyType = params.get("propertyType") || "";
-    const nextMinPrice = params.get("minPrice") || "";
-    const nextMaxPrice = params.get("maxPrice") || "";
+  useBrokerUrlFilters({
+    city: setSelectedCity,
+    locality: setSelectedLocality,
+    propertyType: setSelectedPropertyType,
+    minPrice: setMinPrice,
+    maxPrice: setMaxPrice,
+  });
 
-    if (nextCity) setSelectedCity(nextCity);
-    if (nextLocality) setSelectedLocality(nextLocality);
-    if (nextPropertyType) setSelectedPropertyType(nextPropertyType);
-    if (nextMinPrice) setMinPrice(nextMinPrice);
-    if (nextMaxPrice) setMaxPrice(nextMaxPrice);
-  }, []);
+  const apiFilters = useMemo(
+    () => ({
+      q: searchQuery || undefined,
+      listingType: selectedListingType || undefined,
+      category: selectedCategory || undefined,
+      propertyType: selectedPropertyType || undefined,
+      locality: selectedLocality || undefined,
+      city: selectedCity || undefined,
+      minPrice: minPrice || undefined,
+      maxPrice: maxPrice || undefined,
+      sort: selectedSort || undefined,
+    }),
+    [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort]
+  );
 
-  const fetchProperties = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.set("q", searchQuery);
-      if (selectedListingType) params.set("listingType", selectedListingType);
-      if (selectedCategory) params.set("category", selectedCategory);
-      if (selectedPropertyType) params.set("propertyType", selectedPropertyType);
-      if (selectedLocality) params.set("locality", selectedLocality);
-      if (selectedCity) params.set("city", selectedCity);
-      if (minPrice) params.set("minPrice", minPrice);
-      if (maxPrice) params.set("maxPrice", maxPrice);
-      if (selectedSort) params.set("sort", selectedSort);
-      params.set("page", String(page));
-
-      const res = await fetch(`/api/broker/properties?${params}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setProperties(data.properties || []);
-        setPagination(data.pagination || null);
-      }
-    } catch (error) {
-      console.error("Failed to fetch properties:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort, page]);
-
-  useEffect(() => {
-    if (user?.role === "BROKER" && user.brokerStatus === "APPROVED") {
-      fetchProperties();
-    } else {
-      router.push("/login");
-    }
-  }, [user, router, fetchProperties]);
+  const { properties, loading, page, setPage, pagination, refetch } = useBrokerInventory(apiFilters, isReady);
+  const {
+    loading: matchesLoading,
+    matchedRequirements,
+    loadMatches,
+    clearMatches,
+  } = useBrokerMatches();
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -128,15 +107,6 @@ export default function BrokerPropertiesPage() {
     setPage(1);
   };
 
-  const trackBrokerAction = async (payload: Record<string, unknown>) => {
-    await fetch("/api/broker/collaborations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-  };
-
   const handleContactBroker = (phone: string, property?: Property) => {
     if (property) {
       trackBrokerAction({
@@ -146,37 +116,19 @@ export default function BrokerPropertiesPage() {
         metadata: { source: "BROKER_PROPERTY_LIST" },
       });
     }
-    if (!phone || phone.includes("XXXX")) {
-      toast("Broker phone is not available.", "error");
-      return;
-    }
-    window.open(`tel:${phone}`, "_self");
+    if (!openPhone(phone)) toast("Broker phone is not available.", "error");
   };
 
   const handleWhatsApp = (phone: string, property: Property) => {
-    if (!phone || phone.includes("XXXX")) {
-      toast("Broker WhatsApp is not available.", "error");
-      return;
-    }
     trackBrokerAction({
       propertyId: property.id,
       eventType: "BROKER_WHATSAPP_CLICKED",
       recipientId: property.assignedBrokerId || undefined,
       metadata: { source: "BROKER_PROPERTY_LIST" },
     });
-    const message = [
-      `KrrishJazz Broker Network`,
-      `${property.title}`,
-      `Location: ${property.city}`,
-      `Type: ${property.propertyType}`,
-      `Price: ${formatPrice(property.price)}`,
-      `Area: ${Math.round(property.area).toLocaleString()} ${property.areaUnit}`,
-      `Availability: ${(property.listingStatus || property.status).replaceAll("_", " ")}`,
-      `Matches: ${property.matchingRequirementsCount} requirement(s)`,
-      ``,
-      `Please confirm availability, brokerage terms, and site visit possibility.`,
-    ].join("\n");
-    window.open(`https://wa.me/${phone.replace(/^\+/, "")}?text=${encodeURIComponent(message)}`, "_blank");
+    if (!openWhatsApp(phone, buildPropertyWhatsAppMessage(property))) {
+      toast("Broker WhatsApp is not available.", "error");
+    }
   };
 
   const handleShare = (property: Property) => {
@@ -186,14 +138,7 @@ export default function BrokerPropertiesPage() {
       recipientId: property.assignedBrokerId || undefined,
       metadata: { channel: typeof navigator.share === "function" ? "NATIVE_SHARE" : "CLIPBOARD", source: "BROKER_PROPERTY_LIST" },
     });
-    const shareText = [
-      `${property.title} - ${formatPrice(property.price)}`,
-      `${property.propertyType} in ${property.city}`,
-      `${Math.round(property.area).toLocaleString()} ${property.areaUnit}`,
-      `Availability: ${(property.listingStatus || property.status).replaceAll("_", " ")}`,
-      `Matches: ${property.matchingRequirementsCount} requirement(s)`,
-      `${window.location.origin}/properties/${property.slug}`,
-    ].join("\n");
+    const shareText = buildPropertyShareText(property);
 
     if (navigator.share) {
       navigator.share({
@@ -210,27 +155,8 @@ export default function BrokerPropertiesPage() {
   const handleFindRequirements = async (property: Property) => {
     setSelectedProperty(null);
     setMatchProperty(property);
-    setMatchedRequirements([]);
-    setMatchesLoading(true);
-    const params = new URLSearchParams({
-      mode: "property",
-      id: property.id,
-      limit: "8",
-    });
-
-    try {
-      const res = await fetch(`/api/broker/matches?${params}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMatchedRequirements(data.requirements || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch matching requirements:", error);
-    } finally {
-      setMatchesLoading(false);
-    }
+    clearMatches();
+    await loadMatches("property", property.id);
   };
 
   const handleSendPropertyToRequirement = (requirement: MatchedRequirement, property: Property) => {
@@ -270,12 +196,12 @@ export default function BrokerPropertiesPage() {
     if (action === "fresh") setClientFocus(clientFocus === "fresh" ? "all" : "fresh");
     if (action === "office") {
       setSelectedCategory("COMMERCIAL");
-      setSelectedPropertyType("Office");
+      setSelectedPropertyType(BROKER_QUICK_FILTER_TYPES.OFFICE);
       setClientFocus("all");
     }
     if (action === "warehouse") {
-      setSelectedCategory("COMMERCIAL");
-      setSelectedPropertyType("Warehouse");
+      setSelectedCategory("INDUSTRIAL");
+      setSelectedPropertyType(BROKER_QUICK_FILTER_TYPES.WAREHOUSE);
       setClientFocus("all");
     }
     if (action === "rent") {
@@ -314,7 +240,7 @@ export default function BrokerPropertiesPage() {
     [maxPrice, minPrice, searchQuery, selectedCategory, selectedCity, selectedListingType, selectedLocality, selectedPropertyType, selectedSort]
   );
 
-  if (!user || user.role !== "BROKER" || user.brokerStatus !== "APPROVED") {
+  if (authLoading || !user || !isReady) {
     return null;
   }
 
@@ -364,7 +290,7 @@ export default function BrokerPropertiesPage() {
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       setPage(1);
-                      fetchProperties();
+                      refetch();
                     }
                   }}
                   placeholder="Search title, locality, city, property type..."
@@ -372,7 +298,7 @@ export default function BrokerPropertiesPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => { setPage(1); fetchProperties(); }} variant="accent" className="flex-1 lg:flex-none">
+                <Button onClick={() => { setPage(1); refetch(); }} variant="accent" className="flex-1 lg:flex-none">
                   Search
                 </Button>
                 <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="ghost" className="flex-1 lg:flex-none">
@@ -390,7 +316,7 @@ export default function BrokerPropertiesPage() {
                   onClick={() => applyQuickFilter(filter.action)}
                   className={cn(
                     "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-                    (filter.action === clientFocus || (filter.action === "rent" && selectedListingType === "RENT") || (filter.action === "office" && selectedPropertyType === "Office") || (filter.action === "warehouse" && selectedPropertyType === "Warehouse"))
+                    (filter.action === clientFocus || (filter.action === "rent" && selectedListingType === "RENT") || (filter.action === "office" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.OFFICE) || (filter.action === "warehouse" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.WAREHOUSE))
                       ? "border-primary bg-primary text-white"
                       : "border-border bg-surface text-text-secondary hover:border-primary/40 hover:text-primary"
                   )}
@@ -534,7 +460,7 @@ export default function BrokerPropertiesPage() {
             </FilterBlock>
 
             <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-border bg-white p-4 lg:static lg:m-0 lg:border-0 lg:p-0">
-              <Button onClick={() => { setFiltersOpen(false); fetchProperties(); }} className="w-full" size="sm">
+              <Button onClick={() => { setFiltersOpen(false); refetch(); }} className="w-full" size="sm">
                 Show Broker Inventory
               </Button>
             </div>
@@ -591,16 +517,14 @@ export default function BrokerPropertiesPage() {
             </div>
           )}
 
-          {pagination && pagination.totalPages > 1 && clientFocus === "all" && (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((next) => next - 1)}>
-                Previous
-              </Button>
-              <span className="text-sm text-text-secondary">Page {page} of {pagination.totalPages}</span>
-              <Button variant="ghost" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((next) => next + 1)}>
-                Next
-              </Button>
-            </div>
+          {clientFocus === "all" && pagination && (
+            <PaginationBar
+              className="mt-8"
+              page={page}
+              totalPages={pagination.totalPages}
+              onPrevious={() => setPage(page - 1)}
+              onNext={() => setPage(page + 1)}
+            />
           )}
         </section>
       </div>
@@ -620,7 +544,9 @@ export default function BrokerPropertiesPage() {
         onCallBroker={handleContactBroker}
         onSendProperty={handleSendPropertyToRequirement}
         onShareProperty={handleShare}
-        onTrackAction={trackBrokerAction}
+        onTrackAction={(payload) => {
+          void trackBrokerAction(payload as Parameters<typeof trackBrokerAction>[0]);
+        }}
       />
 
       <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
@@ -636,7 +562,7 @@ export default function BrokerPropertiesPage() {
             <Filter size={16} className="mr-2" />
             Filters{activeFiltersCount ? ` (${activeFiltersCount})` : ""}
           </Button>
-          <Button onClick={() => { setPage(1); fetchProperties(); }} variant="accent" className="w-full">
+          <Button onClick={() => { setPage(1); refetch(); }} variant="accent" className="w-full">
             Refresh
           </Button>
         </div>

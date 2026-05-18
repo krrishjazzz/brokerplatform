@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { ToastProvider } from "@/components/ui/toast";
-import { BrokerageTrustBar } from "@/components/brokerage-trust-bar";
 import { KrrishJazzAssistant } from "@/components/krrishjazz-assistant";
 
 export const metadata: Metadata = {
@@ -18,8 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col">
         <AuthProvider>
           <ToastProvider>
-            <Navbar />
-            <BrokerageTrustBar />
+            <Suspense fallback={<div className="h-16 bg-primary-dark" />}>
+              <Navbar />
+            </Suspense>
             <main className="flex-1">{children}</main>
             <KrrishJazzAssistant />
             <Footer />

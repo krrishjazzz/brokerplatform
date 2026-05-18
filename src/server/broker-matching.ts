@@ -35,43 +35,23 @@ function containsText(value: TextLike, search: TextLike) {
   return normalized(value).includes(needle);
 }
 
+function citiesOverlap(propertyCity: TextLike, requirementCity: TextLike) {
+  return containsText(propertyCity, requirementCity) || containsText(requirementCity, propertyCity);
+}
+
 function asNumber(value: unknown) {
   if (value == null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function requirementMatchesProperty(
-  requirement: MatchableRequirement,
-  property: MatchableProperty
-) {
-  if (requirement.propertyType !== property.propertyType) return false;
-  if (!containsText(requirement.city, property.city)) return false;
-
-  const propertyLocality = normalized(property.locality);
-  const requirementLocality = normalized(requirement.locality);
-  if (propertyLocality && requirementLocality && !requirementLocality.includes(propertyLocality)) {
-    return false;
-  }
-
-  const price = asNumber(property.price);
-  if (price == null) return false;
-
-  const minBudget = asNumber(requirement.budgetMin);
-  if (minBudget != null && minBudget > price) return false;
-
-  const maxBudget = asNumber(requirement.budgetMax);
-  if (maxBudget != null && maxBudget < price) return false;
-
-  return true;
-}
-
-export function propertyMatchesRequirement(
+/** Single source of truth for property ↔ requirement matching (counts + match drawer). */
+export function matchesPropertyAndRequirement(
   property: MatchableProperty,
   requirement: MatchableRequirement
 ) {
   if (property.propertyType !== requirement.propertyType) return false;
-  if (!containsText(property.city, requirement.city)) return false;
+  if (!citiesOverlap(property.city, requirement.city)) return false;
 
   const requirementLocality = normalized(requirement.locality);
   if (requirementLocality && !containsText(property.locality, requirement.locality)) {
@@ -90,12 +70,26 @@ export function propertyMatchesRequirement(
   return true;
 }
 
+export function requirementMatchesProperty(
+  requirement: MatchableRequirement,
+  property: MatchableProperty
+) {
+  return matchesPropertyAndRequirement(property, requirement);
+}
+
+export function propertyMatchesRequirement(
+  property: MatchableProperty,
+  requirement: MatchableRequirement
+) {
+  return matchesPropertyAndRequirement(property, requirement);
+}
+
 export function countRequirementsForProperty(
   property: MatchableProperty,
   requirements: MatchableRequirement[]
 ) {
   return requirements.reduce(
-    (count, requirement) => count + (requirementMatchesProperty(requirement, property) ? 1 : 0),
+    (count, requirement) => count + (matchesPropertyAndRequirement(property, requirement) ? 1 : 0),
     0
   );
 }
@@ -105,7 +99,7 @@ export function countPropertiesForRequirement(
   properties: MatchableProperty[]
 ) {
   return properties.reduce(
-    (count, property) => count + (propertyMatchesRequirement(property, requirement) ? 1 : 0),
+    (count, property) => count + (matchesPropertyAndRequirement(property, requirement) ? 1 : 0),
     0
   );
 }

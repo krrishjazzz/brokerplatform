@@ -26,6 +26,12 @@ export const PROPERTY_CATEGORY_OPTIONS = [
   },
 ] as const;
 
+/** Canonical types used by broker quick filters (must match PROPERTY_TYPES values). */
+export const BROKER_QUICK_FILTER_TYPES = {
+  OFFICE: "Office Space",
+  WAREHOUSE: "Warehouse / Godown",
+} as const;
+
 export const PROPERTY_TYPES: Record<string, string[]> = {
   RESIDENTIAL: [
     "Apartment",
