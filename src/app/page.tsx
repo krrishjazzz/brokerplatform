@@ -2,10 +2,8 @@ import { Sparkles } from "lucide-react";
 import { SmartSearchPanel } from "@/components/home/smart-search-panel";
 import { PopularLocationsSection } from "@/components/home/browse-section";
 import { ConsolidatedBrowseSection } from "@/components/home/consolidated-browse-section";
-import { JoinBrokerNetworkCta, OwnerListPropertyCta } from "@/components/home/home-cta-sections";
 import {
   BudgetShortcuts,
-  FeaturedListingsSection,
   HowItWorksSection,
   TrustStrip,
 } from "@/components/home/home-sections";
@@ -26,7 +24,7 @@ export default function HomePage() {
               Find verified homes, offices, and land in Kolkata.
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-text-secondary sm:text-base">
-              Search by intent, locality, and budget — with managed follow-up and no spam calls.
+              Pick Buy, Rent, Commercial, Projects, or Plots — then search city, locality, project, or landmark. Set budget and property type below.
             </p>
           </div>
 
@@ -41,12 +39,8 @@ export default function HomePage() {
         <PopularLocationsSection items={POPULAR_LOCATIONS} />
       </section>
 
-      <FeaturedListingsSection />
       <ConsolidatedBrowseSection />
       <HowItWorksSection />
-
-      <OwnerListPropertyCta />
-      <JoinBrokerNetworkCta />
     </main>
   );
 }

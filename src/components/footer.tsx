@@ -41,9 +41,10 @@ export function Footer() {
             <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Company</h4>
             <ul className="space-y-2.5">
               <li><Link href="/properties?verified=true" className={linkClass}>About Us</Link></li>
+              <li><Link href="/owners" className={linkClass}>For Owners</Link></li>
               <li><Link href="/brokers" className={linkClass}>Broker Network</Link></li>
               <li><Link href="/login?as=broker" className={linkClass}>Broker Login</Link></li>
-              <li><Link href="/dashboard?tab=post" className={linkClass}>List Property</Link></li>
+              <li><Link href="/owners" className={linkClass}>List Property</Link></li>
               <li><Link href="/properties" className={linkClass}>Careers</Link></li>
               <li><Link href="/properties" className={linkClass}>Blog</Link></li>
             </ul>

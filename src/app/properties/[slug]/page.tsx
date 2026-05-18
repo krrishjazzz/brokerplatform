@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -43,9 +43,12 @@ import {
 } from "@/lib/saved-property-feedback";
 import {
   PLATFORM_PHONE,
+  formatPlatformPhoneDisplay,
   normalizePlatformPhoneForTel,
   normalizePlatformPhoneForWhatsApp,
 } from "@/lib/platform";
+import { EnquiryOtpStep } from "@/components/auth/enquiry-otp-step";
+import { normalizeIndianPhoneInput } from "@/lib/phone";
 import { enquirySchema } from "@/lib/validations";
 import { getVisibilityLabel } from "@/lib/visibility";
 import type { EnquiryInput } from "@/lib/validations";
@@ -161,7 +164,7 @@ export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, login, register: registerUser } = useAuth();
   const { toast } = useToast();
   const slug = params.slug as string;
   const pendingSaveHandled = useRef(false);
@@ -181,6 +184,10 @@ export default function PropertyDetailPage() {
   const [savingProperty, setSavingProperty] = useState(false);
   const [savedProperty, setSavedProperty] = useState(false);
   const [galleryTouchStart, setGalleryTouchStart] = useState<number | null>(null);
+  const [enquiryStep, setEnquiryStep] = useState<"form" | "otp">("form");
+  const [otpPhone, setOtpPhone] = useState("");
+  const [pendingEnquiry, setPendingEnquiry] = useState<EnquiryFormInput | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
 
   const {
     register,
@@ -197,15 +204,12 @@ export default function PropertyDetailPage() {
   });
 
   const openEnquiryWithIntent = (intent: EnquiryIntent) => {
-    if (!user) {
-      router.push(`/login?redirect=/properties/${slug}`);
-      return;
-    }
-
     const action = ENQUIRY_ACTIONS[intent];
     setActiveEnquiryIntent(intent);
     setEnquirySent(false);
     setEnquiryError("");
+    setEnquiryStep("form");
+    setPendingEnquiry(null);
     setValue("message", action.message, { shouldValidate: true });
     setEnquiryOpen(true);
     window.setTimeout(() => document.getElementById("enquire")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -289,12 +293,8 @@ export default function PropertyDetailPage() {
     void completePendingSave();
   }, [user, property, searchParams, slug, router, toast]);
 
-  const onEnquiry = async (data: EnquiryFormInput) => {
-    if (!user) {
-      router.push(`/login?redirect=/properties/${slug}`);
-      return;
-    }
-    if (!property) return;
+  const submitEnquiry = useCallback(async (data: EnquiryFormInput) => {
+    if (!property) return false;
 
     setEnquiryError("");
     setEnquiryLoading(true);
@@ -306,8 +306,9 @@ export default function PropertyDetailPage() {
       });
       if (res.ok) {
         setEnquirySent(true);
+        setEnquiryOpen(true);
         toast("Enquiry sent. KrrishJazz will coordinate the next step.", "success");
-        return;
+        return true;
       }
 
       const result = await res.json().catch(() => null);
@@ -316,12 +317,96 @@ export default function PropertyDetailPage() {
         : "Please check the enquiry details and try again.";
       setEnquiryError(message);
       toast(message, "error");
+      return false;
     } catch {
       setEnquiryError("Failed to submit enquiry. Please try again.");
       toast("Failed to submit enquiry. Please try again.", "error");
+      return false;
     } finally {
       setEnquiryLoading(false);
     }
+  }, [property, toast]);
+
+  const startGuestOtpFlow = async (data: EnquiryFormInput) => {
+    const phone = normalizeIndianPhoneInput(data.phone);
+    if (!phone) {
+      setEnquiryError("Enter a valid 10-digit mobile number (+91XXXXXXXXXX).");
+      return;
+    }
+
+    setEnquiryLoading(true);
+    setEnquiryError("");
+    try {
+      const res = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone }),
+      });
+      const result = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message = typeof result?.error === "string" ? result.error : "Could not send OTP.";
+        setEnquiryError(message);
+        toast(message, "error");
+        return;
+      }
+
+      setPendingEnquiry({ ...data, phone });
+      setOtpPhone(phone);
+      setEnquiryStep("otp");
+      toast("OTP sent to your mobile.", "success");
+    } catch {
+      setEnquiryError("Could not send OTP. Please try again.");
+      toast("Could not send OTP. Please try again.", "error");
+    } finally {
+      setEnquiryLoading(false);
+    }
+  };
+
+  const completeGuestEnquiryWithOtp = async (otp: string) => {
+    if (!pendingEnquiry || !property) return;
+
+    setOtpVerifying(true);
+    setEnquiryError("");
+    try {
+      const loginResult = await login(otpPhone, otp);
+      if (!loginResult.success) {
+        const message = loginResult.error || "Invalid OTP";
+        setEnquiryError(message);
+        toast(message, "error");
+        return;
+      }
+
+      if (loginResult.isNew) {
+        await registerUser({
+          name: pendingEnquiry.name,
+          email: "",
+          wantToListAsOwner: false,
+        });
+      }
+
+      const ok = await submitEnquiry(pendingEnquiry);
+      if (ok) {
+        setEnquiryStep("form");
+        setPendingEnquiry(null);
+      }
+    } catch {
+      setEnquiryError("Verification failed. Please try again.");
+      toast("Verification failed. Please try again.", "error");
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const onEnquiry = async (data: EnquiryFormInput) => {
+    if (!property) return;
+
+    if (!user) {
+      await startGuestOtpFlow(data);
+      return;
+    }
+
+    await submitEnquiry(data);
   };
 
   const handleSaveProperty = async () => {
@@ -715,6 +800,16 @@ export default function PropertyDetailPage() {
                     <p className="font-semibold text-foreground">Enquiry sent</p>
                     <p className="mt-1 text-sm text-text-secondary">KrrishJazz will help coordinate the next step.</p>
                   </div>
+                ) : enquiryStep === "otp" && pendingEnquiry ? (
+                  <EnquiryOtpStep
+                    phone={otpPhone}
+                    verifying={otpVerifying}
+                    onBack={() => {
+                      setEnquiryStep("form");
+                      setEnquiryError("");
+                    }}
+                    onVerified={completeGuestEnquiryWithOtp}
+                  />
                 ) : (
                   <form onSubmit={handleSubmit(onEnquiry)} className="space-y-3">
                     <div>
@@ -743,8 +838,13 @@ export default function PropertyDetailPage() {
                     <Textarea label="Message" placeholder="I am interested in this property..." error={errors.message?.message} {...register("message")} />
                     <Input label="Preferred Visit Date" type="date" {...register("visitDate")} />
                     {enquiryError && <p className="text-xs text-error">{enquiryError}</p>}
+                    {!user && (
+                      <p className="text-xs leading-5 text-text-secondary">
+                        Submit your details and verify OTP on this page — no redirect to login.
+                      </p>
+                    )}
                     <Button type="submit" className="w-full" loading={enquiryLoading}>
-                      Submit Enquiry
+                      {user ? "Submit Enquiry" : "Send OTP & continue"}
                     </Button>
                   </form>
                 )}
@@ -764,37 +864,24 @@ export default function PropertyDetailPage() {
             <Share2 size={16} />
           </button>
         </div>
-        <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <a href={`tel:${normalizePlatformPhoneForTel(platformPhone)}`} className="min-w-0">
+            <Button variant="accent" className="w-full">
+              <Phone size={16} className="mr-1" />
+              Call
+            </Button>
+          </a>
           <Button
-            variant="accent"
-            onClick={() => {
-              if (!user) {
-                router.push(`/login?redirect=/properties/${slug}`);
-                return;
-              }
-              setEnquiryOpen(true);
-              openEnquiryWithIntent("callback");
-            }}
+            variant="outline"
+            onClick={() => openEnquiryWithIntent("callback")}
             className="w-full"
           >
-            <MessageCircle size={16} className="mr-2" />
+            <MessageCircle size={16} className="mr-1" />
             Callback
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => openEnquiryWithIntent("visit")}
-            className="w-full"
-          >
-            <Calendar size={16} className="mr-2" />
-            Visit
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleWhatsAppOps}
-            className="w-full"
-          >
-            <Phone size={16} className="mr-2" />
-            WhatsApp
+          <Button variant="outline" onClick={handleWhatsAppOps} className="w-full">
+            <MessageCircle size={16} className="mr-1" />
+            WA
           </Button>
         </div>
       </div>
@@ -939,7 +1026,7 @@ function ContactCard({
           <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Phone size={14} className="text-primary" />
             <a href={`tel:${normalizePlatformPhoneForTel(platformPhone)}`} className="hover:text-primary">
-              {platformPhone}
+              {formatPlatformPhoneDisplay(platformPhone)}
             </a>
           </p>
           <p className="mt-1 text-xs leading-5 text-text-secondary">
@@ -948,7 +1035,7 @@ function ContactCard({
         </div>
 
         <a href={`tel:${normalizePlatformPhoneForTel(platformPhone)}`}>
-          <Button variant="outline" className="w-full">
+          <Button variant="accent" className="w-full">
             <Phone size={15} className="mr-2" />
             Call KrrishJazz
           </Button>
@@ -956,7 +1043,7 @@ function ContactCard({
 
         <div className="space-y-2">
           <Button
-            variant="accent"
+            variant="outline"
             className="w-full"
             onClick={() => {
               if (enquiryOpen) {

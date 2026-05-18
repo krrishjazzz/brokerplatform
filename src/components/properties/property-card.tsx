@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { BellRing, Building2, Eye, Heart, Home, MapPin, MessageCircle, Share2, ShieldCheck } from "lucide-react";
+import { BellRing, Building2, Eye, Heart, Home, MapPin, MessageCircle, Phone, ShieldCheck } from "lucide-react";
+import {
+  buildPropertyWhatsAppUrl,
+  formatPlatformPhoneDisplay,
+  normalizePlatformPhoneForTel,
+} from "@/lib/platform";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
@@ -16,7 +21,7 @@ interface PropertyCardProps {
   onShare: (property: Property) => void;
 }
 
-export function PropertyCard({ property, isLoggedIn, isSaved = false, onSave, onShare }: PropertyCardProps) {
+export function PropertyCard({ property, isSaved = false, onSave }: PropertyCardProps) {
   const freshness = getFreshness(property.updatedAt);
   const image = property.coverImage || property.images[0];
   const pricePerUnit = property.area > 0 ? Math.round(property.price / property.area).toLocaleString("en-IN") : null;
@@ -134,27 +139,43 @@ export function PropertyCard({ property, isLoggedIn, isSaved = false, onSave, on
             </div>
           )}
 
-          <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
-            <Link href={isLoggedIn ? `/properties/${property.slug}#enquire` : `/login?redirect=/properties/${property.slug}`} className="min-w-0">
+          <p className="mt-2 text-xs text-text-secondary">
+            KrrishJazz:{" "}
+            <a href={`tel:${normalizePlatformPhoneForTel()}`} className="font-semibold text-primary hover:underline">
+              {formatPlatformPhoneDisplay()}
+            </a>
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <a href={`tel:${normalizePlatformPhoneForTel()}`} className="min-w-0">
               <Button variant="accent" className="w-full" size="sm">
-                <MessageCircle size={14} className="mr-2" />
-                Get Callback
+                <Phone size={14} className="mr-1.5" />
+                Call
               </Button>
-            </Link>
-            <Link href={`/properties/${property.slug}`}>
-              <Button variant="outline" size="sm" aria-label="View details">
-                <Eye size={14} className="mr-2" />
-                <span className="hidden sm:inline">Details</span>
-              </Button>
-            </Link>
-            <button
-              type="button"
-              onClick={() => onShare(property)}
-              className="inline-flex items-center justify-center rounded-btn border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-primary-light hover:text-primary"
-              aria-label="Share property"
+            </a>
+            <a
+              href={buildPropertyWhatsAppUrl(property)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-w-0"
             >
-              <Share2 size={14} />
-            </button>
+              <Button variant="outline" className="w-full" size="sm">
+                <MessageCircle size={14} className="mr-1.5" />
+                WhatsApp
+              </Button>
+            </a>
+            <Link href={`/properties/${property.slug}#enquire`} className="min-w-0">
+              <Button variant="outline" className="w-full" size="sm">
+                <MessageCircle size={14} className="mr-1.5" />
+                Enquire
+              </Button>
+            </Link>
+            <Link href={`/properties/${property.slug}`} className="min-w-0">
+              <Button variant="outline" className="w-full" size="sm" aria-label="View details">
+                <Eye size={14} className="mr-1.5" />
+                Details
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

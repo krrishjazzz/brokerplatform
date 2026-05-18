@@ -1,14 +1,19 @@
+type QueryParamValue = string | number | boolean | undefined | null | string[];
+
 type FetchJsonOptions = RequestInit & {
-  params?: Record<string, string | number | undefined | null>;
+  params?: Record<string, QueryParamValue>;
 };
 
 function buildUrl(path: string, params?: FetchJsonOptions["params"]) {
   if (!params) return path;
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      search.set(key, String(value));
+    if (value === undefined || value === null || value === "") return;
+    if (Array.isArray(value)) {
+      value.filter((item) => item !== "").forEach((item) => search.append(key, String(item)));
+      return;
     }
+    search.set(key, String(value));
   });
   const query = search.toString();
   return query ? `${path}?${query}` : path;

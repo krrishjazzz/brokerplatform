@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   Heart,
+  Home,
   Briefcase,
   Building2,
   FileText,
@@ -25,12 +26,14 @@ const NAV_LINKS = [
   { label: "Buy", href: "/properties?listingType=BUY", key: "buy" as const },
   { label: "Rent", href: "/properties?listingType=RENT", key: "rent" as const },
   { label: "Commercial", href: "/properties?category=COMMERCIAL", key: "commercial" as const },
-  { label: "Projects", href: "/properties?listingType=BUY&q=project", key: "projects" as const },
+  { label: "Projects", href: "/projects", key: "projects" as const },
   { label: "Plots / Land", href: "/properties?propertyType=Residential%20Plot", key: "plots" as const },
+  { label: "Owners", href: "/owners", key: "owners" as const },
   { label: "Brokers", href: "/brokers", key: "brokers" as const },
 ] as const;
 
 function getNavActiveKey(pathname: string, params: URLSearchParams) {
+  if (pathname.startsWith("/owners")) return "owners";
   if (pathname.startsWith("/brokers")) return "brokers";
   if (!pathname.startsWith("/properties")) return null;
   if (params.get("q") === "project") return "projects";
@@ -92,6 +95,7 @@ export function Navbar() {
           <div className="px-4 py-2">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Quick Access</p>
             <DropdownItem icon={<Search size={16} />} label="Property Search" href="/properties" onClick={navigateTo} />
+            <DropdownItem icon={<Home size={16} />} label="For Owners" href="/owners" onClick={navigateTo} />
             <DropdownItem icon={<Plus size={16} />} label="Post Property Free" href="/login?intent=post" onClick={navigateTo} />
             <DropdownItem icon={<Briefcase size={16} />} label="Broker Network" href="/brokers" onClick={navigateTo} />
           </div>

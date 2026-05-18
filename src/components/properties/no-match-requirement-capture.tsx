@@ -40,9 +40,9 @@ export function NoMatchRequirementCapture({
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">
             <Search size={22} />
           </div>
-          <h3 className="mt-5 text-2xl font-semibold text-foreground">No exact match yet</h3>
+          <h3 className="mt-5 text-2xl font-semibold text-foreground">No exact match.</h3>
           <p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-            Good search, thin supply. Share what you need and KrrishJazz can manually check owner and broker inventory instead of making you keep refreshing filters.
+            KrrishJazz can check offline owner and broker inventory. Share your requirement, locality, budget, name, and phone below.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">

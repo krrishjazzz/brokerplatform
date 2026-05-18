@@ -82,18 +82,32 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
-    // Get similar properties
-    const similar = await prisma.property.findMany({
+    // Similar listings: same intent + city, prefer same property type
+    const similarCandidates = await prisma.property.findMany({
       where: {
         status: "LIVE",
         visibilityType: { in: CUSTOMER_VISIBLE_TYPES },
         city: property.city,
-        category: property.category,
+        listingType: property.listingType,
         id: { not: property.id },
+        OR: [
+          { propertyType: property.propertyType },
+          { category: property.category },
+        ],
       },
-      take: 4,
+      orderBy: { updatedAt: "desc" },
+      take: 8,
       include: { postedBy: { select: { name: true, role: true } } },
     });
+
+    const similar = similarCandidates
+      .sort((a, b) => {
+        const score = (item: typeof a) =>
+          (item.propertyType === property.propertyType ? 2 : 0) +
+          (item.category === property.category ? 1 : 0);
+        return score(b) - score(a);
+      })
+      .slice(0, 4);
 
     const publicView = !canViewRestricted;
     const processedProperty = formatProperty(property, { publicView });

@@ -9,37 +9,37 @@ export const POPULAR_LOCATIONS: CarouselCard[] = [
   {
     title: "New Town",
     subtitle: "1,284 properties",
-    href: "/properties?q=New%20Town&city=Kolkata",
+    href: "/properties?locality=New%20Town&city=Kolkata",
     image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=480&h=320&fit=crop",
   },
   {
     title: "Salt Lake",
     subtitle: "982 properties",
-    href: "/properties?q=Salt%20Lake&city=Kolkata",
+    href: "/properties?locality=Salt%20Lake&city=Kolkata",
     image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=480&h=320&fit=crop",
   },
   {
     title: "Rajarhat",
     subtitle: "756 properties",
-    href: "/properties?q=Rajarhat&city=Kolkata",
+    href: "/properties?locality=Rajarhat&city=Kolkata",
     image: "https://images.unsplash.com/photo-1516156008625-3a9d6067fab5?w=480&h=320&fit=crop",
   },
   {
     title: "Ballygunge",
     subtitle: "643 properties",
-    href: "/properties?q=Ballygunge&city=Kolkata",
+    href: "/properties?locality=Ballygunge&city=Kolkata",
     image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=480&h=320&fit=crop",
   },
   {
     title: "Behala",
     subtitle: "512 properties",
-    href: "/properties?q=Behala&city=Kolkata",
+    href: "/properties?locality=Behala&city=Kolkata",
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=480&h=320&fit=crop",
   },
   {
     title: "EM Bypass",
     subtitle: "1,102 properties",
-    href: "/properties?q=EM%20Bypass&city=Kolkata",
+    href: "/properties?locality=EM%20Bypass&city=Kolkata",
     image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=480&h=320&fit=crop",
   },
 ];

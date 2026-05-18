@@ -13,3 +13,36 @@ export function normalizePlatformPhoneForTel(phone: string = PLATFORM_PHONE) {
 export function normalizePlatformPhoneForWhatsApp(phone: string = PLATFORM_PHONE) {
   return normalizePlatformPhoneForTel(phone).replace(/^\+/, "");
 }
+
+export function formatPlatformPhoneDisplay(phone: string = PLATFORM_PHONE) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+  return phone;
+}
+
+type PropertyWhatsAppTarget = {
+  title: string;
+  slug: string;
+  city: string;
+  locality?: string | null;
+  price: number;
+  propertyType: string;
+};
+
+export function buildPlatformWhatsAppUrl(message: string) {
+  return `https://wa.me/${normalizePlatformPhoneForWhatsApp()}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildPropertyWhatsAppUrl(property: PropertyWhatsAppTarget, origin?: string) {
+  const base = origin || (typeof window !== "undefined" ? window.location.origin : "");
+  const message = [
+    "Hi KrrishJazz, I want help with this property.",
+    property.title,
+    `${property.locality ? `${property.locality}, ` : ""}${property.city}`,
+    `Price: ${property.price}`,
+    `${base}/properties/${property.slug}`,
+  ].join("\n");
+  return `https://wa.me/${normalizePlatformPhoneForWhatsApp()}?text=${encodeURIComponent(message)}`;
+}

@@ -27,8 +27,14 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     searchParams.get("listingType") || intentPreset.listingType || ""
   );
   const [category, setCategory] = useState(searchParams.get("category") || intentPreset.category || "");
+  const [propertyTypes, setPropertyTypes] = useState<string[]>(() => {
+    const fromUrl = searchParams.getAll("propertyType").filter(Boolean);
+    if (fromUrl.length > 0) return fromUrl;
+    if (intentPreset.propertyType) return [intentPreset.propertyType];
+    return [];
+  });
   const [propertyType, setPropertyType] = useState(
-    searchParams.get("propertyType") || intentPreset.propertyType || ""
+    searchParams.get("propertyType") || searchParams.getAll("propertyType")[0] || intentPreset.propertyType || ""
   );
   const [locality, setLocality] = useState(searchParams.get("locality") || "");
   const [city, setCity] = useState(searchParams.get("city") || "");
@@ -46,12 +52,41 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(getInitialPage(searchParams.get("page")));
 
+  useEffect(() => {
+    const typesFromUrl = searchParams.getAll("propertyType").filter(Boolean);
+    setListingType(searchParams.get("listingType") || "");
+    setCategory(searchParams.get("category") || "");
+    setPropertyTypes(typesFromUrl);
+    setPropertyType(typesFromUrl[0] || "");
+    setLocality(searchParams.get("locality") || "");
+    setCity(searchParams.get("city") || "");
+    setMinPrice(searchParams.get("minPrice") || "");
+    setMaxPrice(searchParams.get("maxPrice") || "");
+    setBedrooms(searchParams.get("bedrooms") || "");
+    setFurnishing(searchParams.get("furnishing") || "");
+    setFreshOnly(searchParams.get("fresh") === "true");
+    setVerifiedOnly(searchParams.get("verified") === "true");
+    setReadyToVisitOnly(searchParams.get("readyToVisit") === "true");
+    setOwnerListedOnly(searchParams.get("ownerListed") === "true");
+    setBudgetMatchOnly(searchParams.get("budgetMatch") === "true");
+    setAvailability(searchParams.get("availability") || "");
+    setSort(searchParams.get("sort") || "");
+    setQuery(searchParams.get("q") || "");
+    setPage(getInitialPage(searchParams.get("page")));
+  }, [searchParams]);
+
+  const effectivePropertyTypes = useMemo(
+    () => (propertyTypes.length > 0 ? propertyTypes : propertyType ? [propertyType] : []),
+    [propertyTypes, propertyType]
+  );
+
   const { hasSearchIntent, needsMoreFilters } = useMemo(
     () =>
       countSearchIntent({
         listingType,
         category,
         propertyType,
+        propertyTypes: effectivePropertyTypes,
         locality,
         city,
         minPrice,
@@ -70,6 +105,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       listingType,
       category,
       propertyType,
+      effectivePropertyTypes,
       locality,
       city,
       minPrice,
@@ -92,7 +128,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     const params = new URLSearchParams();
     if (listingType) params.set("listingType", listingType);
     if (category) params.set("category", category);
-    if (propertyType) params.set("propertyType", propertyType);
+    effectivePropertyTypes.forEach((type) => params.append("propertyType", type));
     if (locality) params.set("locality", locality);
     if (city) params.set("city", city);
     if (minPrice) params.set("minPrice", minPrice);
@@ -123,9 +159,14 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       router.replace(qs ? `/properties?${qs}` : "/properties", { scroll: false });
     }
 
+    const apiParams: Record<string, string | string[]> = Object.fromEntries(params.entries());
+    if (effectivePropertyTypes.length > 0) {
+      apiParams.propertyType = effectivePropertyTypes;
+    }
+
     const { ok, data } = await fetchJson<{ properties: Property[]; pagination: Pagination }>(
       "/api/properties",
-      { params: Object.fromEntries(params.entries()) }
+      { params: apiParams }
     );
 
     if (ok && data) {
@@ -139,7 +180,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     needsMoreFilters,
     listingType,
     category,
-    propertyType,
+    effectivePropertyTypes,
     locality,
     city,
     minPrice,
@@ -166,6 +207,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setListingType("");
     setCategory("");
     setPropertyType("");
+    setPropertyTypes([]);
     setLocality("");
     setCity("");
     setMinPrice("");
@@ -189,6 +231,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       if (action === "office") {
         setCategory("COMMERCIAL");
         setPropertyType("Office Space");
+        setPropertyTypes(["Office Space"]);
       }
       if (action === "2bhk") {
         setCategory("RESIDENTIAL");
@@ -197,6 +240,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       if (action === "warehouse") {
         setCategory("INDUSTRIAL");
         setPropertyType("Warehouse / Godown");
+        setPropertyTypes(["Warehouse / Godown"]);
       }
       if (action === "verified") setVerifiedOnly((value) => !value);
       if (action === "fresh") setFreshOnly((value) => !value);
@@ -255,6 +299,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setListingType(filters.listingType || "");
     setCategory(filters.category || "");
     setPropertyType(filters.propertyType || "");
+    setPropertyTypes(filters.propertyType ? [filters.propertyType] : []);
     setLocality(filters.locality || "");
     setCity(filters.city || "");
     setMinPrice(filters.minPrice || "");
@@ -285,7 +330,11 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     category,
     setCategory,
     propertyType,
-    setPropertyType,
+    setPropertyType: (value: string) => {
+      setPropertyType(value);
+      setPropertyTypes(value ? [value] : []);
+    },
+    propertyTypes: effectivePropertyTypes,
     locality,
     setLocality,
     city,

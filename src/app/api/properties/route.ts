@@ -7,6 +7,7 @@ import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { logActivity } from "@/lib/workflow";
 import { CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
 import { getPagination } from "@/server/pagination";
+import { parseOptionalPrice } from "@/server/parse-query-filters";
 import { formatProperty } from "@/server/public-property";
 import { nanoid } from "nanoid";
 
@@ -85,12 +86,20 @@ export async function GET(req: NextRequest) {
       where.updatedAt = { gte: sevenDaysAgo };
     }
 
-    const minPrice = searchParams.get("minPrice");
-    const maxPrice = searchParams.get("maxPrice");
-    if (minPrice || maxPrice) {
+    const minPriceRaw = searchParams.get("minPrice");
+    const maxPriceRaw = searchParams.get("maxPrice");
+    const minPrice = parseOptionalPrice(minPriceRaw, "minPrice");
+    if (!minPrice.ok) {
+      return NextResponse.json({ error: minPrice.error }, { status: 400 });
+    }
+    const maxPrice = parseOptionalPrice(maxPriceRaw, "maxPrice");
+    if (!maxPrice.ok) {
+      return NextResponse.json({ error: maxPrice.error }, { status: 400 });
+    }
+    if (minPrice.value !== undefined || maxPrice.value !== undefined) {
       where.price = {};
-      if (minPrice) (where.price as any).gte = parseFloat(minPrice);
-      if (maxPrice) (where.price as any).lte = parseFloat(maxPrice);
+      if (minPrice.value !== undefined) (where.price as { gte?: number }).gte = minPrice.value;
+      if (maxPrice.value !== undefined) (where.price as { lte?: number }).lte = maxPrice.value;
     }
 
     const bedrooms = searchParams.get("bedrooms");

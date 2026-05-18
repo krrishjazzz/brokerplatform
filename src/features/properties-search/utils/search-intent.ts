@@ -15,6 +15,7 @@ export function countSearchIntent(filters: {
   listingType: string;
   category: string;
   propertyType: string;
+  propertyTypes?: string[];
   locality: string;
   city: string;
   minPrice: string;
@@ -29,8 +30,10 @@ export function countSearchIntent(filters: {
   availability: string;
   query: string;
 }) {
+  const typeCount = filters.propertyTypes?.length || (filters.propertyType ? 1 : 0);
+
   const specificIntentCount = [
-    filters.propertyType,
+    typeCount > 0 ? "types" : "",
     filters.locality,
     filters.city,
     filters.minPrice,

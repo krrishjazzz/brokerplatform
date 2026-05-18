@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { buildPlatformWhatsAppUrl, normalizePlatformPhoneForTel } from "@/lib/platform";
 
 const HIDDEN_PREFIXES = ["/admin"];
 
@@ -54,10 +55,21 @@ export function KrrishJazzAssistant() {
       onClick: () => router.push("/broker/properties"),
     },
     {
-      label: "Complaint / Feedback",
-      detail: "Share an issue with the support team.",
+      label: "WhatsApp Support",
+      detail: "Chat with KrrishJazz on WhatsApp.",
       icon: <MessageCircle size={16} />,
-      onClick: () => toast("Feedback noted. Add a support form next so users can submit details.", "info"),
+      onClick: () => {
+        const url = buildPlatformWhatsAppUrl("Hi KrrishJazz, I need help with a property search or listing.");
+        window.open(url, "_blank", "noopener,noreferrer");
+      },
+    },
+    {
+      label: "Call KrrishJazz",
+      detail: "Speak with the helpline team.",
+      icon: <Phone size={16} />,
+      onClick: () => {
+        window.location.href = `tel:${normalizePlatformPhoneForTel()}`;
+      },
     },
   ];
 
