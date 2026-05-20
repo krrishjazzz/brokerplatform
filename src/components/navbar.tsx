@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   Shield,
   Search,
+  User,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +27,6 @@ const NAV_LINKS = [
   { label: "Buy", href: "/properties?listingType=BUY", key: "buy" as const },
   { label: "Rent", href: "/properties?listingType=RENT", key: "rent" as const },
   { label: "Commercial", href: "/properties?category=COMMERCIAL", key: "commercial" as const },
-  { label: "Projects", href: "/projects", key: "projects" as const },
-  { label: "Plots / Land", href: "/properties?propertyType=Residential%20Plot", key: "plots" as const },
   { label: "Owners", href: "/owners", key: "owners" as const },
   { label: "Brokers", href: "/brokers", key: "brokers" as const },
 ] as const;
@@ -36,11 +35,9 @@ function getNavActiveKey(pathname: string, params: URLSearchParams) {
   if (pathname.startsWith("/owners")) return "owners";
   if (pathname.startsWith("/brokers")) return "brokers";
   if (!pathname.startsWith("/properties")) return null;
-  if (params.get("q") === "project") return "projects";
   if (params.get("listingType") === "RENT") return "rent";
   if (params.get("category") === "COMMERCIAL") return "commercial";
-  if (params.get("propertyType") === "Residential Plot" || params.get("intent") === "land") return "plots";
-  if (params.get("listingType") === "BUY") return "buy";
+  if (params.get("listingType") === "BUY" || params.get("q") === "project") return "buy";
   return null;
 }
 
@@ -182,19 +179,20 @@ export function Navbar() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
-              href="/dashboard?tab=post"
-              className="hidden rounded-lg border border-white/20 bg-white px-3 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary-light hover:shadow-md md:inline-flex"
+              href="/owners"
+              className="hidden rounded-lg border border-white/20 bg-white px-3 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary-light md:inline-flex"
             >
               Post Property
             </Link>
-            <Link
-              href="/properties"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition-all hover:border-white/40 hover:bg-white/20 active:scale-[0.98]"
-            >
-              <Search size={16} />
-              <span className="hidden sm:inline">Property Search</span>
-              <span className="sm:hidden">Search</span>
-            </Link>
+            {!user && (
+              <Link
+                href="/login"
+                className="hidden items-center gap-1.5 rounded-lg border border-white/30 bg-transparent px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-white/10 sm:inline-flex"
+              >
+                <User size={16} />
+                Sign In / Sign Up
+              </Link>
+            )}
 
             <div className="relative" ref={dropdownRef}>
               <button
@@ -243,18 +241,12 @@ export function Navbar() {
               </Link>
             ))}
             <div className="my-2 border-t border-white/10" />
-            <Link href="/properties" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10">
-              <Search size={16} /> Property Search
-            </Link>
-            <Link
-              href="/dashboard?tab=post"
-              className="mt-1 block rounded-lg bg-white px-3 py-2.5 text-center text-sm font-semibold text-primary hover:bg-primary-light"
-            >
+            <Link href="/owners" className="block rounded-lg bg-white px-3 py-2.5 text-center text-sm font-semibold text-primary">
               Post Property
             </Link>
             {!user && (
-              <Link href="/login" className="block rounded-lg px-3 py-2.5 text-sm text-white/85 hover:bg-white/10">
-                Login / Register
+              <Link href="/login" className="mt-2 block rounded-lg border border-white/25 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-white/10">
+                Sign In / Sign Up
               </Link>
             )}
           </div>

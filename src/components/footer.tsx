@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Globe, Mail, MapPin, Phone, Share2, Users } from "lucide-react";
+import { formatPlatformPhoneDisplay, PLATFORM_PHONE } from "@/lib/platform";
 
 export function Footer() {
   const linkClass = "text-sm text-white/75 transition-colors hover:text-white";
@@ -27,13 +28,13 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Quick Links</h4>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Explore</h4>
             <ul className="space-y-2.5">
-              <li><Link href="/properties?listingType=BUY" className={linkClass}>Buy Property</Link></li>
-              <li><Link href="/properties?listingType=RENT" className={linkClass}>Rent Property</Link></li>
+              <li><Link href="/properties?listingType=BUY" className={linkClass}>Buy</Link></li>
+              <li><Link href="/properties?listingType=RENT" className={linkClass}>Rent</Link></li>
               <li><Link href="/properties?category=COMMERCIAL" className={linkClass}>Commercial</Link></li>
-              <li><Link href="/properties?listingType=BUY&q=project" className={linkClass}>Projects</Link></li>
-              <li><Link href="/properties?propertyType=Residential%20Plot" className={linkClass}>Plots / Land</Link></li>
+              <li><Link href="/owners" className={linkClass}>Owners</Link></li>
+              <li><Link href="/brokers" className={linkClass}>Brokers</Link></li>
             </ul>
           </div>
 
@@ -70,7 +71,9 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-2">
               <Phone size={16} className="shrink-0 text-primary-light" />
-              <span>+91 98765 43210</span>
+              <a href={`tel:+91${PLATFORM_PHONE}`} className="hover:text-white">
+                {formatPlatformPhoneDisplay()}
+              </a>
             </li>
             <li className="flex items-center gap-2">
               <Mail size={16} className="shrink-0 text-primary-light" />

@@ -2,10 +2,13 @@
 
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FilterChip, FilterGroup } from "@/components/properties/filter-primitives";
-import { CATEGORY_OPTIONS, LISTING_TABS } from "@/components/properties/search-options";
+import { FilterGroup } from "@/components/properties/filter-primitives";
 import { FURNISHING_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import {
+  INTENT_LISTING_TABS,
+  isCommercialIntent,
+} from "@/components/properties/search-options";
 import type { PropertiesSearchFiltersState } from "@/features/properties-search/types/filters-state";
 
 type PropertiesFiltersSidebarProps = PropertiesSearchFiltersState & {
@@ -15,6 +18,8 @@ type PropertiesFiltersSidebarProps = PropertiesSearchFiltersState & {
   shownTotal: number;
   onApply: () => void;
 };
+
+const BHK_OPTIONS = ["1", "2", "3", "4", "5"] as const;
 
 export function PropertiesFiltersSidebar({
   filtersOpen,
@@ -37,187 +42,241 @@ export function PropertiesFiltersSidebar({
   setLocality,
   furnishing,
   setFurnishing,
-  freshOnly,
-  setFreshOnly,
   verifiedOnly,
   setVerifiedOnly,
-  readyToVisitOnly,
-  setReadyToVisitOnly,
   ownerListedOnly,
   setOwnerListedOnly,
-  budgetMatchOnly,
-  applyQuickFilter,
   setPage,
   clearFilters,
   availablePropertyTypes,
   shownTotal,
   onApply,
 }: PropertiesFiltersSidebarProps) {
-  return (
-        <aside
-          className={cn(
-            "shrink-0 space-y-4 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:block lg:h-fit lg:w-72",
-            filtersOpen && "fixed inset-x-0 bottom-0 top-0 z-40 rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4",
-            filtersOpen ? "block" : "hidden"
-          )}
-        >
-            <div className="flex items-center justify-between">
-              <div>
-              <h2 className="text-sm font-semibold text-foreground">Filters</h2>
-              <p className="text-xs text-text-secondary">Pick what matters first</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={clearFilters} className="text-xs font-semibold text-accent hover:text-primary">Clear</button>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-btn border border-border p-2 text-text-secondary lg:hidden" aria-label="Close filters">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
+  const commercialActive = isCommercialIntent(category, listingType);
 
-          <FilterGroup label="Listing Type">
-            <div className="flex flex-wrap gap-1.5">
-              {LISTING_TABS.map((tab) => (
-                <FilterChip
-                  key={tab.value}
-                  active={listingType === tab.value}
-                  onClick={() => { setListingType(listingType === tab.value ? "" : tab.value); setPage(1); }}
-                >
-                  {tab.label}
-                </FilterChip>
-              ))}
-            </div>
-          </FilterGroup>
+  const setIntentTab = (value: string) => {
+    setPage(1);
+    if (value === "COMMERCIAL") {
+      setCategory("COMMERCIAL");
+      setListingType("");
+      return;
+    }
+    setCategory("");
+    setListingType(value);
+  };
 
-          <FilterGroup label="Category">
-            <div className="flex flex-wrap gap-1.5">
-              {CATEGORY_OPTIONS.map((option) => (
-                <FilterChip
-                  key={option.value}
-                  active={category === option.value}
-                  onClick={() => {
-                    setCategory(category === option.value ? "" : option.value);
-                    setPropertyType("");
-                    setPage(1);
-                  }}
-                >
-                  {option.label}
-                </FilterChip>
-              ))}
-            </div>
-          </FilterGroup>
+  const activeIntent = commercialActive
+    ? "COMMERCIAL"
+    : listingType === "RENT"
+      ? "RENT"
+      : listingType === "BUY"
+        ? "BUY"
+        : "";
 
-          <FilterGroup label="Property Type">
-            <select
-              value={propertyType}
-              onChange={(e) => { setPropertyType(e.target.value); setPage(1); }}
-              className="w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">All Types</option>
-              {availablePropertyTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </FilterGroup>
+  const panel = (
+    <>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-foreground">Filters</h2>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Clear All
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            className="rounded-lg border border-border p-2 text-text-secondary lg:hidden"
+            aria-label="Close filters"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
 
-          <FilterGroup label="Budget">
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                placeholder="Min"
-                value={minPrice}
-                onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
-                className="w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                value={maxPrice}
-                onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
-                className="w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </FilterGroup>
-
-          <FilterGroup label="Trust">
-            <div className="flex flex-wrap gap-1.5">
-              <FilterChip active={freshOnly} onClick={() => { setFreshOnly(!freshOnly); setPage(1); }}>
-                Fresh
-              </FilterChip>
-              <FilterChip active={verifiedOnly} onClick={() => { setVerifiedOnly(!verifiedOnly); setPage(1); }}>
-                Verified
-              </FilterChip>
-              <FilterChip active={readyToVisitOnly} onClick={() => { setReadyToVisitOnly(!readyToVisitOnly); setPage(1); }}>
-                Ready to Visit
-              </FilterChip>
-              <FilterChip active={ownerListedOnly} onClick={() => { setOwnerListedOnly(!ownerListedOnly); setPage(1); }}>
-                Owner Listed
-              </FilterChip>
-              <FilterChip active={budgetMatchOnly} onClick={() => { applyQuickFilter("budget"); setPage(1); }}>
-                Budget Match
-              </FilterChip>
-            </div>
-            <p className="mt-2 text-[11px] leading-4 text-text-secondary">
-              Trust filters prioritize verified, fresh, visit-ready and owner-listed properties.
-            </p>
-          </FilterGroup>
-
-          <FilterGroup label="BHK">
-            <div className="flex gap-1.5">
-              {["1", "2", "3", "4", "5"].map((bhk) => (
+      <div className="space-y-5">
+        <FilterGroup label="Listing Type">
+          <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
+            {INTENT_LISTING_TABS.map((tab) => {
+              const active = activeIntent === tab.value;
+              return (
                 <button
-                  key={bhk}
+                  key={tab.value}
                   type="button"
-                  onClick={() => { setBedrooms(bedrooms === bhk ? "" : bhk); setPage(1); }}
+                  onClick={() => setIntentTab(tab.value)}
                   className={cn(
-                    "h-9 w-9 rounded-btn border text-sm font-semibold transition-colors",
-                    bedrooms === bhk ? "border-primary bg-primary text-white" : "border-border bg-surface text-text-secondary hover:border-primary hover:text-primary"
+                    "rounded-lg px-2 py-2.5 text-xs font-bold transition-colors sm:text-sm",
+                    active
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-text-secondary hover:bg-white hover:text-primary"
                   )}
                 >
-                  {bhk}
+                  {tab.label}
                 </button>
-              ))}
-            </div>
-          </FilterGroup>
-
-          <FilterGroup label="City">
-            <input
-              type="text"
-              placeholder="Enter city"
-              value={city}
-              onChange={(e) => { setCity(e.target.value); setPage(1); }}
-              className="w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </FilterGroup>
-
-          <FilterGroup label="Locality">
-            <input
-              type="text"
-              placeholder="e.g. Salt Lake, Park Street"
-              value={locality}
-              onChange={(e) => { setLocality(e.target.value); setPage(1); }}
-              className="w-full rounded-btn border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </FilterGroup>
-
-          <FilterGroup label="Furnishing">
-            <div className="flex flex-wrap gap-1.5">
-              {FURNISHING_OPTIONS.map((option) => (
-                <FilterChip
-                  key={option}
-                  active={furnishing === option}
-                  onClick={() => { setFurnishing(furnishing === option ? "" : option); setPage(1); }}
-                >
-                  {option}
-                </FilterChip>
-              ))}
-            </div>
-          </FilterGroup>
-
-          <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-border bg-white p-4 lg:static lg:m-0 lg:border-0 lg:p-0">
-            <Button onClick={() => { setFiltersOpen(false); onApply(); }} className="w-full" size="sm">
-              Show {shownTotal || ""} Properties
-            </Button>
+              );
+            })}
           </div>
+        </FilterGroup>
+
+        <FilterGroup label="Property Type">
+          <select
+            value={propertyType}
+            onChange={(e) => {
+              setPropertyType(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          >
+            <option value="">All Types</option>
+            {availablePropertyTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </FilterGroup>
+
+        <FilterGroup label="Budget">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              placeholder="Min"
+              value={minPrice}
+              onChange={(e) => {
+                setMinPrice(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+            <input
+              type="number"
+              placeholder="Max"
+              value={maxPrice}
+              onChange={(e) => {
+                setMaxPrice(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+          </div>
+        </FilterGroup>
+
+        <FilterGroup label="BHK">
+          <div className="flex flex-wrap gap-1.5">
+            {BHK_OPTIONS.map((bhk) => (
+              <button
+                key={bhk}
+                type="button"
+                onClick={() => {
+                  setBedrooms(bedrooms === bhk ? "" : bhk);
+                  setPage(1);
+                }}
+                className={cn(
+                  "h-10 min-w-[2.5rem] flex-1 rounded-xl border text-sm font-bold transition-colors",
+                  bedrooms === bhk
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-white text-text-secondary hover:border-primary/40 hover:text-primary"
+                )}
+              >
+                {bhk === "5" ? "5+" : bhk}
+              </button>
+            ))}
+          </div>
+        </FilterGroup>
+
+        <FilterGroup label="Furnishing">
+          <select
+            value={furnishing}
+            onChange={(e) => {
+              setFurnishing(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          >
+            <option value="">Any</option>
+            {FURNISHING_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </FilterGroup>
+
+        <FilterGroup label="Locality">
+          <input
+            type="text"
+            placeholder="e.g. Salt Lake, New Town"
+            value={locality}
+            onChange={(e) => {
+              setLocality(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          />
+        </FilterGroup>
+
+        <FilterGroup label="Verified Status">
+          <div className="space-y-2.5">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                checked={verifiedOnly}
+                onChange={(e) => {
+                  setVerifiedOnly(e.target.checked);
+                  setPage(1);
+                }}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              Verified Listings
+            </label>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                checked={ownerListedOnly}
+                onChange={(e) => {
+                  setOwnerListedOnly(e.target.checked);
+                  setPage(1);
+                }}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              Owner Listed
+            </label>
+          </div>
+        </FilterGroup>
+      </div>
+
+      <div className="mt-6 border-t border-border pt-5 lg:border-0 lg:pt-5">
+        <Button
+          onClick={() => {
+            setFiltersOpen(false);
+            if (!city.trim()) setCity("Kolkata");
+            onApply();
+          }}
+          className="w-full"
+        >
+          Apply Filters{shownTotal > 0 ? ` (${shownTotal})` : ""}
+        </Button>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop: always visible, sticky */}
+      <aside className="hidden w-[280px] shrink-0 lg:block">
+        <div className="sticky top-20 max-h-[calc(100vh-5.5rem)] overflow-y-auto rounded-2xl border border-border bg-white p-5 shadow-card">
+          {panel}
+        </div>
+      </aside>
+
+      {/* Mobile: drawer */}
+      {filtersOpen && (
+        <aside className="fixed inset-0 z-40 flex flex-col bg-white lg:hidden">
+          <div className="flex-1 overflow-y-auto p-4 pb-28 pt-5">{panel}</div>
         </aside>
+      )}
+    </>
   );
 }

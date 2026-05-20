@@ -155,6 +155,10 @@ function PropertiesContent() {
         shownTotal={derived.shownTotal}
         freshCount={derived.freshCount}
         verifiedCount={derived.verifiedCount}
+        listingType={listingType}
+        category={category}
+        city={city}
+        setCity={setCity}
         query={query}
         onQueryChange={setQuery}
         onSearch={runSearch}
@@ -175,7 +179,7 @@ function PropertiesContent() {
         />
       )}
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:items-start lg:gap-8 lg:px-6 lg:py-8">
         <PropertiesFiltersSidebar
           filtersOpen={filtersOpen}
           setFiltersOpen={setFiltersOpen}
@@ -286,9 +290,28 @@ function PropertiesContent() {
   );
 }
 
+function PropertiesPageFallback() {
+  return (
+    <main className="min-h-screen bg-surface">
+      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+        <div className="h-8 w-48 animate-pulse rounded bg-white" />
+        <div className="mt-6 h-32 animate-pulse rounded-2xl bg-white" />
+        <div className="mt-8 grid gap-4 lg:grid-cols-[280px_1fr]">
+          <div className="hidden h-96 animate-pulse rounded-2xl bg-white lg:block" />
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-52 animate-pulse rounded-2xl bg-white" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function PropertiesPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<PropertiesPageFallback />}>
       <PropertiesContent />
     </Suspense>
   );

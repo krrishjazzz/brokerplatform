@@ -237,6 +237,11 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
         setCategory("RESIDENTIAL");
         setBedrooms("2");
       }
+      if (action === "apartment") {
+        setCategory("RESIDENTIAL");
+        setPropertyType("Apartment");
+        setPropertyTypes(["Apartment"]);
+      }
       if (action === "warehouse") {
         setCategory("INDUSTRIAL");
         setPropertyType("Warehouse / Godown");

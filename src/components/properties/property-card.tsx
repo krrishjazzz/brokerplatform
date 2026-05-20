@@ -35,9 +35,9 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
   ].filter(Boolean).slice(0, 3) as { label: string; icon: typeof ShieldCheck; tone: string }[];
 
   return (
-    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lift">
-      <div className="grid sm:grid-cols-[170px_1fr] lg:grid-cols-[310px_1fr]">
-        <div className="relative h-44 overflow-hidden bg-surface sm:h-full lg:h-full">
+    <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-[0_8px_30px_rgba(0,31,77,0.06)] transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-[0_12px_40px_rgba(0,31,77,0.1)]">
+      <div className="grid sm:grid-cols-[200px_1fr] lg:grid-cols-[300px_1fr]">
+        <div className="relative min-h-[200px] overflow-hidden bg-surface sm:min-h-[220px]">
           <Link href={`/properties/${property.slug}`} className="block h-full">
             {image ? (
               <img
@@ -70,12 +70,12 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
             <Heart size={17} className={cn(isSaved && "fill-current")} />
           </button>
 
-          <div className="absolute bottom-3 left-3 rounded-pill bg-foreground/82 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-            {property.images.length || (property.coverImage ? 1 : 0)} photo{property.images.length === 1 ? "" : "s"}
+          <div className="absolute bottom-3 left-3 rounded-lg bg-foreground/80 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur">
+            1/{Math.max(property.images.length, property.coverImage ? 1 : 0) || 1}
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col p-3 lg:p-5">
+        <div className="flex min-w-0 flex-col p-4 lg:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <Link href={`/properties/${property.slug}`} className="block">

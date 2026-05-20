@@ -35,8 +35,6 @@ export function PropertiesResultsToolbar({
   city,
   freshCount,
   verifiedCount,
-  readyCount,
-  ownerListedCount,
   sort,
   onSortChange,
   onPageReset,
@@ -49,45 +47,43 @@ export function PropertiesResultsToolbar({
   onClearFilter,
 }: PropertiesResultsToolbarProps) {
   const [savedOpen, setSavedOpen] = useState(false);
+  const locationLabel = locality || city || "Kolkata";
 
   return (
-    <div className="mb-4 rounded-card border border-border bg-white p-3 shadow-card">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-foreground">
-            {hasSearchIntent
-              ? `${shownTotal} matching properties`
-              : `${shownTotal} live ${shownTotal === 1 ? "listing" : "listings"}`}
-            {locality ? ` in ${locality}` : city && ` in ${city}`}
+          <p className="text-lg font-bold text-foreground">
+            {shownTotal} {shownTotal === 1 ? "property" : "properties"} found
           </p>
-          <p className="mt-1 text-xs text-text-secondary">
-            {hasSearchIntent
-              ? `${freshCount} fresh, ${verifiedCount} verified, ${readyCount} ready to visit, ${ownerListedCount} owner listed.`
-              : `${freshCount} fresh, ${verifiedCount} verified on this page. Add filters to narrow results.`}
+          <p className="mt-0.5 text-sm text-text-secondary">
+            {freshCount} fresh, {verifiedCount} verified
+            {locationLabel ? ` in ${locationLabel}` : ""}
+            {hasSearchIntent ? " — filtered results" : " on this page"}
           </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={onToggleFilters} variant="ghost" size="sm" className="hidden lg:inline-flex">
-            <SlidersHorizontal size={14} className="mr-2" />
+          <Button onClick={onToggleFilters} variant="outline" size="sm" className="lg:hidden">
+            <SlidersHorizontal size={14} className="mr-1.5" />
             Filters
           </Button>
           <Button
             onClick={onSaveSearch}
             variant="outline"
             size="sm"
-            className="hidden sm:inline-flex"
             disabled={!hasSearchIntent}
             title={hasSearchIntent ? "Save these filters" : "Add filters to save"}
           >
-            <BookmarkPlus size={14} className="mr-2" />
+            <BookmarkPlus size={14} className="mr-1.5" />
             Save Search
           </Button>
           <div className="relative">
-            <Button onClick={() => setSavedOpen((open) => !open)} variant="ghost" size="sm">
-              <Bell size={14} className="mr-2" />
+            <Button onClick={() => setSavedOpen((open) => !open)} variant="outline" size="sm">
+              <Bell size={14} className="mr-1.5" />
               Saved
               {savedSearches.length > 0 && (
-                <span className="ml-1.5 rounded-pill bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white">
                   {savedSearches.length}
                 </span>
               )}
@@ -110,9 +106,10 @@ export function PropertiesResultsToolbar({
               onSortChange(e.target.value);
               onPageReset();
             }}
-            className="rounded-btn border border-border bg-surface px-3 py-2 text-xs text-foreground outline-none focus:border-primary"
+            className="rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            aria-label="Sort results"
           >
-            <option value="">Newest first</option>
+            <option value="">Newest First</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
           </select>
@@ -120,12 +117,13 @@ export function PropertiesResultsToolbar({
       </div>
 
       {activeFilters.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           {activeFilters.map((filter) => (
             <button
               key={filter.label}
+              type="button"
               onClick={() => onClearFilter(filter.clear)}
-              className="inline-flex items-center gap-1 rounded-pill border border-primary/20 bg-primary-light px-3 py-1 text-xs font-medium text-primary hover:bg-primary-light/80"
+              className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary-light px-3 py-1 text-xs font-semibold text-primary hover:bg-primary-light/80"
             >
               {filter.label}
               <X size={12} />

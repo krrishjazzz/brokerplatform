@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { GuidedSearchStart } from "@/components/properties/guided-search-start";
 import { NoMatchRequirementCapture } from "@/components/properties/no-match-requirement-capture";
 import { PropertyCard } from "@/components/properties/property-card";
@@ -182,23 +183,81 @@ export function PropertiesResultsSection({
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => onPageChange((p) => p - 1)}>
-            Previous
-          </Button>
-          <span className="text-sm text-text-secondary">
-            Page {page} of {pagination.totalPages}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={page >= pagination.totalPages}
-            onClick={() => onPageChange((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
+        <PropertiesPagination
+          page={page}
+          totalPages={pagination.totalPages}
+          onPageChange={onPageChange}
+        />
       )}
     </section>
   );
+}
+
+function PropertiesPagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (updater: (p: number) => number) => void;
+}) {
+  const pages = buildPageNumbers(page, totalPages);
+
+  return (
+    <nav className="mt-10 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pagination">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page <= 1}
+        onClick={() => onPageChange((p) => p - 1)}
+        className="min-w-[5rem]"
+      >
+        Previous
+      </Button>
+      {pages.map((item, index) =>
+        item === "ellipsis" ? (
+          <span key={`ellipsis-${index}`} className="px-2 text-sm text-text-secondary">
+            …
+          </span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            onClick={() => onPageChange(() => item)}
+            className={cn(
+              "flex h-9 min-w-[2.25rem] items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors",
+              page === item
+                ? "border-primary bg-primary text-white"
+                : "border-border bg-white text-foreground hover:border-primary/40 hover:text-primary"
+            )}
+            aria-current={page === item ? "page" : undefined}
+          >
+            {item}
+          </button>
+        )
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange((p) => p + 1)}
+        className="min-w-[5rem]"
+      >
+        Next
+      </Button>
+    </nav>
+  );
+}
+
+function buildPageNumbers(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "ellipsis")[] = [1];
+  if (current > 3) pages.push("ellipsis");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i += 1) pages.push(i);
+  if (current < total - 2) pages.push("ellipsis");
+  pages.push(total);
+  return pages;
 }
