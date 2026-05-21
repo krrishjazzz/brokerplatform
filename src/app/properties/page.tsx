@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, Suspense, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { useLoginPopup } from "@/lib/login-popup-context";
+import {
+  buildIntentSearchParams,
+  DEFAULT_SEARCH_PRESET,
+  getSearchPreset,
+  type SearchPresetId,
+} from "@/lib/search-intent-config";
 import type { SavedSearch } from "@/features/properties-search/types";
 import {
   usePropertiesSearch,
@@ -13,13 +20,15 @@ import {
   usePropertiesPageDerived,
 } from "@/features/properties-search";
 import { PropertiesFiltersSidebar } from "@/features/properties-search/components/properties-filters-sidebar";
-import { PropertiesSearchHero } from "@/features/properties-search/components/properties-search-hero";
+import { PropertiesSearchChrome } from "@/features/properties-search/components/properties-search-chrome";
 import { PropertiesResultsSection } from "@/features/properties-search/components/properties-results-section";
 import { PropertiesMobileActionBar } from "@/features/properties-search/components/properties-mobile-action-bar";
 
 function PropertiesContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { openLoginPopup } = useLoginPopup();
   const { toast } = useToast();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -38,6 +47,8 @@ function PropertiesContent() {
     setCategory,
     propertyType,
     setPropertyType,
+    propertyTypes,
+    setPropertyTypes,
     locality,
     setLocality,
     city,
@@ -52,26 +63,28 @@ function PropertiesContent() {
     setFurnishing,
     freshOnly,
     setFreshOnly,
-    verifiedOnly,
-    setVerifiedOnly,
     readyToVisitOnly,
     setReadyToVisitOnly,
-    ownerListedOnly,
-    setOwnerListedOnly,
-    budgetMatchOnly,
-    setBudgetMatchOnly,
-    availability,
-    setAvailability,
+    constructionStatus,
+    setConstructionStatus,
+    possession,
+    setPossession,
+    availableFrom,
+    setAvailableFrom,
+    propertyTypeOptionIds,
+    setPropertyTypeOptionIds,
     sort,
     setSort,
     query,
     setQuery,
-    fetchProperties,
     clearFilters,
     applyQuickFilter,
     currentFiltersObject,
     applySavedFilters,
+    intentPreset,
   } = search;
+
+  const preset = (intentPreset.preset || DEFAULT_SEARCH_PRESET) as SearchPresetId;
 
   const requirement = useSearchRequirement({
     searchParams,
@@ -87,12 +100,33 @@ function PropertiesContent() {
     isLoggedIn: Boolean(user),
   });
 
+  const handleClearPreset = useCallback(() => {
+    const params = buildIntentSearchParams({
+      preset: DEFAULT_SEARCH_PRESET,
+      city: city || "Kolkata",
+      query: "",
+      propertyTypeIds: [],
+      budget: "",
+      bedrooms: "",
+      furnishing: "",
+      constructionStatus: "",
+      possession: "",
+      availableFrom: "",
+      area: "",
+      lockIn: "",
+      projectCategory: "",
+    });
+    setPage(1);
+    router.push(`/properties?${params.toString()}`);
+  }, [city, router, setPage]);
+
   const derived = usePropertiesPageDerived({
     properties,
     pagination,
-    listingType,
-    category,
+    preset,
     propertyType,
+    propertyTypes,
+    propertyTypeOptionIds,
     locality,
     city,
     minPrice,
@@ -100,14 +134,13 @@ function PropertiesContent() {
     bedrooms,
     furnishing,
     freshOnly,
-    verifiedOnly,
     readyToVisitOnly,
-    ownerListedOnly,
-    budgetMatchOnly,
-    availability,
-    setListingType,
-    setCategory,
+    constructionStatus,
+    possession,
+    availableFrom,
     setPropertyType,
+    setPropertyTypes,
+    setPropertyTypeOptionIds,
     setLocality,
     setCity,
     setMinPrice,
@@ -115,11 +148,11 @@ function PropertiesContent() {
     setBedrooms,
     setFurnishing,
     setFreshOnly,
-    setVerifiedOnly,
     setReadyToVisitOnly,
-    setOwnerListedOnly,
-    setBudgetMatchOnly,
-    setAvailability,
+    setConstructionStatus,
+    setPossession,
+    setAvailableFrom,
+    onClearPreset: handleClearPreset,
   });
 
   const { savedSearches, saveCurrentSearch, deleteSavedSearch } = useSavedSearches(
@@ -128,12 +161,16 @@ function PropertiesContent() {
   );
 
   const handleSaveCurrentSearch = () => {
+    if (!user) {
+      openLoginPopup({ intent: "buyer" });
+      return;
+    }
     const result = saveCurrentSearch();
     if (!result.ok) {
       toast("Add at least one filter or search term before saving.", "info");
       return;
     }
-    toast("Search saved. Reopen anytime from Saved.", "success");
+    toast("You'll get alerts when new listings match this search.", "success");
   };
 
   const applySavedSearch = (item: SavedSearch) => {
@@ -141,33 +178,94 @@ function PropertiesContent() {
     toast(`Applied: ${item.label}`, "success");
   };
 
-  const runSearch = () => {
-    setPage(1);
-    fetchProperties();
+  const handleSearchNavigate = useCallback(
+    (params: URLSearchParams) => {
+      setPage(1);
+      router.push(`/properties?${params.toString()}`);
+    },
+    [router, setPage]
+  );
+
+  const handlePresetChange = useCallback(
+    (nextPreset: SearchPresetId) => {
+      const config = getSearchPreset(nextPreset);
+      setListingType(config.params.listingType || "");
+      setCategory(config.params.category || "");
+      setPropertyTypes([]);
+      setPropertyTypeOptionIds([]);
+      setPropertyType("");
+      setConstructionStatus("");
+      setPossession("");
+      setAvailableFrom("");
+      setPage(1);
+
+      const params = buildIntentSearchParams({
+        preset: nextPreset,
+        city: city || "Kolkata",
+        query: query || locality,
+        propertyTypeIds: [],
+        budget: maxPrice,
+        bedrooms,
+        furnishing,
+        constructionStatus: "",
+        possession: "",
+        availableFrom: "",
+        area: "",
+        lockIn: "",
+        projectCategory: "",
+      });
+      router.push(`/properties?${params.toString()}`);
+    },
+    [
+      bedrooms,
+      city,
+      furnishing,
+      locality,
+      maxPrice,
+      query,
+      router,
+      setCategory,
+      setListingType,
+      setPage,
+      setPropertyType,
+      setPropertyTypes,
+      setPropertyTypeOptionIds,
+      setConstructionStatus,
+      setPossession,
+      setAvailableFrom,
+    ]
+  );
+
+  const handleLocalityPick = useCallback(
+    (nextLocality: string) => {
+      setLocality(nextLocality);
+      setPage(1);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("locality", nextLocality);
+      if (!params.get("city")) params.set("city", city || "Kolkata");
+      params.delete("page");
+      router.push(`/properties?${params.toString()}`);
+    },
+    [city, router, searchParams, setLocality, setPage]
+  );
+
+  const scrollToRequirement = () => {
+    document.getElementById("post-requirement")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const toggleFilters = () => setFiltersOpen((open) => !open);
 
   return (
-    <main className="min-h-screen bg-surface pb-20 lg:pb-8">
-      <PropertiesSearchHero
-        hasSearchIntent={hasSearchIntent}
-        shownTotal={derived.shownTotal}
-        freshCount={derived.freshCount}
-        verifiedCount={derived.verifiedCount}
+    <main className="min-h-screen bg-surface pb-24 lg:pb-8">
+      <PropertiesSearchChrome
         listingType={listingType}
         category={category}
+        preset={preset}
         city={city}
-        setCity={setCity}
-        query={query}
-        onQueryChange={setQuery}
-        onSearch={runSearch}
+        onSearchNavigate={handleSearchNavigate}
         onToggleFilters={toggleFilters}
         freshOnly={freshOnly}
-        verifiedOnly={verifiedOnly}
         readyToVisitOnly={readyToVisitOnly}
-        ownerListedOnly={ownerListedOnly}
-        budgetMatchOnly={budgetMatchOnly}
         onQuickFilter={applyQuickFilter}
       />
 
@@ -183,12 +281,12 @@ function PropertiesContent() {
         <PropertiesFiltersSidebar
           filtersOpen={filtersOpen}
           setFiltersOpen={setFiltersOpen}
-          listingType={listingType}
-          setListingType={setListingType}
-          category={category}
-          setCategory={setCategory}
-          propertyType={propertyType}
-          setPropertyType={setPropertyType}
+          preset={preset}
+          onPresetChange={handlePresetChange}
+          propertyTypes={propertyTypes}
+          setPropertyTypes={setPropertyTypes}
+          propertyTypeOptionIds={propertyTypeOptionIds}
+          setPropertyTypeOptionIds={setPropertyTypeOptionIds}
           minPrice={minPrice}
           setMinPrice={setMinPrice}
           maxPrice={maxPrice}
@@ -201,21 +299,14 @@ function PropertiesContent() {
           setLocality={setLocality}
           furnishing={furnishing}
           setFurnishing={setFurnishing}
-          freshOnly={freshOnly}
-          setFreshOnly={setFreshOnly}
-          verifiedOnly={verifiedOnly}
-          setVerifiedOnly={setVerifiedOnly}
-          readyToVisitOnly={readyToVisitOnly}
-          setReadyToVisitOnly={setReadyToVisitOnly}
-          ownerListedOnly={ownerListedOnly}
-          setOwnerListedOnly={setOwnerListedOnly}
-          budgetMatchOnly={budgetMatchOnly}
-          applyQuickFilter={applyQuickFilter}
+          constructionStatus={constructionStatus}
+          setConstructionStatus={setConstructionStatus}
+          possession={possession}
+          setPossession={setPossession}
+          availableFrom={availableFrom}
+          setAvailableFrom={setAvailableFrom}
           setPage={setPage}
           clearFilters={clearFilters}
-          availablePropertyTypes={derived.availablePropertyTypes}
-          shownTotal={derived.shownTotal}
-          onApply={fetchProperties}
         />
 
         <PropertiesResultsSection
@@ -223,14 +314,16 @@ function PropertiesContent() {
           needsMoreFilters={needsMoreFilters}
           loading={loading}
           shownTotal={derived.shownTotal}
+          preset={preset}
           locality={locality}
           city={city}
-          propertySummary={derived.propertySummary}
           sort={sort}
           onSortChange={setSort}
           onPageReset={() => setPage(1)}
           onToggleFilters={toggleFilters}
           onSaveSearch={handleSaveCurrentSearch}
+          onLocalityPick={handleLocalityPick}
+          onPostRequirement={scrollToRequirement}
           savedSearches={savedSearches}
           onApplySavedSearch={applySavedSearch}
           onDeleteSavedSearch={deleteSavedSearch}
@@ -260,7 +353,6 @@ function PropertiesContent() {
           onRelaxBudget={() => {
             setMinPrice("");
             setMaxPrice("");
-            setBudgetMatchOnly(false);
             setPage(1);
           }}
           onShowNearby={() => {
@@ -276,15 +368,12 @@ function PropertiesContent() {
       </div>
 
       <PropertiesMobileActionBar
-        hasSearchIntent={hasSearchIntent}
-        shownTotal={derived.shownTotal}
         activeFilterCount={derived.activeFilters.length}
         sort={sort}
         onSortChange={setSort}
         onPageReset={() => setPage(1)}
         onToggleFilters={toggleFilters}
-        onShowResults={runSearch}
-        onClearFilters={clearFilters}
+        onSaveSearch={handleSaveCurrentSearch}
       />
     </main>
   );
@@ -296,7 +385,7 @@ function PropertiesPageFallback() {
       <div className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
         <div className="h-8 w-48 animate-pulse rounded bg-white" />
         <div className="mt-6 h-32 animate-pulse rounded-2xl bg-white" />
-        <div className="mt-8 grid gap-4 lg:grid-cols-[280px_1fr]">
+        <div className="mt-8 grid gap-4 lg:grid-cols-[300px_1fr]">
           <div className="hidden h-96 animate-pulse rounded-2xl bg-white lg:block" />
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (

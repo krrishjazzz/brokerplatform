@@ -34,7 +34,7 @@ export function NoMatchRequirementCapture({
   const wizardLabels = ["Need", "Location", "Budget", "Contact"];
 
   return (
-    <div className="overflow-hidden rounded-card border border-border bg-white shadow-card">
+    <div id="post-requirement" className="overflow-hidden rounded-card border border-border bg-white shadow-card">
       <div className="grid gap-0 lg:grid-cols-[1fr_390px]">
         <div className="bg-primary-light p-6 lg:p-8">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">

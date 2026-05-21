@@ -15,9 +15,4 @@ export { useSearchRequirement } from "./hooks/use-search-requirement";
 export { usePropertyListingActions } from "./hooks/use-property-listing-actions";
 export { usePropertiesPageDerived } from "./hooks/use-properties-page-derived";
 export { buildSearchLabel, SAVED_SEARCH_STORAGE_KEY } from "./utils/saved-search";
-export {
-  countSearchIntent,
-  getInitialPage,
-  isBudgetMatched,
-  resolveIntentPreset,
-} from "./utils/search-intent";
+export { countSearchIntent, getInitialPage, resolveIntentPreset } from "./utils/search-intent";

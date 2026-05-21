@@ -1,21 +1,36 @@
+import {
+  getSearchPreset,
+  resolvePresetFromUrl,
+  type SearchPresetId,
+} from "@/lib/search-intent-config";
+
 export function getInitialPage(value: string | null) {
   const parsed = Number.parseInt(value || "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
-export function resolveIntentPreset(intent: string | null) {
-  if (intent === "buy") return { listingType: "BUY", category: "" };
-  if (intent === "rent") return { listingType: "RENT", category: "" };
-  if (intent === "commercial") return { listingType: "", category: "COMMERCIAL" };
-  if (intent === "land") return { listingType: "", category: "", propertyType: "Residential Plot" };
-  return { listingType: "", category: "" };
+export function resolveIntentPreset(
+  presetOrIntent: string | null,
+  listingType?: string | null,
+  category?: string | null
+) {
+  const presetId = resolvePresetFromUrl(presetOrIntent, presetOrIntent, listingType, category);
+  const config = getSearchPreset(presetId);
+  return {
+    preset: presetId as SearchPresetId,
+    listingType: config.params.listingType || "",
+    category: config.params.category || "",
+    propertyType: "",
+  };
 }
 
 export function countSearchIntent(filters: {
+  preset?: string;
   listingType: string;
   category: string;
   propertyType: string;
   propertyTypes?: string[];
+  propertyTypeOptionIds?: string[];
   locality: string;
   city: string;
   minPrice: string;
@@ -23,14 +38,16 @@ export function countSearchIntent(filters: {
   bedrooms: string;
   furnishing: string;
   freshOnly: boolean;
-  verifiedOnly: boolean;
   readyToVisitOnly: boolean;
-  ownerListedOnly: boolean;
-  budgetMatchOnly: boolean;
-  availability: string;
+  constructionStatus: string;
+  possession: string;
+  availableFrom: string;
   query: string;
 }) {
-  const typeCount = filters.propertyTypes?.length || (filters.propertyType ? 1 : 0);
+  const typeCount =
+    (filters.propertyTypes?.length || 0) +
+    (filters.propertyTypeOptionIds?.length || 0) +
+    (filters.propertyType ? 1 : 0);
 
   const specificIntentCount = [
     typeCount > 0 ? "types" : "",
@@ -41,29 +58,17 @@ export function countSearchIntent(filters: {
     filters.bedrooms,
     filters.furnishing,
     filters.freshOnly,
-    filters.verifiedOnly,
     filters.readyToVisitOnly,
-    filters.ownerListedOnly,
-    filters.budgetMatchOnly,
-    filters.availability,
+    filters.constructionStatus,
+    filters.possession,
+    filters.availableFrom,
     filters.query,
   ].filter(Boolean).length;
 
   const broadIntentCount = [filters.listingType, filters.category].filter(Boolean).length;
-  const hasSearchIntent = specificIntentCount > 0 || broadIntentCount >= 2;
+  const hasSearchIntent =
+    Boolean(filters.preset) || specificIntentCount > 0 || broadIntentCount >= 2;
   const needsMoreFilters = broadIntentCount > 0 && !hasSearchIntent;
 
   return { specificIntentCount, broadIntentCount, hasSearchIntent, needsMoreFilters };
-}
-
-export function isBudgetMatched(
-  price: number,
-  minPrice: string,
-  maxPrice: string
-) {
-  const min = minPrice ? Number(minPrice) : null;
-  const max = maxPrice ? Number(maxPrice) : null;
-  if (min != null && price < min) return false;
-  if (max != null && price > max) return false;
-  return min != null || max != null;
 }

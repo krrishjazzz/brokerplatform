@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { ToastProvider } from "@/components/ui/toast";
 import { KrrishJazzAssistant } from "@/components/krrishjazz-assistant";
+import { PropertySearchNavbarProvider } from "@/lib/property-search-navbar-context";
 
 export const metadata: Metadata = {
   title: "KrrishJazz - Free Property Listings and Managed Closures",
@@ -20,10 +21,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ToastProvider>
             <LoginPopupProvider>
-              <Suspense fallback={<div className="h-16 bg-primary-dark" />}>
-                <Navbar />
-              </Suspense>
-              <main className="flex-1">{children}</main>
+              <PropertySearchNavbarProvider>
+                <Suspense fallback={<div className="h-16 bg-primary-dark" />}>
+                  <Navbar />
+                </Suspense>
+                <main className="flex-1">{children}</main>
+              </PropertySearchNavbarProvider>
               <KrrishJazzAssistant />
               <Footer />
             </LoginPopupProvider>

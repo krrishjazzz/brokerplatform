@@ -63,20 +63,36 @@ export async function GET(req: NextRequest) {
     const locality = searchParams.get("locality");
     if (locality) where.locality = { contains: locality };
 
-    const verified = searchParams.get("verified");
-    if (verified === "true") where.status = "LIVE";
-
-    const ownerListed = searchParams.get("ownerListed");
-    if (ownerListed === "true") where.postedBy = { role: "OWNER" };
-
-    const availability = searchParams.get("availability");
-    const listingStatus = searchParams.get("listingStatus");
-    if (availability || listingStatus) where.listingStatus = availability || listingStatus;
+    const constructionStatus = searchParams.get("constructionStatus");
+    const possession = searchParams.get("possession");
+    const availableFrom = searchParams.get("availableFrom");
+    const legacyAvailability = searchParams.get("availability");
+    const legacyListingStatus = searchParams.get("listingStatus");
 
     const readyToVisit = searchParams.get("readyToVisit");
-    if (readyToVisit === "true") {
+    if (readyToVisit === "true" || constructionStatus === "READY_TO_MOVE") {
       where.status = "LIVE";
       where.listingStatus = { in: ["LIVE", "AVAILABLE"] };
+    }
+
+    const validListingStatuses = new Set(["AVAILABLE", "LIVE", "PENDING"]);
+    const statusCandidate = possession || legacyListingStatus;
+    if (statusCandidate && validListingStatuses.has(statusCandidate)) {
+      where.listingStatus = statusCandidate;
+    }
+
+    const qParts: string[] = [];
+    const q = searchParams.get("q");
+    if (q) qParts.push(q);
+    if (constructionStatus === "NEW_LAUNCH") qParts.push("new launch");
+    if (constructionStatus === "UNDER_CONSTRUCTION") qParts.push("under construction");
+    if (legacyAvailability === "NEW_LAUNCH") qParts.push("new launch");
+    if (legacyAvailability === "UNDER_CONSTRUCTION") qParts.push("under construction");
+    if (availableFrom) qParts.push(availableFrom.replaceAll("_", " ").toLowerCase());
+
+    const projectOptionIds = searchParams.getAll("pto").filter(Boolean);
+    if (projectOptionIds.length > 0 && !q) {
+      qParts.push("project");
     }
 
     const fresh = searchParams.get("fresh");
@@ -111,14 +127,14 @@ export async function GET(req: NextRequest) {
     const furnishing = searchParams.get("furnishing");
     if (furnishing) where.furnishing = furnishing;
 
-    const q = searchParams.get("q");
-    if (q) {
+    const mergedQ = qParts.filter(Boolean).join(" ").trim();
+    if (mergedQ) {
       where.OR = [
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { city: { contains: q } },
-        { locality: { contains: q } },
-        { address: { contains: q } },
+        { title: { contains: mergedQ } },
+        { description: { contains: mergedQ } },
+        { city: { contains: mergedQ } },
+        { locality: { contains: mergedQ } },
+        { address: { contains: mergedQ } },
       ];
     }
 

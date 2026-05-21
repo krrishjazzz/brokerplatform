@@ -66,7 +66,6 @@ export function getNavItems({ role, brokerStatus, canList }: NavContext): Dashbo
       { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
       { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
       { id: "post", label: "List a Property", icon: <PlusCircle size={iconSize} /> },
-      { id: "apply-broker", label: "Become a Broker", icon: <Briefcase size={iconSize} /> },
       { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
     ];
   }

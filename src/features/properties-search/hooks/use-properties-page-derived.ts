@@ -7,12 +7,13 @@ import type { Property } from "@/features/properties-search/types";
 import type { Pagination } from "@/components/properties/types";
 import { buildActiveFilters } from "@/features/properties-search/utils/active-filters";
 import { summarizeProperties } from "@/features/properties-search/utils/property-summary";
-import { isBudgetMatched } from "@/features/properties-search/utils/search-intent";
+import type { SearchPresetId } from "@/lib/search-intent-config";
 
 type FilterState = {
-  listingType: string;
-  category: string;
+  preset?: SearchPresetId;
   propertyType: string;
+  propertyTypes: string[];
+  propertyTypeOptionIds: string[];
   locality: string;
   city: string;
   minPrice: string;
@@ -20,17 +21,16 @@ type FilterState = {
   bedrooms: string;
   furnishing: string;
   freshOnly: boolean;
-  verifiedOnly: boolean;
   readyToVisitOnly: boolean;
-  ownerListedOnly: boolean;
-  budgetMatchOnly: boolean;
-  availability: string;
+  constructionStatus: string;
+  possession: string;
+  availableFrom: string;
 };
 
 type FilterSetters = {
-  setListingType: (v: string) => void;
-  setCategory: (v: string) => void;
   setPropertyType: (v: string) => void;
+  setPropertyTypes: (v: string[]) => void;
+  setPropertyTypeOptionIds: (v: string[]) => void;
   setLocality: (v: string) => void;
   setCity: (v: string) => void;
   setMinPrice: (v: string) => void;
@@ -38,11 +38,11 @@ type FilterSetters = {
   setBedrooms: (v: string) => void;
   setFurnishing: (v: string) => void;
   setFreshOnly: (v: boolean) => void;
-  setVerifiedOnly: (v: boolean) => void;
   setReadyToVisitOnly: (v: boolean) => void;
-  setOwnerListedOnly: (v: boolean) => void;
-  setBudgetMatchOnly: (v: boolean) => void;
-  setAvailability: (v: string) => void;
+  setConstructionStatus: (v: string) => void;
+  setPossession: (v: string) => void;
+  setAvailableFrom: (v: string) => void;
+  onClearPreset?: () => void;
 };
 
 type UsePropertiesPageDerivedOptions = FilterState &
@@ -52,119 +52,58 @@ type UsePropertiesPageDerivedOptions = FilterState &
   };
 
 export function usePropertiesPageDerived(options: UsePropertiesPageDerivedOptions) {
-  const {
-    properties,
-    pagination,
-    budgetMatchOnly,
-    minPrice,
-    maxPrice,
-    category,
-    listingType,
-    propertyType,
-    locality,
-    city,
-    bedrooms,
-    furnishing,
-    freshOnly,
-    verifiedOnly,
-    readyToVisitOnly,
-    ownerListedOnly,
-    availability,
-    setListingType,
-    setCategory,
-    setPropertyType,
-    setLocality,
-    setCity,
-    setMinPrice,
-    setMaxPrice,
-    setBedrooms,
-    setFurnishing,
-    setFreshOnly,
-    setVerifiedOnly,
-    setReadyToVisitOnly,
-    setOwnerListedOnly,
-    setBudgetMatchOnly,
-    setAvailability,
-  } = options;
+  const { properties, pagination, ...filters } = options;
 
   const availablePropertyTypes = useMemo(
-    () => (category ? PROPERTY_TYPES[category] || [] : Object.values(PROPERTY_TYPES).flat()),
-    [category]
+    () => Object.values(PROPERTY_TYPES).flat(),
+    []
   );
 
   const activeFilters = useMemo(
     () =>
       buildActiveFilters(
         {
-          listingType,
-          category,
-          propertyType,
-          locality,
-          city,
-          minPrice,
-          maxPrice,
-          bedrooms,
-          furnishing,
-          freshOnly,
-          verifiedOnly,
-          readyToVisitOnly,
-          ownerListedOnly,
-          budgetMatchOnly,
-          availability,
+          preset: filters.preset,
+          propertyType: filters.propertyType,
+          propertyTypes: filters.propertyTypes,
+          propertyTypeOptionIds: filters.propertyTypeOptionIds,
+          locality: filters.locality,
+          city: filters.city,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+          bedrooms: filters.bedrooms,
+          furnishing: filters.furnishing,
+          freshOnly: filters.freshOnly,
+          readyToVisitOnly: filters.readyToVisitOnly,
+          constructionStatus: filters.constructionStatus,
+          possession: filters.possession,
+          availableFrom: filters.availableFrom,
         },
         {
-          setListingType,
-          setCategory,
-          setPropertyType,
-          setLocality,
-          setCity,
-          setMinPrice,
-          setMaxPrice,
-          setBedrooms,
-          setFurnishing,
-          setFreshOnly,
-          setVerifiedOnly,
-          setReadyToVisitOnly,
-          setOwnerListedOnly,
-          setBudgetMatchOnly,
-          setAvailability,
-        }
+          setPropertyType: filters.setPropertyType,
+          setPropertyTypes: filters.setPropertyTypes,
+          setPropertyTypeOptionIds: filters.setPropertyTypeOptionIds,
+          setLocality: filters.setLocality,
+          setCity: filters.setCity,
+          setMinPrice: filters.setMinPrice,
+          setMaxPrice: filters.setMaxPrice,
+          setBedrooms: filters.setBedrooms,
+          setFurnishing: filters.setFurnishing,
+          setFreshOnly: filters.setFreshOnly,
+          setReadyToVisitOnly: filters.setReadyToVisitOnly,
+          setConstructionStatus: filters.setConstructionStatus,
+          setPossession: filters.setPossession,
+          setAvailableFrom: filters.setAvailableFrom,
+        },
+        { onClearPreset: filters.onClearPreset }
       ),
-    [
-      listingType,
-      category,
-      propertyType,
-      locality,
-      city,
-      minPrice,
-      maxPrice,
-      bedrooms,
-      furnishing,
-      freshOnly,
-      verifiedOnly,
-      readyToVisitOnly,
-      ownerListedOnly,
-      budgetMatchOnly,
-      availability,
-    ]
+    [filters]
   );
 
   const propertySummary = useMemo(() => summarizeProperties(properties), [properties]);
 
-  const visibleProperties = useMemo(
-    () =>
-      properties.filter((property) => {
-        if (budgetMatchOnly && !isBudgetMatched(Number(property.price), minPrice, maxPrice)) {
-          return false;
-        }
-        return true;
-      }),
-    [properties, budgetMatchOnly, minPrice, maxPrice]
-  );
-
-  const shownTotal = budgetMatchOnly
-    ? visibleProperties.length
-    : pagination?.total ?? properties.length;
+  const visibleProperties = properties;
+  const shownTotal = pagination?.total ?? properties.length;
 
   return {
     availablePropertyTypes,

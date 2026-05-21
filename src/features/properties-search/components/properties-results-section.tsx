@@ -10,25 +10,24 @@ import type { SearchRequirementForm } from "@/components/properties/types";
 import type { Property, PropertySaveTarget, SavedSearch } from "@/features/properties-search/types";
 import type { ActiveFilterChip } from "@/features/properties-search/utils/active-filters";
 import { PropertiesResultsToolbar } from "@/features/properties-search/components/properties-results-toolbar";
+import { RequirementPromoStrip } from "@/features/properties-search/components/requirement-promo-strip";
+import type { SearchPresetId } from "@/lib/search-intent-config";
 
 type PropertiesResultsSectionProps = {
   hasSearchIntent: boolean;
   needsMoreFilters: boolean;
   loading: boolean;
   shownTotal: number;
+  preset?: SearchPresetId;
   locality: string;
   city: string;
-  propertySummary: {
-    freshCount: number;
-    verifiedCount: number;
-    readyCount: number;
-    ownerListedCount: number;
-  };
   sort: string;
   onSortChange: (value: string) => void;
   onPageReset: () => void;
   onToggleFilters: () => void;
   onSaveSearch: () => void;
+  onLocalityPick: (locality: string) => void;
+  onPostRequirement?: () => void;
   savedSearches: SavedSearch[];
   onApplySavedSearch: (item: SavedSearch) => void;
   onDeleteSavedSearch: (id: string) => void;
@@ -64,14 +63,16 @@ export function PropertiesResultsSection({
   needsMoreFilters,
   loading,
   shownTotal,
+  preset,
   locality,
   city,
-  propertySummary,
   sort,
   onSortChange,
   onPageReset,
   onToggleFilters,
   onSaveSearch,
+  onLocalityPick,
+  onPostRequirement,
   savedSearches,
   onApplySavedSearch,
   onDeleteSavedSearch,
@@ -96,19 +97,15 @@ export function PropertiesResultsSection({
   page,
   onPageChange,
 }: PropertiesResultsSectionProps) {
-  const { freshCount, verifiedCount, readyCount, ownerListedCount } = propertySummary;
+  const insertPromoAfter = 5;
 
   return (
     <section className="min-w-0 flex-1">
       <PropertiesResultsToolbar
-        hasSearchIntent={hasSearchIntent}
         shownTotal={shownTotal}
+        preset={preset}
         locality={locality}
         city={city}
-        freshCount={freshCount}
-        verifiedCount={verifiedCount}
-        readyCount={readyCount}
-        ownerListedCount={ownerListedCount}
         sort={sort}
         onSortChange={onSortChange}
         onPageReset={onPageReset}
@@ -119,6 +116,7 @@ export function PropertiesResultsSection({
         onDeleteSavedSearch={onDeleteSavedSearch}
         activeFilters={activeFilters}
         onClearFilter={onClearFilter}
+        onLocalityPick={onLocalityPick}
       />
 
       {!hasSearchIntent && (
@@ -169,16 +167,34 @@ export function PropertiesResultsSection({
         )
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {visibleProperties.map((property) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              isLoggedIn={isLoggedIn}
-              isSaved={isPropertySaved(property.id)}
-              onSave={onSaveProperty}
-              onShare={onShareProperty}
-            />
+          {visibleProperties.map((property, index) => (
+            <div key={property.id}>
+              <PropertyCard
+                property={property}
+                isLoggedIn={isLoggedIn}
+                isSaved={isPropertySaved(property.id)}
+                onSave={onSaveProperty}
+                onShare={onShareProperty}
+              />
+              {index === insertPromoAfter && (
+                <div className="mt-4">
+                  <RequirementPromoStrip
+                    variant="compact"
+                    onPostRequirement={onPostRequirement}
+                  />
+                </div>
+              )}
+            </div>
           ))}
+          {visibleProperties.length > 0 && visibleProperties.length <= insertPromoAfter && (
+            <RequirementPromoStrip variant="compact" onPostRequirement={onPostRequirement} />
+          )}
+        </div>
+      )}
+
+      {!loading && visibleProperties.length > 0 && (
+        <div className="mt-8">
+          <RequirementPromoStrip variant="inline" onPostRequirement={onPostRequirement} />
         </div>
       )}
 
@@ -218,7 +234,7 @@ function PropertiesPagination({
       {pages.map((item, index) =>
         item === "ellipsis" ? (
           <span key={`ellipsis-${index}`} className="px-2 text-sm text-text-secondary">
-            …
+            ...
           </span>
         ) : (
           <button

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/toast";
+import { useLoginPopup } from "@/lib/login-popup-context";
 import { buildPropertySaveLoginUrl } from "@/lib/auth-redirect";
 import {
   parseSavedPropertyIds,
@@ -17,9 +17,10 @@ type UsePropertyListingActionsOptions = {
 };
 
 export function usePropertyListingActions({ isLoggedIn }: UsePropertyListingActionsOptions) {
-  const router = useRouter();
   const { toast } = useToast();
+  const { openLoginPopup } = useLoginPopup();
   const [savedPropertyIds, setSavedPropertyIds] = useState<Set<string>>(new Set());
+  const pendingSaveRef = useRef<PropertySaveTarget | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -41,13 +42,8 @@ export function usePropertyListingActions({ isLoggedIn }: UsePropertyListingActi
     [savedPropertyIds]
   );
 
-  const saveProperty = useCallback(
+  const persistSave = useCallback(
     async (property: PropertySaveTarget): Promise<void> => {
-      if (!isLoggedIn) {
-        router.push(buildPropertySaveLoginUrl(property.slug));
-        return;
-      }
-
       const res = await fetch("/api/saved", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,7 +70,30 @@ export function usePropertyListingActions({ isLoggedIn }: UsePropertyListingActi
       });
       toast(savedPropertyToastMessage(saved), saved ? "success" : "info");
     },
-    [isLoggedIn, router, toast]
+    [toast]
+  );
+
+  const saveProperty = useCallback(
+    async (property: PropertySaveTarget): Promise<void> => {
+      if (!isLoggedIn) {
+        pendingSaveRef.current = property;
+        openLoginPopup({
+          intent: "buyer",
+          redirect: buildPropertySaveLoginUrl(property.slug),
+          title: "Sign in to save properties",
+          subtitle: "Save listings and get alerts when prices change.",
+          onSuccess: () => {
+            const pending = pendingSaveRef.current;
+            pendingSaveRef.current = null;
+            if (pending) void persistSave(pending);
+          },
+        });
+        return;
+      }
+
+      await persistSave(property);
+    },
+    [isLoggedIn, openLoginPopup, persistSave]
   );
 
   const shareProperty = useCallback(

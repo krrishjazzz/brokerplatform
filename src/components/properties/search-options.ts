@@ -1,33 +1,22 @@
-import { BadgeCheck, BellRing, Building2, Eye, Home, Key, ShieldCheck } from "lucide-react";
+import { BellRing, Building2, Eye, Home, Key } from "lucide-react";
 import { PROPERTY_CATEGORY_OPTIONS } from "@/lib/constants";
+import { getPresetMenuLabel, resolvePresetFromUrl } from "@/lib/search-intent-config";
 
-/** Primary intent tabs for properties page (matches platform nav). */
+/** Primary intent tabs for legacy references. */
 export const INTENT_LISTING_TABS = [
   { label: "Buy", value: "BUY", icon: Home },
   { label: "Rent", value: "RENT", icon: Key },
   { label: "Commercial", value: "COMMERCIAL", icon: Building2 },
 ] as const;
 
-export const LISTING_TABS = [
-  { label: "Buy", value: "BUY" },
-  { label: "Rent", value: "RENT" },
-  { label: "Resale", value: "RESALE" },
-  { label: "Lease", value: "LEASE" },
-  { label: "Commercial", value: "COMMERCIAL" },
-];
-
-export const CATEGORY_OPTIONS = PROPERTY_CATEGORY_OPTIONS.map((category) => ({
-  label: category.label,
-  value: category.value,
-}));
-
-export const TRUST_FILTERS = [
-  { label: "Verified", action: "verified", icon: ShieldCheck },
-  { label: "Ready to Visit", action: "ready", icon: Eye },
-  { label: "Owner Listed", action: "owner", icon: Home },
-  { label: "Budget Match", action: "budget", icon: BadgeCheck },
+/** Quick filters on results — only differentiating signals. */
+export const RESULT_QUICK_FILTERS = [
   { label: "Fresh", action: "fresh", icon: BellRing },
-];
+  { label: "Ready to Visit", action: "ready", icon: Eye },
+] as const;
+
+/** @deprecated Use RESULT_QUICK_FILTERS */
+export const TRUST_FILTERS = RESULT_QUICK_FILTERS;
 
 export const QUICK_FILTERS = [
   { label: "2 BHK", action: "2bhk" },
@@ -36,10 +25,27 @@ export const QUICK_FILTERS = [
   { label: "Warehouse", action: "warehouse" },
 ];
 
-export function getBrowseIntentLabel(listingType: string, category: string) {
-  if (category === "COMMERCIAL") return "Commercial";
-  if (listingType === "RENT") return "Rent";
-  return "Buy";
+export const CATEGORY_OPTIONS = PROPERTY_CATEGORY_OPTIONS.map((category) => ({
+  label: category.label,
+  value: category.value,
+}));
+
+export const POPULAR_LOCALITY_CHIPS = [
+  "New Town",
+  "Salt Lake",
+  "Rajarhat",
+  "Park Street",
+  "Ballygunge",
+  "EM Bypass",
+] as const;
+
+export function getBrowseIntentLabel(
+  listingType: string,
+  category: string,
+  preset?: string | null
+) {
+  const presetId = resolvePresetFromUrl(preset ?? null, null, listingType, category);
+  return getPresetMenuLabel(presetId);
 }
 
 export function isCommercialIntent(category: string, listingType: string) {

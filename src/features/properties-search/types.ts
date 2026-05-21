@@ -11,11 +11,10 @@ export type SavedSearchFilters = {
   bedrooms: string;
   furnishing: string;
   freshOnly: boolean;
-  verifiedOnly: boolean;
   readyToVisitOnly: boolean;
-  ownerListedOnly: boolean;
-  budgetMatchOnly: boolean;
-  availability: string;
+  constructionStatus: string;
+  possession: string;
+  availableFrom: string;
   sort: string;
   query: string;
 };

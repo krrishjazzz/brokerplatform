@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchJson } from "@/shared/api/client";
 import type { Pagination, Property } from "@/features/properties-search/types";
+import { getSearchPreset, type SearchPresetId } from "@/lib/search-intent-config";
 import { countSearchIntent, getInitialPage, resolveIntentPreset } from "@/features/properties-search/utils/search-intent";
 
 type IntentPreset = ReturnType<typeof resolveIntentPreset>;
@@ -12,10 +13,32 @@ type UsePropertiesSearchOptions = {
   searchParams: URLSearchParams;
 };
 
+function appendProjectOptionQueries(
+  presetId: SearchPresetId,
+  optionIds: string[],
+  params: URLSearchParams
+) {
+  const preset = getSearchPreset(presetId);
+  const queries: string[] = [];
+  for (const id of optionIds) {
+    const option = preset.propertyTypes.find((o) => o.id === id);
+    if (option?.searchQuery) queries.push(option.searchQuery);
+  }
+  if (queries.length > 0) {
+    const existing = params.get("q");
+    params.set("q", existing ? `${existing} ${queries[0]}` : queries[0]);
+  }
+}
+
 export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions) {
   const router = useRouter();
   const intentPreset = useMemo(
-    () => resolveIntentPreset(searchParams.get("intent")),
+    () =>
+      resolveIntentPreset(
+        searchParams.get("preset") || searchParams.get("intent"),
+        searchParams.get("listingType"),
+        searchParams.get("category")
+      ),
     [searchParams]
   );
 
@@ -27,14 +50,14 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     searchParams.get("listingType") || intentPreset.listingType || ""
   );
   const [category, setCategory] = useState(searchParams.get("category") || intentPreset.category || "");
-  const [propertyTypes, setPropertyTypes] = useState<string[]>(() => {
-    const fromUrl = searchParams.getAll("propertyType").filter(Boolean);
-    if (fromUrl.length > 0) return fromUrl;
-    if (intentPreset.propertyType) return [intentPreset.propertyType];
-    return [];
-  });
+  const [propertyTypes, setPropertyTypes] = useState<string[]>(() =>
+    searchParams.getAll("propertyType").filter(Boolean)
+  );
+  const [propertyTypeOptionIds, setPropertyTypeOptionIds] = useState<string[]>(() =>
+    searchParams.getAll("pto").filter(Boolean)
+  );
   const [propertyType, setPropertyType] = useState(
-    searchParams.get("propertyType") || searchParams.getAll("propertyType")[0] || intentPreset.propertyType || ""
+    searchParams.get("propertyType") || searchParams.getAll("propertyType")[0] || ""
   );
   const [locality, setLocality] = useState(searchParams.get("locality") || "");
   const [city, setCity] = useState(searchParams.get("city") || "");
@@ -43,20 +66,25 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   const [bedrooms, setBedrooms] = useState(searchParams.get("bedrooms") || "");
   const [furnishing, setFurnishing] = useState(searchParams.get("furnishing") || "");
   const [freshOnly, setFreshOnly] = useState(searchParams.get("fresh") === "true");
-  const [verifiedOnly, setVerifiedOnly] = useState(searchParams.get("verified") === "true");
   const [readyToVisitOnly, setReadyToVisitOnly] = useState(searchParams.get("readyToVisit") === "true");
-  const [ownerListedOnly, setOwnerListedOnly] = useState(searchParams.get("ownerListed") === "true");
-  const [budgetMatchOnly, setBudgetMatchOnly] = useState(searchParams.get("budgetMatch") === "true");
-  const [availability, setAvailability] = useState(searchParams.get("availability") || "");
+  const [constructionStatus, setConstructionStatus] = useState(
+    searchParams.get("constructionStatus") || searchParams.get("availability") || ""
+  );
+  const [possession, setPossession] = useState(
+    searchParams.get("possession") || searchParams.get("listingStatus") || ""
+  );
+  const [availableFrom, setAvailableFrom] = useState(searchParams.get("availableFrom") || "");
   const [sort, setSort] = useState(searchParams.get("sort") || "");
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(getInitialPage(searchParams.get("page")));
 
   useEffect(() => {
+    const presetConfig = getSearchPreset(intentPreset.preset);
     const typesFromUrl = searchParams.getAll("propertyType").filter(Boolean);
-    setListingType(searchParams.get("listingType") || "");
-    setCategory(searchParams.get("category") || "");
+    setListingType(searchParams.get("listingType") || presetConfig.params.listingType || "");
+    setCategory(searchParams.get("category") || presetConfig.params.category || "");
     setPropertyTypes(typesFromUrl);
+    setPropertyTypeOptionIds(searchParams.getAll("pto").filter(Boolean));
     setPropertyType(typesFromUrl[0] || "");
     setLocality(searchParams.get("locality") || "");
     setCity(searchParams.get("city") || "");
@@ -65,15 +93,16 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setBedrooms(searchParams.get("bedrooms") || "");
     setFurnishing(searchParams.get("furnishing") || "");
     setFreshOnly(searchParams.get("fresh") === "true");
-    setVerifiedOnly(searchParams.get("verified") === "true");
     setReadyToVisitOnly(searchParams.get("readyToVisit") === "true");
-    setOwnerListedOnly(searchParams.get("ownerListed") === "true");
-    setBudgetMatchOnly(searchParams.get("budgetMatch") === "true");
-    setAvailability(searchParams.get("availability") || "");
+    setConstructionStatus(
+      searchParams.get("constructionStatus") || searchParams.get("availability") || ""
+    );
+    setPossession(searchParams.get("possession") || searchParams.get("listingStatus") || "");
+    setAvailableFrom(searchParams.get("availableFrom") || "");
     setSort(searchParams.get("sort") || "");
     setQuery(searchParams.get("q") || "");
     setPage(getInitialPage(searchParams.get("page")));
-  }, [searchParams]);
+  }, [searchParams, intentPreset.preset]);
 
   const effectivePropertyTypes = useMemo(
     () => (propertyTypes.length > 0 ? propertyTypes : propertyType ? [propertyType] : []),
@@ -83,10 +112,12 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   const { hasSearchIntent, needsMoreFilters } = useMemo(
     () =>
       countSearchIntent({
+        preset: intentPreset.preset,
         listingType,
         category,
         propertyType,
         propertyTypes: effectivePropertyTypes,
+        propertyTypeOptionIds,
         locality,
         city,
         minPrice,
@@ -94,18 +125,19 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
         bedrooms,
         furnishing,
         freshOnly,
-        verifiedOnly,
         readyToVisitOnly,
-        ownerListedOnly,
-        budgetMatchOnly,
-        availability,
+        constructionStatus,
+        possession,
+        availableFrom,
         query,
       }),
     [
+      intentPreset.preset,
       listingType,
       category,
       propertyType,
       effectivePropertyTypes,
+      propertyTypeOptionIds,
       locality,
       city,
       minPrice,
@@ -113,11 +145,10 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       bedrooms,
       furnishing,
       freshOnly,
-      verifiedOnly,
       readyToVisitOnly,
-      ownerListedOnly,
-      budgetMatchOnly,
-      availability,
+      constructionStatus,
+      possession,
+      availableFrom,
       query,
     ]
   );
@@ -126,9 +157,11 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setLoading(true);
 
     const params = new URLSearchParams();
+    if (intentPreset.preset) params.set("preset", intentPreset.preset);
     if (listingType) params.set("listingType", listingType);
     if (category) params.set("category", category);
     effectivePropertyTypes.forEach((type) => params.append("propertyType", type));
+    propertyTypeOptionIds.forEach((id) => params.append("pto", id));
     if (locality) params.set("locality", locality);
     if (city) params.set("city", city);
     if (minPrice) params.set("minPrice", minPrice);
@@ -136,14 +169,15 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     if (bedrooms) params.set("bedrooms", bedrooms);
     if (furnishing) params.set("furnishing", furnishing);
     if (freshOnly) params.set("fresh", "true");
-    if (verifiedOnly) params.set("verified", "true");
     if (readyToVisitOnly) params.set("readyToVisit", "true");
-    if (ownerListedOnly) params.set("ownerListed", "true");
-    if (budgetMatchOnly) params.set("budgetMatch", "true");
-    if (availability) params.set("availability", availability);
+    if (constructionStatus) params.set("constructionStatus", constructionStatus);
+    if (possession) params.set("possession", possession);
+    if (availableFrom) params.set("availableFrom", availableFrom);
     if (sort) params.set("sort", sort);
     if (query) params.set("q", query);
     params.set("page", page.toString());
+
+    appendProjectOptionQueries(intentPreset.preset, propertyTypeOptionIds, params);
 
     if (hasSearchIntent) {
       router.replace(`/properties?${params.toString()}`, { scroll: false });
@@ -178,9 +212,11 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   }, [
     hasSearchIntent,
     needsMoreFilters,
+    intentPreset.preset,
     listingType,
     category,
     effectivePropertyTypes,
+    propertyTypeOptionIds,
     locality,
     city,
     minPrice,
@@ -188,11 +224,10 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     bedrooms,
     furnishing,
     freshOnly,
-    verifiedOnly,
     readyToVisitOnly,
-    ownerListedOnly,
-    budgetMatchOnly,
-    availability,
+    constructionStatus,
+    possession,
+    availableFrom,
     sort,
     query,
     page,
@@ -208,6 +243,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setCategory("");
     setPropertyType("");
     setPropertyTypes([]);
+    setPropertyTypeOptionIds([]);
     setLocality("");
     setCity("");
     setMinPrice("");
@@ -215,49 +251,39 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setBedrooms("");
     setFurnishing("");
     setFreshOnly(false);
-    setVerifiedOnly(false);
     setReadyToVisitOnly(false);
-    setOwnerListedOnly(false);
-    setBudgetMatchOnly(false);
-    setAvailability("");
+    setConstructionStatus("");
+    setPossession("");
+    setAvailableFrom("");
     setSort("");
     setQuery("");
     setPage(1);
   }, []);
 
-  const applyQuickFilter = useCallback(
-    (action: string) => {
-      setPage(1);
-      if (action === "office") {
-        setCategory("COMMERCIAL");
-        setPropertyType("Office Space");
-        setPropertyTypes(["Office Space"]);
-      }
-      if (action === "2bhk") {
-        setCategory("RESIDENTIAL");
-        setBedrooms("2");
-      }
-      if (action === "apartment") {
-        setCategory("RESIDENTIAL");
-        setPropertyType("Apartment");
-        setPropertyTypes(["Apartment"]);
-      }
-      if (action === "warehouse") {
-        setCategory("INDUSTRIAL");
-        setPropertyType("Warehouse / Godown");
-        setPropertyTypes(["Warehouse / Godown"]);
-      }
-      if (action === "verified") setVerifiedOnly((value) => !value);
-      if (action === "fresh") setFreshOnly((value) => !value);
-      if (action === "ready") setReadyToVisitOnly((value) => !value);
-      if (action === "owner") setOwnerListedOnly((value) => !value);
-      if (action === "budget") {
-        setBudgetMatchOnly((value) => !value);
-        if (!minPrice && !maxPrice) setMaxPrice(listingType === "RENT" ? "50000" : "10000000");
-      }
-    },
-    [listingType, minPrice, maxPrice]
-  );
+  const applyQuickFilter = useCallback((action: string) => {
+    setPage(1);
+    if (action === "office") {
+      setCategory("COMMERCIAL");
+      setPropertyTypes(["Office Space"]);
+      setPropertyType("Office Space");
+    }
+    if (action === "2bhk") {
+      setCategory("RESIDENTIAL");
+      setBedrooms("2");
+    }
+    if (action === "apartment") {
+      setCategory("RESIDENTIAL");
+      setPropertyTypes(["Apartment"]);
+      setPropertyType("Apartment");
+    }
+    if (action === "warehouse") {
+      setCategory("INDUSTRIAL");
+      setPropertyTypes(["Warehouse / Godown"]);
+      setPropertyType("Warehouse / Godown");
+    }
+    if (action === "fresh") setFreshOnly((value) => !value);
+    if (action === "ready") setReadyToVisitOnly((value) => !value);
+  }, []);
 
   const currentFiltersObject = useMemo(
     () => ({
@@ -271,11 +297,10 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       bedrooms,
       furnishing,
       freshOnly,
-      verifiedOnly,
       readyToVisitOnly,
-      ownerListedOnly,
-      budgetMatchOnly,
-      availability,
+      constructionStatus,
+      possession,
+      availableFrom,
       sort,
       query,
     }),
@@ -290,11 +315,10 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       bedrooms,
       furnishing,
       freshOnly,
-      verifiedOnly,
       readyToVisitOnly,
-      ownerListedOnly,
-      budgetMatchOnly,
-      availability,
+      constructionStatus,
+      possession,
+      availableFrom,
       sort,
       query,
     ]
@@ -312,11 +336,10 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setBedrooms(filters.bedrooms || "");
     setFurnishing(filters.furnishing || "");
     setFreshOnly(Boolean(filters.freshOnly));
-    setVerifiedOnly(Boolean(filters.verifiedOnly));
     setReadyToVisitOnly(Boolean(filters.readyToVisitOnly));
-    setOwnerListedOnly(Boolean(filters.ownerListedOnly));
-    setBudgetMatchOnly(Boolean(filters.budgetMatchOnly));
-    setAvailability(filters.availability || "");
+    setConstructionStatus(filters.constructionStatus || "");
+    setPossession(filters.possession || "");
+    setAvailableFrom(filters.availableFrom || "");
     setSort(filters.sort || "");
     setQuery(filters.query || "");
     setPage(1);
@@ -340,6 +363,9 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
       setPropertyTypes(value ? [value] : []);
     },
     propertyTypes: effectivePropertyTypes,
+    setPropertyTypes,
+    propertyTypeOptionIds,
+    setPropertyTypeOptionIds,
     locality,
     setLocality,
     city,
@@ -354,16 +380,14 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     setFurnishing,
     freshOnly,
     setFreshOnly,
-    verifiedOnly,
-    setVerifiedOnly,
     readyToVisitOnly,
     setReadyToVisitOnly,
-    ownerListedOnly,
-    setOwnerListedOnly,
-    budgetMatchOnly,
-    setBudgetMatchOnly,
-    availability,
-    setAvailability,
+    constructionStatus,
+    setConstructionStatus,
+    possession,
+    setPossession,
+    availableFrom,
+    setAvailableFrom,
     sort,
     setSort,
     query,

@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { IntentSearchPanel } from "@/components/search/intent-search-panel";
+import { PropertySearchShell } from "@/components/search/property-search-shell";
 import { getBrowseIntentLabel, RESULT_QUICK_FILTERS } from "@/components/properties/search-options";
 import { PropertiesTrustBanner } from "@/features/properties-search/components/properties-trust-banner";
 import { cn } from "@/lib/utils";
 
-type PropertiesSearchHeroProps = {
+type PropertiesSearchChromeProps = {
   listingType: string;
   category: string;
   preset?: string;
@@ -20,7 +20,7 @@ type PropertiesSearchHeroProps = {
   onQuickFilter: (action: string) => void;
 };
 
-export function PropertiesSearchHero({
+export function PropertiesSearchChrome({
   listingType,
   category,
   preset,
@@ -30,7 +30,7 @@ export function PropertiesSearchHero({
   freshOnly,
   readyToVisitOnly,
   onQuickFilter,
-}: PropertiesSearchHeroProps) {
+}: PropertiesSearchChromeProps) {
   const searchParams = useSearchParams();
   const displayCity = city.trim() || "Kolkata";
   const intentLabel = getBrowseIntentLabel(listingType, category, preset);
@@ -59,14 +59,16 @@ export function PropertiesSearchHero({
         </div>
       </section>
 
-      <div className="sticky top-16 z-30 border-b border-border bg-white/95 shadow-[0_4px_20px_rgba(0,31,77,0.06)] backdrop-blur-md">
+      <div className="border-b border-border bg-white">
         <div className="mx-auto max-w-7xl px-4 py-3 lg:px-6">
-          <IntentSearchPanel
-            variant="embedded"
+          <PropertySearchShell
             initialParams={searchParams}
             onSearch={onSearchNavigate}
+            freshOnly={freshOnly}
+            readyToVisitOnly={readyToVisitOnly}
+            onToggleMobileFilters={onToggleFilters}
           />
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {RESULT_QUICK_FILTERS.map((filter) => {
               const Icon = filter.icon;
               const active =
@@ -89,13 +91,6 @@ export function PropertiesSearchHero({
                 </button>
               );
             })}
-            <button
-              type="button"
-              onClick={onToggleFilters}
-              className="rounded-full border border-dashed border-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-primary lg:hidden"
-            >
-              More filters
-            </button>
           </div>
         </div>
       </div>

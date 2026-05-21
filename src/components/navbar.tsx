@@ -21,14 +21,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
+import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
 import { userCanList } from "@/lib/capabilities";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { label: "Buy", href: "/properties?listingType=BUY", key: "buy" as const },
-  { label: "Rent", href: "/properties?listingType=RENT", key: "rent" as const },
-  { label: "Commercial", href: "/properties?category=COMMERCIAL", key: "commercial" as const },
+  { label: "Buy", href: "/properties?preset=residential_buy", key: "buy" as const },
+  { label: "Rent", href: "/properties?preset=residential_rent", key: "rent" as const },
+  { label: "Commercial", href: "/properties?preset=commercial_buy", key: "commercial" as const },
 ] as const;
 
 function getNavActiveKey(pathname: string, params: URLSearchParams) {
@@ -81,6 +82,9 @@ function NavbarInner() {
 
   const activeNavKey = getNavActiveKey(pathname, searchParams);
   const canList = user ? (user.canList ?? userCanList(user.role)) : false;
+  const isPropertiesPage = pathname.startsWith("/properties");
+  const { compactActive, compactBar } = usePropertySearchNavbar();
+  const showNavbarCompactSearch = isPropertiesPage && compactActive && compactBar;
 
   const navLinkClass = (active: boolean) =>
     cn(
@@ -211,24 +215,33 @@ function NavbarInner() {
   return (
     <nav className="sticky top-0 z-40 bg-primary-dark text-white shadow-[0_4px_20px_rgba(0,31,77,0.22)]">
       <div className="mx-auto max-w-7xl px-4">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3",
+            showNavbarCompactSearch ? "min-h-16 py-2" : "h-16"
+          )}
+        >
           <Link href="/" className="shrink-0 text-xl font-bold tracking-tight text-white sm:text-2xl">
             KrrishJazz
           </Link>
 
-          <div className="hidden items-center gap-0.5 lg:flex">
-            {NAV_LINKS.map((item) => (
-              <Link key={item.label} href={item.href} className={navLinkClass(activeNavKey === item.key)}>
-                {item.label}
+          {showNavbarCompactSearch ? (
+            <div className="hidden min-w-0 flex-1 lg:block lg:max-w-2xl xl:max-w-3xl">{compactBar}</div>
+          ) : (
+            <div className="hidden items-center gap-0.5 lg:flex">
+              {NAV_LINKS.map((item) => (
+                <Link key={item.label} href={item.href} className={navLinkClass(activeNavKey === item.key)}>
+                  {item.label}
+                </Link>
+              ))}
+              <Link href="/owners" className={navLinkClass(pathname.startsWith("/owners"))}>
+                List Property
               </Link>
-            ))}
-            <Link href="/owners" className={navLinkClass(pathname.startsWith("/owners"))}>
-              List Property
-            </Link>
-            <Link href="/brokers" className={navLinkClass(pathname.startsWith("/brokers"))}>
-              For Brokers
-            </Link>
-          </div>
+              <Link href="/brokers" className={navLinkClass(pathname.startsWith("/brokers"))}>
+                For Brokers
+              </Link>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative" ref={dropdownRef}>
