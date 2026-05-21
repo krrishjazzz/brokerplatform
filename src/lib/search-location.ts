@@ -1,3 +1,5 @@
+import { resolveLocationSearch, applyStructuredLocationToParams } from "@/lib/location/search";
+
 /** Cities vs localities for homepage / search location pickers. */
 export const SEARCH_CITY_OPTIONS = ["Kolkata", "Howrah"] as const;
 
@@ -22,22 +24,12 @@ export function isSearchCity(location: string) {
   return (SEARCH_CITY_OPTIONS as readonly string[]).includes(location);
 }
 
-/** Map a picked location into API query params (city vs locality). */
+/** @deprecated Use resolveLocationSearch + applyStructuredLocationToParams */
 export function applySearchLocationParams(
   params: URLSearchParams,
   location: string,
   defaultCity = "Kolkata"
 ) {
-  const trimmed = location.trim();
-  if (!trimmed) return;
-
-  if (isSearchCity(trimmed)) {
-    params.set("city", trimmed);
-    return;
-  }
-
-  params.set("locality", trimmed);
-  if (!params.get("city")) {
-    params.set("city", defaultCity);
-  }
+  const resolved = resolveLocationSearch({ query: location }, defaultCity);
+  applyStructuredLocationToParams(params, resolved);
 }

@@ -1,3 +1,9 @@
+import {
+  EXACT_LOCATION_NOTE,
+  formatPublicLocationLine,
+  formatPublicLocationSecondary,
+  stripPrivateLocationFields,
+} from "@/lib/location/display";
 import { PLATFORM_PHONE } from "@/lib/platform";
 import { parseJsonArray } from "@/server/json";
 
@@ -31,13 +37,29 @@ export function formatProperty(property: Record<string, unknown>, options: { pub
 
   if (!options.publicView) return formatted;
 
+  const locFields = stripPrivateLocationFields(
+    {
+      city: String(property.city ?? ""),
+      locality: property.locality as string | null,
+      subLocality: property.subLocality as string | null,
+      projectOrSociety: property.projectOrSociety as string | null,
+      landmark: property.landmark as string | null,
+      address: property.address as string | null,
+    },
+    true
+  );
+
   const safeProperty = { ...formatted } as Record<string, unknown>;
   delete safeProperty.postedById;
   delete safeProperty.assignedBrokerId;
   delete safeProperty.assignedBroker;
+  delete safeProperty.address;
 
   return {
     ...safeProperty,
+    publicLocationLine: formatPublicLocationLine(locFields),
+    publicLocationSecondary: formatPublicLocationSecondary(locFields),
+    locationPrivacyNote: EXACT_LOCATION_NOTE,
     platformPhone: PLATFORM_PHONE,
     publicBrokerName: "KrrishJazz",
     postedBy: { name: "KrrishJazz", phone: "", role: "VERIFIED", brokerProfile: null },

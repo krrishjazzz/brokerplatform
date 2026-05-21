@@ -4,7 +4,9 @@ import { useRef, type MouseEvent } from "react";
 import { MapPin, Mic, Navigation, Search } from "lucide-react";
 import { DEFAULT_SEARCH_CITY, getPresetMenuLabel, type IntentSearchFilters, type SearchPresetId } from "@/lib/search-intent-config";
 import { SEARCH_CITY_OPTIONS, SEARCH_LOCATION_OPTIONS } from "@/lib/search-location";
+import { LocationSearchInput } from "@/components/search/location-search-input";
 import { PropertySearchIntentMenu } from "@/components/search/property-search-intent-menu";
+import type { LocationSuggestion } from "@/lib/location/types";
 import { cn } from "@/lib/utils";
 
 export type PropertySearchBarRowProps = {
@@ -148,19 +150,21 @@ export function PropertySearchBarRow({
           )}
         >
           {!isSingleRow && <Search size={18} className="shrink-0 text-primary" />}
-          <input
+          <LocationSearchInput
             value={filters.query}
-            onChange={(e) => onUpdateFilters({ query: e.target.value })}
+            city={filters.city}
+            onChange={(query) => onUpdateFilters({ query, locationSuggestionId: undefined })}
+            onSelectSuggestion={(s: LocationSuggestion | null) =>
+              onUpdateFilters({
+                query: s?.label ?? filters.query,
+                locationSuggestionId: s?.id,
+              })
+            }
             onKeyDown={(e) => e.key === "Enter" && onRunSearch()}
             onFocus={isSingleRow ? openFilters : undefined}
             onClick={isSingleRow ? openFilters : undefined}
-            list={isSingleRow ? undefined : "kj-search-locations"}
-            placeholder="Enter locality / project / society / landmark"
-            className={cn(
-              "min-w-0 flex-1 bg-transparent font-medium outline-none placeholder:text-text-secondary",
-              isSingleRow ? "text-sm text-foreground" : "text-sm"
-            )}
-            aria-label="Search locality, project, or landmark"
+            placeholder="Search locality, project, society, landmark"
+            inputClassName={isSingleRow ? "text-sm text-foreground" : "text-sm"}
           />
           {!isSingleRow && (
             <datalist id="kj-search-locations">

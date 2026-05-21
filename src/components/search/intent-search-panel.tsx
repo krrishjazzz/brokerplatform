@@ -36,7 +36,9 @@ import {
   type IntentSearchFilters,
   type SearchPresetId,
 } from "@/lib/search-intent-config";
-import { SEARCH_CITY_OPTIONS, SEARCH_LOCATION_OPTIONS } from "@/lib/search-location";
+import { LocationSearchInput } from "@/components/search/location-search-input";
+import type { LocationSuggestion } from "@/lib/location/types";
+import { SEARCH_CITY_OPTIONS } from "@/lib/search-location";
 import { cn } from "@/lib/utils";
 
 type IntentSearchPanelProps = {
@@ -393,20 +395,20 @@ export function IntentSearchPanel({
 
             <div className="flex min-w-0 flex-1 items-center gap-2 border-b border-border px-4 py-3 md:border-b-0 md:border-r md:py-3.5">
               <Search size={18} className="shrink-0 text-primary" />
-              <input
+              <LocationSearchInput
                 value={filters.query}
-                onChange={(e) => updateFilters({ query: e.target.value })}
+                city={filters.city}
+                onChange={(query) => updateFilters({ query, locationSuggestionId: undefined })}
+                onSelectSuggestion={(s: LocationSuggestion | null) =>
+                  updateFilters({
+                    query: s?.label ?? filters.query,
+                    locationSuggestionId: s?.id,
+                  })
+                }
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
-                list="kj-search-locations"
-                placeholder="Enter locality, project, society, landmark..."
-                className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-text-secondary"
-                aria-label="Search locality, project, or landmark"
+                placeholder="Search locality, project, society, landmark"
+                inputClassName="text-sm"
               />
-              <datalist id="kj-search-locations">
-                {SEARCH_LOCATION_OPTIONS.map((loc) => (
-                  <option key={loc} value={loc} />
-                ))}
-              </datalist>
               <button
                 type="button"
                 title="Search near me"

@@ -102,8 +102,8 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
             <p className="mt-1 flex items-center gap-1 text-xs text-text-secondary sm:text-sm">
               <MapPin size={14} className="shrink-0" />
               <span className="line-clamp-1">
-                {property.locality ? `${property.locality}, ` : ""}
-                {property.city}
+                {(property as { publicLocationLine?: string }).publicLocationLine ||
+                  `${property.locality ? `${property.locality}, ` : ""}${property.city}`}
               </span>
             </p>
           </Link>

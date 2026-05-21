@@ -61,7 +61,27 @@ export async function GET(req: NextRequest) {
     if (city) where.city = { contains: city };
 
     const locality = searchParams.get("locality");
-    if (locality) where.locality = { contains: locality };
+    const subLocality = searchParams.get("subLocality");
+    const project = searchParams.get("project");
+    const landmark = searchParams.get("landmark");
+    const nearbyLocalities = searchParams.getAll("nearbyLocality").filter(Boolean);
+
+    if (subLocality) where.subLocality = { contains: subLocality };
+    if (project) where.projectOrSociety = { contains: project };
+    if (landmark) where.landmark = { contains: landmark };
+
+    if (locality || nearbyLocalities.length > 0) {
+      const terms = Array.from(new Set([locality, ...nearbyLocalities].filter(Boolean))) as string[];
+      const localityConditions = terms.flatMap((term) => [
+        { locality: { contains: term, mode: "insensitive" as const } },
+        { subLocality: { contains: term, mode: "insensitive" as const } },
+      ]);
+      if (localityConditions.length === 1) {
+        Object.assign(where, localityConditions[0]);
+      } else if (localityConditions.length > 1) {
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { OR: localityConditions }];
+      }
+    }
 
     const constructionStatus = searchParams.get("constructionStatus");
     const possession = searchParams.get("possession");
@@ -129,13 +149,26 @@ export async function GET(req: NextRequest) {
 
     const mergedQ = qParts.filter(Boolean).join(" ").trim();
     if (mergedQ) {
-      where.OR = [
-        { title: { contains: mergedQ } },
-        { description: { contains: mergedQ } },
-        { city: { contains: mergedQ } },
-        { locality: { contains: mergedQ } },
-        { address: { contains: mergedQ } },
+      const textOr: Record<string, unknown>[] = [
+        { title: { contains: mergedQ, mode: "insensitive" } },
+        { description: { contains: mergedQ, mode: "insensitive" } },
+        { city: { contains: mergedQ, mode: "insensitive" } },
+        { locality: { contains: mergedQ, mode: "insensitive" } },
+        { subLocality: { contains: mergedQ, mode: "insensitive" } },
+        { projectOrSociety: { contains: mergedQ, mode: "insensitive" } },
+        { landmark: { contains: mergedQ, mode: "insensitive" } },
       ];
+      if (!publicView) {
+        textOr.push({ address: { contains: mergedQ, mode: "insensitive" } });
+      }
+      if (where.AND) {
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : [where.AND]), { OR: textOr }];
+      } else if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: textOr }];
+        delete where.OR;
+      } else {
+        where.OR = textOr;
+      }
     }
 
     const sort = searchParams.get("sort");

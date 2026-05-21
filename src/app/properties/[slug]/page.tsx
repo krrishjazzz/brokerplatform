@@ -100,8 +100,14 @@ interface PropertyDetail {
   ageYears: number | null;
   furnishing: string | null;
   amenities: string[];
-  address: string;
+  address?: string;
   locality: string;
+  subLocality?: string;
+  projectOrSociety?: string;
+  landmark?: string;
+  publicLocationLine?: string;
+  publicLocationSecondary?: string;
+  locationPrivacyNote?: string;
   city: string;
   state: string;
   pincode: string;
@@ -564,8 +570,15 @@ export default function PropertyDetailPage() {
               <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-foreground lg:text-4xl">{property.title}</h1>
               <p className="mt-3 flex max-w-3xl items-start gap-2 text-sm leading-6 text-text-secondary">
                 <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
-                <span>{property.locality ? `${property.locality}, ` : ""}{property.city}, {property.state}</span>
+                <span>
+                  {property.publicLocationLine ||
+                    `${property.locality ? `${property.locality}, ` : ""}${property.city}`}
+                  , {property.state}
+                </span>
               </p>
+              {property.publicLocationSecondary && (
+                <p className="mt-1 text-sm font-medium text-foreground">{property.publicLocationSecondary}</p>
+              )}
               <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
                 <span className="font-medium text-foreground">{property.propertyType}</span>
                 <span className="text-text-secondary">·</span>
@@ -728,15 +741,24 @@ export default function PropertyDetailPage() {
           )}
 
           <section className="rounded-card border border-border bg-white p-5 shadow-card">
-            <SectionTitle title="Location confidence" subtitle={`${property.city}, ${property.state}`} />
+            <SectionTitle title="Location" subtitle={`${property.city}, ${property.state}`} />
             <div className="mt-4 rounded-card border border-border bg-surface p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-btn bg-primary-light text-primary">
                   <MapPin size={19} />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">{property.address}</p>
-                  <p className="mt-1 text-sm text-text-secondary">{property.locality ? `${property.locality}, ` : ""}{property.city}, {property.state} - {property.pincode}</p>
+                  <p className="font-semibold text-foreground">
+                    {property.publicLocationLine ||
+                      `${property.locality ? `${property.locality}, ` : ""}${property.city}`}
+                  </p>
+                  {property.publicLocationSecondary && (
+                    <p className="mt-1 text-sm text-foreground">{property.publicLocationSecondary}</p>
+                  )}
+                  <p className="mt-2 text-xs text-text-secondary">
+                    {property.locationPrivacyNote ||
+                      "Exact location shared after KrrishJazz visit coordination."}
+                  </p>
                 </div>
               </div>
 

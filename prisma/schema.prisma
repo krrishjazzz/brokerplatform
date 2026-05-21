@@ -70,6 +70,9 @@ model Property {
   amenities        String // JSON string for array
   address          String
   locality         String          @default("")
+  subLocality      String          @default("")
+  projectOrSociety String          @default("")
+  landmark         String          @default("")
   city             String
   state            String
   pincode          String
@@ -203,6 +206,25 @@ model ActivityEvent {
   @@index([eventType, createdAt])
   @@index([targetType, targetId])
   @@index([actorId, createdAt])
+}
+
+// Internal location dictionary — canonical localities, aliases, zones.
+model LocationDictionary {
+  id                 String   @id @default(cuid())
+  city               String
+  locality           String
+  subLocality        String   @default("")
+  aliases            String   @default("[]")
+  zone               String?
+  lat                Float?
+  lng                Float?
+  nearbyLocalityIds  String   @default("[]")
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([city, locality, isActive])
+  @@unique([city, locality, subLocality])
 }
 
 model ListingFreshness {

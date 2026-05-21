@@ -1,9 +1,12 @@
+import { resolveLocationSearch } from "@/lib/location/search";
+
 type TextLike = string | null | undefined;
 
 export type MatchableProperty = {
   propertyType: string;
   city: string;
   locality?: TextLike;
+  subLocality?: TextLike;
   price: unknown;
 };
 
@@ -54,8 +57,20 @@ export function matchesPropertyAndRequirement(
   if (!citiesOverlap(property.city, requirement.city)) return false;
 
   const requirementLocality = normalized(requirement.locality);
-  if (requirementLocality && !containsText(property.locality, requirement.locality)) {
-    return false;
+  if (requirementLocality) {
+    const resolved = resolveLocationSearch(
+      { query: requirement.locality || "" },
+      String(requirement.city || property.city || "Kolkata")
+    );
+    const matchTerms = [
+      ...resolved.matchLocalities.map(normalized),
+      requirementLocality,
+    ].filter(Boolean);
+    const propBlob = [property.locality, property.subLocality].map(normalized).join(" ");
+    const localityHit = matchTerms.some(
+      (term) => propBlob.includes(term) || term.includes(propBlob) || containsText(property.locality, term)
+    );
+    if (!localityHit) return false;
   }
 
   const price = asNumber(property.price);

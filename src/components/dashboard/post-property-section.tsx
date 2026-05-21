@@ -193,7 +193,7 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     let fields: (keyof PropertyInput)[] = [];
     if (step === 0) fields = ["title", "description", "listingType", "category", "propertyType"];
     if (step === 1) fields = ["price", "area"];
-    if (step === 2) fields = ["address", "locality", "city", "state", "pincode"];
+    if (step === 2) fields = ["city", "locality", "subLocality", "projectOrSociety", "landmark", "address", "state", "pincode"];
     if (step === 3) {
       if (images.length === 0) {
         setValue("images", [], { shouldValidate: true });

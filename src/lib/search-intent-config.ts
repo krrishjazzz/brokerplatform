@@ -1,4 +1,4 @@
-import { applySearchLocationParams } from "@/lib/search-location";
+import { applyStructuredLocationToParams, resolveLocationSearch } from "@/lib/location/search";
 
 /** Intent presets — segregated residential / commercial / rent / lease / PG / projects */
 export type SearchPresetId =
@@ -354,6 +354,8 @@ export type IntentSearchFilters = {
   preset: SearchPresetId;
   city: string;
   query: string;
+  /** Set when user picks a grouped location suggestion. */
+  locationSuggestionId?: string;
   propertyTypeIds: string[];
   budget: string;
   bedrooms: string;
@@ -479,8 +481,12 @@ export function buildIntentSearchParams(
   params.set("city", city);
 
   const locationQuery = filters.query.trim();
-  if (locationQuery) {
-    applySearchLocationParams(params, locationQuery, city);
+  if (locationQuery || filters.locationSuggestionId) {
+    const resolved = resolveLocationSearch(
+      { query: locationQuery, suggestionId: filters.locationSuggestionId },
+      city
+    );
+    applyStructuredLocationToParams(params, resolved);
   }
 
   const typeSearchQuery = appendPropertyTypes(params, preset, filters.propertyTypeIds);
@@ -573,7 +579,13 @@ export function parseIntentSearchFromUrl(searchParams: URLSearchParams): IntentS
   return {
     preset,
     city: searchParams.get("city") || searchParams.get("locality") || DEFAULT_SEARCH_CITY,
-    query: searchParams.get("q") || searchParams.get("locality") || "",
+    query:
+      searchParams.get("q") ||
+      searchParams.get("locality") ||
+      searchParams.get("project") ||
+      searchParams.get("landmark") ||
+      "",
+    locationSuggestionId: undefined,
     propertyTypeIds,
     budget: searchParams.get("maxPrice") || "",
     bedrooms: searchParams.get("bedrooms") || "",
