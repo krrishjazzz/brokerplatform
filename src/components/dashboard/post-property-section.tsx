@@ -1,23 +1,37 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Home, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
-import { AMENITIES, CATEGORY_AMENITIES, PROPERTY_TYPE_GUIDE } from "@/lib/constants";
-import { formatPrice } from "@/lib/utils";
-import { propertySchema, type PropertyInput } from "@/lib/validations";
-import { getVisibilityLabel } from "@/lib/visibility";
+import { AMENITIES, CATEGORY_AMENITIES } from "@/lib/constants";
+import { getIntentLabel, getPriceFieldsForIntent, normalizeListingForApi, type ListingIntent } from "@/lib/posting-config";
 import {
+  formatIntentAwarePrice,
+  syncPrimaryFieldsFromTypeDetails,
+} from "@/lib/posting-field-sync";
+import {
+  MIN_IMAGES_RECOMMENDED,
+  validatePostingPayload,
+} from "@/lib/posting-validation";
+import { propertySchema, type PropertyInput } from "@/lib/validations";
+import {
+  POST_PROPERTY_DRAFT_KEY,
   POST_PROPERTY_FIELD_STEP_MAP,
   POST_PROPERTY_STEPS,
+  POST_PROPERTY_SUCCESS_KEY,
 } from "@/features/post-property/constants";
 import { usePropertyTypeFlags } from "@/features/post-property/hooks/use-property-type-flags";
 import { ListingLivePreview } from "@/features/post-property/components/listing-live-preview";
+import { PostSuccessPanel } from "@/features/post-property/components/post-success-panel";
 import { WizardProgress } from "@/features/post-property/components/wizard-progress";
+import {
+  generateListingDescription,
+  generateListingTitle,
+} from "@/features/post-property/utils/generate-listing-copy";
 import { formatRelativeTime } from "@/features/post-property/utils/format-relative-time";
 import { uploadPropertyImages } from "@/features/post-property/services/upload-images";
 import { DraftResumeBanner } from "@/features/post-property/components/draft-resume-banner";
@@ -26,6 +40,24 @@ import { WizardNavigation } from "@/features/post-property/components/wizard-nav
 import { usePostPropertyDraft } from "@/features/post-property/hooks/use-post-property-draft";
 
 const STEPS = [...POST_PROPERTY_STEPS];
+
+function firstFormErrorMessage(fieldErrors: FieldErrors<PropertyInput>): string {
+  for (const err of Object.values(fieldErrors)) {
+    if (err && typeof err === "object" && "message" in err && err.message) {
+      return String(err.message);
+    }
+  }
+  return "Please complete all required fields before submitting.";
+}
+
+function firstFormErrorField(fieldErrors: FieldErrors<PropertyInput>): string | undefined {
+  for (const [field, err] of Object.entries(fieldErrors)) {
+    if (err && typeof err === "object" && "message" in err && err.message) {
+      return field;
+    }
+  }
+  return undefined;
+}
 
 export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -38,8 +70,18 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [categoryNotes, setCategoryNotes] = useState("");
+  const [titleCustomized, setTitleCustomized] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(POST_PROPERTY_SUCCESS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [typeSpecificDetails, setTypeSpecificDetails] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submitLockRef = useRef(false);
 
   const {
     register,
@@ -52,8 +94,10 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   } = useForm<PropertyInput>({
     resolver: zodResolver(propertySchema) as any,
     defaultValues: {
+      listingIntent: "SELL",
       amenities: [],
       images: [],
+      typeSpecificDetails: {},
       priceNegotiable: false,
       areaUnit: "sqft",
       visibilityType: "FULL_VISIBILITY",
@@ -74,17 +118,25 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     step,
     images,
     selectedAmenities,
-    categoryNotes,
+    typeSpecificDetails,
     setImages,
     setSelectedAmenities,
-    setCategoryNotes,
+    setTypeSpecificDetails,
     setStep,
     onResumeToast: (msg) => toast(msg, "success"),
     onDiscardToast: (msg) => toast(msg, "info"),
+    pauseAutosave: submitting || submitSuccess,
   });
+
+  useEffect(() => {
+    if (submitSuccess && typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [submitSuccess]);
 
   const category = watch("category");
   const selectedPropertyType = watch("propertyType");
+  const selectedListingIntent = watch("listingIntent");
   const selectedListingType = watch("listingType");
   const watchedTitle = watch("title");
   const watchedDescription = watch("description");
@@ -96,12 +148,72 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   const watchedAddress = watch("address");
   const watchedVisibility = watch("visibilityType");
   const watchedPublicBrokerName = watch("publicBrokerName");
-  const activeTypeGuide = selectedPropertyType ? PROPERTY_TYPE_GUIDE[selectedPropertyType] : null;
-  const uploadFocusItems = activeTypeGuide?.fields?.length
-    ? activeTypeGuide.fields
-    : selectedPropertyType
-    ? ["Price", "Area", "Location", "Photos"]
-    : ["Category", "Property type", "Price", "Location"];
+
+  const refreshAutoTitle = useCallback(() => {
+    if (titleCustomized || !selectedPropertyType || !selectedListingIntent) return;
+    const title = generateListingTitle({
+      listingIntent: selectedListingIntent as ListingIntent,
+      propertyType: selectedPropertyType,
+      typeDetails: typeSpecificDetails,
+      locality: watchedLocality,
+      city: watchedCity,
+    });
+    setValue("title", title, { shouldValidate: false });
+  }, [
+    titleCustomized,
+    selectedPropertyType,
+    selectedListingIntent,
+    typeSpecificDetails,
+    watchedLocality,
+    watchedCity,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    refreshAutoTitle();
+  }, [refreshAutoTitle]);
+
+  const ensureListingCopy = useCallback(() => {
+    const intent = selectedListingIntent as ListingIntent;
+    if (!selectedPropertyType || !intent) return;
+    const currentTitle = watch("title");
+    const currentDesc = watch("description");
+    if (!titleCustomized && (!currentTitle || currentTitle.length < 5)) {
+      setValue(
+        "title",
+        generateListingTitle({
+          listingIntent: intent,
+          propertyType: selectedPropertyType,
+          typeDetails: typeSpecificDetails,
+          locality: watchedLocality,
+          city: watchedCity,
+        }),
+        { shouldValidate: true }
+      );
+    }
+    if (!currentDesc || currentDesc.length < 20) {
+      setValue(
+        "description",
+        generateListingDescription({
+          listingIntent: intent,
+          propertyType: selectedPropertyType,
+          locality: watchedLocality,
+          city: watchedCity,
+          typeDetails: typeSpecificDetails,
+        }),
+        { shouldValidate: true }
+      );
+    }
+  }, [
+    selectedPropertyType,
+    selectedListingIntent,
+    typeSpecificDetails,
+    watchedLocality,
+    watchedCity,
+    titleCustomized,
+    watch,
+    setValue,
+  ]);
 
   const {
     isCommercialDetail,
@@ -119,15 +231,26 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     return AMENITIES;
   })();
 
+  const priceLabel = getPriceFieldsForIntent(
+    (selectedListingIntent as ListingIntent) || "SELL"
+  ).primaryLabel;
+
   const reviewChecklist = [
     {
       label: "Photos uploaded",
-      detail: images.length > 0 ? `${images.length} image${images.length === 1 ? "" : "s"} ready` : "Add at least one clear photo",
+      detail:
+        images.length >= MIN_IMAGES_RECOMMENDED
+          ? `${images.length} photos - good for approval`
+          : images.length > 0
+          ? `${images.length} photo(s) - add more for faster approval`
+          : "Add at least one clear photo",
       complete: images.length > 0,
     },
     {
       label: "Price is clear",
-      detail: watchedPrice ? formatPrice(Number(watchedPrice)) : "Add expected price",
+      detail: watchedPrice
+        ? formatIntentAwarePrice(Number(watchedPrice), selectedListingIntent as ListingIntent)
+        : `Add ${priceLabel.toLowerCase()}`,
       complete: Boolean(watchedPrice && Number(watchedPrice) > 0),
     },
     {
@@ -136,14 +259,9 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       complete: Boolean(watchedAddress && watchedCity),
     },
     {
-      label: "Contact managed",
-      detail: watchedPublicBrokerName || "KrrishJazz",
+      label: "Managed by KrrishJazz",
+      detail: "Enquiries coordinated by " + (watchedPublicBrokerName || "KrrishJazz"),
       complete: Boolean(watchedPublicBrokerName),
-    },
-    {
-      label: "Listing reach selected",
-      detail: getVisibilityLabel(watchedVisibility),
-      complete: Boolean(watchedVisibility),
     },
   ];
 
@@ -189,10 +307,39 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     );
   }
 
+  const applySyncedFields = () => {
+    const current = watch();
+    const synced = syncPrimaryFieldsFromTypeDetails(
+      { ...current, typeSpecificDetails: { ...typeSpecificDetails } },
+      typeSpecificDetails
+    );
+    if (synced.bedrooms != null) setValue("bedrooms", synced.bedrooms);
+    if (synced.bathrooms != null) setValue("bathrooms", synced.bathrooms);
+    if (synced.floor != null) setValue("floor", synced.floor);
+    if (synced.totalFloors != null) setValue("totalFloors", synced.totalFloors);
+    if (synced.furnishing) setValue("furnishing", synced.furnishing);
+    if (synced.area && synced.area > 0) setValue("area", synced.area);
+    setValue("typeSpecificDetails", synced.typeSpecificDetails, { shouldValidate: false });
+    return synced;
+  };
+
   const validateStep = async () => {
     let fields: (keyof PropertyInput)[] = [];
-    if (step === 0) fields = ["title", "description", "listingType", "category", "propertyType"];
-    if (step === 1) fields = ["price", "area"];
+    if (step === 0) fields = ["listingIntent", "category", "propertyType"];
+    if (step === 1) {
+      applySyncedFields();
+      fields = ["price", "area"];
+      const current = watch();
+      const postingCheck = validatePostingPayload(
+        { ...current, typeSpecificDetails: { ...typeSpecificDetails } },
+        typeSpecificDetails,
+        images.length
+      );
+      if (!postingCheck.ok && postingCheck.errors.typeSpecificDetails) {
+        toast(postingCheck.errors.typeSpecificDetails, "error");
+        return false;
+      }
+    }
     if (step === 2) fields = ["city", "locality", "subLocality", "projectOrSociety", "landmark", "address", "state", "pincode"];
     if (step === 3) {
       if (images.length === 0) {
@@ -207,65 +354,126 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
 
   const handleNext = async () => {
     const valid = await validateStep();
-    if (valid && step < STEPS.length - 1) setStep(step + 1);
+    if (!valid) return;
+    if (step === 3) ensureListingCopy();
+    if (step < STEPS.length - 1) setStep(step + 1);
   };
 
   const handleBack = () => {
     if (step > 0) setStep(step - 1);
   };
 
-  const handleFinalSubmit = async () => {
+  const applyNormalizedListingFields = () => {
+    const current = watch();
+    if (!current.listingIntent || !current.category || !current.propertyType) return;
+    const normalized = normalizeListingForApi({
+      listingIntent: current.listingIntent as ListingIntent,
+      category: current.category as PropertyInput["category"],
+      propertyType: current.propertyType,
+      typeSpecificDetails: { ...typeSpecificDetails, ...(current.typeSpecificDetails ?? {}) },
+    });
+    setValue("listingType", normalized.listingType, { shouldValidate: false });
+    setValue("category", normalized.category as PropertyInput["category"], { shouldValidate: false });
+  };
+
+  const syncFormBeforeSubmit = () => {
+    ensureListingCopy();
+    applySyncedFields();
+    applyNormalizedListingFields();
+    setValue("typeSpecificDetails", { ...typeSpecificDetails }, { shouldValidate: false });
+    setValue("images", images, { shouldValidate: true });
+    setValue("amenities", selectedAmenities, { shouldValidate: false });
+    setValue("coverImage", images[0] || "", { shouldValidate: false });
+  };
+
+  const handleFinalSubmit = () => {
+    if (submitLockRef.current || submitting) return;
     if (!termsAccepted) {
-      toast("Please acknowledge the free listing and brokerage terms before submitting.", "error");
+      toast("Please tick the terms checkbox above before submitting.", "error");
       return;
     }
-    const valid = await trigger();
-    if (!valid) {
-      const firstErrorField = Object.keys(errors)[0];
-      if (firstErrorField) {
-        setStep(POST_PROPERTY_FIELD_STEP_MAP[firstErrorField] ?? 0);
+    if (uploadingImages) {
+      toast("Please wait for photos to finish uploading.", "info");
+      return;
+    }
+
+    syncFormBeforeSubmit();
+
+    const current = watch();
+    const postingCheck = validatePostingPayload(
+      { ...current, typeSpecificDetails: { ...typeSpecificDetails } },
+      typeSpecificDetails,
+      images.length
+    );
+    if (!postingCheck.ok) {
+      const msg =
+        postingCheck.errors.typeSpecificDetails ||
+        postingCheck.errors.images ||
+        postingCheck.errors.listingIntent ||
+        "Please complete required fields before submitting.";
+      toast(msg, "error");
+      if (postingCheck.errors.typeSpecificDetails) setStep(1);
+      else if (postingCheck.errors.images) setStep(3);
+      return;
+    }
+
+    handleSubmit(onSubmit, (fieldErrors) => {
+      const message = firstFormErrorMessage(fieldErrors);
+      const field = firstFormErrorField(fieldErrors);
+      toast(message, "error");
+      if (field) {
+        setStep(POST_PROPERTY_FIELD_STEP_MAP[field] ?? 0);
       }
-      return;
-    }
-    handleSubmit(onSubmit)();
+    })();
   };
 
   const onSubmit = async (data: PropertyInput) => {
+    if (submitLockRef.current) return;
     if (uploadingImages) {
       toast("Please wait for images to finish uploading.", "info");
       return;
     }
 
+    submitLockRef.current = true;
     setSubmitting(true);
-    if (categoryNotes.trim()) {
-      data.description = `${data.description}\n\nCategory-specific details: ${categoryNotes.trim()}`;
+    const payload = syncPrimaryFieldsFromTypeDetails(
+      { ...data, typeSpecificDetails: { ...typeSpecificDetails, ...(data.typeSpecificDetails ?? {}) } },
+      { ...typeSpecificDetails, ...(data.typeSpecificDetails ?? {}) }
+    );
+    const normalized = normalizeListingForApi({
+      listingIntent: payload.listingIntent,
+      category: payload.category,
+      propertyType: payload.propertyType,
+      typeSpecificDetails: payload.typeSpecificDetails,
+    });
+    const details = normalized.typeSpecificDetails as Record<string, string>;
+    if (images.length < MIN_IMAGES_RECOMMENDED) {
+      details.needsBetterPhotos = "true";
     }
-    data.amenities = selectedAmenities;
-    data.images = images;
-    data.coverImage = images[0];
+    payload.listingType = normalized.listingType;
+    payload.category = normalized.category as PropertyInput["category"];
+    payload.typeSpecificDetails = details;
+    payload.amenities = selectedAmenities;
+    payload.images = images;
+    payload.coverImage = images[0];
     try {
       const res = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast("Property posted successfully.", "success");
-        reset({
-          amenities: [],
-          images: [],
-          priceNegotiable: false,
-          areaUnit: "sqft",
-          visibilityType: "FULL_VISIBILITY",
-          publicBrokerName: "KrrishJazz",
-        });
-        setImages([]);
-        setSelectedAmenities([]);
-        setTermsAccepted(false);
-        setStep(0);
+        try {
+          localStorage.removeItem(POST_PROPERTY_DRAFT_KEY);
+          sessionStorage.setItem(POST_PROPERTY_SUCCESS_KEY, "1");
+        } catch {
+          // ignore
+        }
         clearDraft();
-        onPosted();
+        setSubmitSuccess(true);
+        window.dispatchEvent(new CustomEvent("krrishjazz:property-posted"));
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         const err = await res.json();
         console.error("Property post failed", err);
@@ -276,6 +484,7 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       toast("Something went wrong while posting property.", "error");
     } finally {
       setSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -321,9 +530,52 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     });
   };
 
+  const resetWizard = () => {
+    try {
+      sessionStorage.removeItem(POST_PROPERTY_SUCCESS_KEY);
+    } catch {
+      // ignore
+    }
+    submitLockRef.current = false;
+    reset({
+      listingIntent: "SELL",
+      amenities: [],
+      images: [],
+      typeSpecificDetails: {},
+      priceNegotiable: false,
+      areaUnit: "sqft",
+      visibilityType: "FULL_VISIBILITY",
+      publicBrokerName: "KrrishJazz",
+      title: "",
+      description: "",
+    });
+    setImages([]);
+    setSelectedAmenities([]);
+    setTypeSpecificDetails({});
+    setTermsAccepted(false);
+    setTitleCustomized(false);
+    setStep(0);
+    setSubmitSuccess(false);
+  };
+
+  if (submitSuccess) {
+    return (
+      <div>
+        <h2 className="mb-6 text-xl font-semibold text-foreground">Post Property</h2>
+        <PostSuccessPanel
+          onViewProperties={() => {
+            resetWizard();
+            onPosted();
+          }}
+          onPostAnother={resetWizard}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="pb-24 sm:pb-0">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
         <h2 className="text-xl font-semibold text-foreground">Post Property</h2>
         {draftMeta && !pendingDraft && (
           <div className="inline-flex items-center gap-2 rounded-pill border border-success/20 bg-success/10 px-3 py-1 text-xs font-medium text-success">
@@ -350,39 +602,47 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
         />
       )}
 
-      <div className="mb-6 rounded-card border border-primary/20 bg-primary-light p-4">
-        <p className="text-sm font-semibold text-primary">Free listing on KrrishJazz</p>
-        <p className="mt-1 text-xs leading-5 text-text-secondary">No upfront posting charge. KrrishJazz verifies details, coordinates enquiries, and charges one month brokerage only after a successful closure.</p>
-      </div>
-
       <WizardProgress step={step} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="bg-white rounded-card shadow-card border border-border p-6">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (step === STEPS.length - 1) {
+            handleFinalSubmit();
+          } else {
+            void handleNext();
+          }
+        }}
+      >
+        <div className="rounded-card border border-border bg-white p-4 shadow-card sm:p-6">
           <PostPropertyWizardBody
             step={step}
             register={register}
             errors={errors}
             setValue={setValue}
             category={category}
+            selectedListingIntent={selectedListingIntent}
             selectedListingType={selectedListingType}
             selectedPropertyType={selectedPropertyType}
             watchedTitle={watchedTitle}
+            watchedDescription={watchedDescription}
             watchedVisibility={watchedVisibility}
             watchedPrice={watchedPrice}
             watchedArea={watchedArea}
             watchedCity={watchedCity}
-            uploadFocusItems={uploadFocusItems}
-            activeTypeGuide={activeTypeGuide}
+            watchedLocality={watchedLocality}
+            onTitleManualEdit={() => setTitleCustomized(true)}
             isPlotDetail={isPlotDetail}
             isCommercialDetail={isCommercialDetail}
             isIndustrialDetail={isIndustrialDetail}
             isHospitalityDetail={isHospitalityDetail}
             shouldShowRooms={shouldShowRooms}
             shouldShowFurnishing={shouldShowFurnishing}
-            categoryNotes={categoryNotes}
-            setCategoryNotes={setCategoryNotes}
+            typeSpecificDetails={typeSpecificDetails}
+            setTypeSpecificDetail={(key, value) =>
+              setTypeSpecificDetails((prev) => ({ ...prev, [key]: value }))
+            }
             images={images}
             uploadError={uploadError}
             uploadingImages={uploadingImages}
@@ -412,7 +672,12 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       <ListingLivePreview
         title={watchedTitle}
         description={watchedDescription}
-        listingType={selectedListingType}
+        listingType={
+          selectedListingIntent
+            ? getIntentLabel(selectedListingIntent as ListingIntent)
+            : selectedListingType
+        }
+        listingIntent={selectedListingIntent as ListingIntent | undefined}
         propertyType={selectedPropertyType}
         city={watchedCity}
         locality={watchedLocality}

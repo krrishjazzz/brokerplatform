@@ -5,6 +5,6 @@ export type PostPropertyDraftPayload = {
   step: number;
   images: string[];
   selectedAmenities: string[];
-  categoryNotes: string;
+  typeSpecificDetails: Record<string, string>;
   savedAt: number;
 };

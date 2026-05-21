@@ -8,6 +8,9 @@ import { logActivity } from "@/lib/workflow";
 import { CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
 import { getPagination } from "@/server/pagination";
 import { parseOptionalPrice } from "@/server/parse-query-filters";
+import { normalizeListingForApi } from "@/lib/posting-config";
+import { syncPrimaryFieldsFromTypeDetails } from "@/lib/posting-field-sync";
+import { validatePostingPayload } from "@/lib/posting-validation";
 import { formatProperty } from "@/server/public-property";
 import { nanoid } from "nanoid";
 
@@ -229,7 +232,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const slug = slugify(parsed.data.title) + "-" + nanoid(6);
+    const typeDetails = (parsed.data.typeSpecificDetails ?? {}) as Record<string, string>;
+    const postingCheck = validatePostingPayload(parsed.data, typeDetails, parsed.data.images.length);
+    if (!postingCheck.ok) {
+      const firstError = Object.values(postingCheck.errors)[0];
+      return NextResponse.json({ error: firstError }, { status: 400 });
+    }
+
+    const synced = syncPrimaryFieldsFromTypeDetails(parsed.data, typeDetails);
+
+    const slug = slugify(synced.title) + "-" + nanoid(6);
 
     const {
       amenities,
@@ -238,13 +250,24 @@ export async function POST(req: NextRequest) {
       publicBrokerName,
       visibilityType,
       coverImage,
+      typeSpecificDetails,
+      listingIntent: _listingIntent,
       ...propertyData
-    } = parsed.data;
+    } = synced;
     const normalizedVisibilityType = visibilityType === "PUBLIC_TO_CUSTOMERS" ? "FULL_VISIBILITY" : visibilityType;
+
+    const normalized = normalizeListingForApi({
+      listingIntent: _listingIntent,
+      category: propertyData.category,
+      propertyType: propertyData.propertyType,
+      typeSpecificDetails: (typeSpecificDetails ?? {}) as Record<string, unknown>,
+    });
 
     const property = await prisma.property.create({
       data: {
         ...propertyData,
+        listingType: normalized.listingType,
+        category: normalized.category,
         price: propertyData.price,
         slug,
         postedById: session.id,
@@ -259,6 +282,7 @@ export async function POST(req: NextRequest) {
         publicBrokerName: publicBrokerName || "KrrishJazz",
         status: "PENDING_REVIEW",
         amenities: JSON.stringify(amenities),
+        typeSpecificDetails: JSON.stringify(normalized.typeSpecificDetails),
         images: JSON.stringify(images),
         coverImage: coverImage || images[0] || null,
       },

@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { formatIntentAwarePrice, getListingIntentFromProperty } from "@/lib/posting-field-sync";
 import { cn, formatPrice } from "@/lib/utils";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import {
@@ -591,7 +592,14 @@ export default function PropertyDetailPage() {
 
             <div className="rounded-card border border-border bg-white p-5 shadow-card">
               <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Asking price</p>
-              <p className="mt-1 text-3xl font-bold text-primary lg:text-4xl">{formatPrice(Number(property.price))}</p>
+              <p className="mt-1 text-3xl font-bold text-primary lg:text-4xl">
+                {formatIntentAwarePrice(
+                  Number(property.price),
+                  getListingIntentFromProperty(
+                    property as { typeSpecificDetails?: string | null; listingType?: string | null }
+                  )
+                )}
+              </p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
                 {pricePerUnit && <span>Rs {pricePerUnit}/sqft</span>}
                 {property.priceNegotiable && <Badge variant="accent">Negotiable</Badge>}
@@ -898,7 +906,14 @@ export default function PropertyDetailPage() {
         <div className="mb-2 flex items-center justify-between px-1">
           <div className="min-w-0">
             <p className="truncate text-xs text-text-secondary">Asking price</p>
-            <p className="truncate text-sm font-bold text-primary">{formatPrice(Number(property.price))}</p>
+            <p className="truncate text-sm font-bold text-primary">
+              {formatIntentAwarePrice(
+                Number(property.price),
+                getListingIntentFromProperty(
+                  property as { typeSpecificDetails?: string | null; listingType?: string | null }
+                )
+              )}
+            </p>
           </div>
           <button type="button" onClick={handleShare} className="flex h-9 w-9 items-center justify-center rounded-btn border border-border text-text-secondary">
             <Share2 size={16} />

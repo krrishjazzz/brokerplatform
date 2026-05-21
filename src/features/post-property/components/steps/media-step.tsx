@@ -1,15 +1,21 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-unused-vars -- shared wizard prop bag */
-import { Check, Upload, X } from "lucide-react";
+import { useState } from "react";
+import { Camera, Check, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getPhotoChecklistForType,
+  MIN_IMAGES_RECOMMENDED,
+  MIN_IMAGES_SUBMIT,
+} from "@/lib/posting-validation";
+import { CollapsibleSection } from "@/features/post-property/components/collapsible-section";
+import { OwnerVisibilityPicker } from "@/features/post-property/components/owner-visibility-picker";
 import type { PostPropertyStepProps } from "@/features/post-property/types/wizard-step-props";
 
 export function MediaStep(p: PostPropertyStepProps) {
   const {
     images,
     uploadError,
-    uploadingImages,
     fileInputRef,
     uploadImages,
     removeImage,
@@ -17,12 +23,58 @@ export function MediaStep(p: PostPropertyStepProps) {
     toggleAmenity,
     suggestedAmenities,
     errors,
+    selectedPropertyType,
+    watchedVisibility,
+    setValue,
   } = p;
 
+  const photoItems = selectedPropertyType
+    ? getPhotoChecklistForType(selectedPropertyType)
+    : ["Front / building", "Main room", "Kitchen / washroom", "Road / entrance"];
+  const [checkedPhotos, setCheckedPhotos] = useState<Record<string, boolean>>({});
+
+  const togglePhotoHint = (item: string) => {
+    setCheckedPhotos((prev) => ({ ...prev, [item]: !prev[item] }));
+  };
+
+  const needsBetterPhotos =
+    images.length >= MIN_IMAGES_SUBMIT && images.length < MIN_IMAGES_RECOMMENDED;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="rounded-lg border border-primary/20 bg-primary-light/60 px-3 py-3">
+        <p className="text-sm font-semibold text-primary">Photos build trust</p>
+        <p className="mt-1 text-xs text-text-secondary">
+          Add at least {MIN_IMAGES_SUBMIT} photo to submit. {MIN_IMAGES_RECOMMENDED}+ photos get approved faster.
+        </p>
+        {needsBetterPhotos && (
+          <p className="mt-2 text-xs font-semibold text-warning">
+            Tip: add {MIN_IMAGES_RECOMMENDED - images.length} more photo(s) for stronger approval.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-card border border-border bg-surface p-4">
+        <p className="text-sm font-semibold text-foreground">Recommended photos</p>
+        <ul className="mt-3 space-y-2">
+          {photoItems.map((item) => (
+            <li key={item}>
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border"
+                  checked={Boolean(checkedPhotos[item])}
+                  onChange={() => togglePhotoHint(item)}
+                />
+                {item}
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div>
-        <label className="mb-2 block text-sm font-medium text-foreground">Property Images</label>
+        <label className="mb-2 block text-sm font-medium text-foreground">Upload from camera or gallery</label>
         <div
           className="cursor-pointer rounded-card border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50"
           onClick={() => fileInputRef.current?.click()}
@@ -35,15 +87,16 @@ export function MediaStep(p: PostPropertyStepProps) {
             if (e.dataTransfer.files.length > 0) uploadImages(e.dataTransfer.files);
           }}
         >
-          <Upload size={32} className="mx-auto mb-2 text-text-secondary" />
-          <p className="text-sm text-text-secondary">
-            {uploadingImages ? "Uploading images..." : "Drag & drop images here or click to browse"}
+          <Upload size={28} className="mx-auto mb-2 text-primary" />
+          <p className="text-sm font-medium text-foreground">Tap to add photos</p>
+          <p className="mt-1 flex items-center justify-center gap-1 text-xs text-text-secondary">
+            <Camera size={14} /> Camera or gallery - PNG/JPG up to 5MB
           </p>
-          <p className="mt-1 text-xs text-text-secondary">PNG, JPG up to 5MB each</p>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -73,7 +126,7 @@ export function MediaStep(p: PostPropertyStepProps) {
                     e.stopPropagation();
                     removeImage(i);
                   }}
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
                   aria-label={`Remove image ${i + 1}`}
                 >
                   <X size={12} />
@@ -84,17 +137,21 @@ export function MediaStep(p: PostPropertyStepProps) {
         )}
       </div>
 
-      <div>
-        <label className="mb-3 block text-sm font-medium text-foreground">Amenities</label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <OwnerVisibilityPicker
+        value={watchedVisibility || "FULL_VISIBILITY"}
+        onChange={(v) => setValue("visibilityType", v, { shouldValidate: true })}
+      />
+
+      <CollapsibleSection title="Amenities (optional)" defaultOpen={false}>
+        <div className="grid grid-cols-2 gap-2">
           {suggestedAmenities.map((a) => (
             <label
               key={a}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-btn border px-3 py-2 text-sm transition-colors",
+                "flex min-h-[44px] cursor-pointer items-center gap-2 rounded-btn border px-3 py-2 text-sm transition-colors",
                 selectedAmenities.includes(a)
                   ? "border-primary bg-primary-light text-primary"
-                  : "border-border text-text-secondary hover:border-primary/30"
+                  : "border-border text-text-secondary"
               )}
             >
               <input
@@ -108,7 +165,7 @@ export function MediaStep(p: PostPropertyStepProps) {
             </label>
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

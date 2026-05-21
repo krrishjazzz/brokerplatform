@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeListingForApi, type ListingIntent, type PostingCategory } from "@/lib/posting-config";
 
 export const phoneSchema = z
   .string()
@@ -20,11 +21,17 @@ export const brokerApplicationSchema = z.object({
   bio: z.string().min(10, "Bio must be at least 10 characters"),
 });
 
-export const propertySchema = z.object({
+const propertySchemaBase = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
-  listingType: z.enum(["BUY", "RENT", "RESALE", "LEASE", "COMMERCIAL"]),
+  listingIntent: z.enum(["SELL", "RENT", "LEASE", "PG", "PROJECT"]),
+  /** Derived from listingIntent on submit (Sell -> BUY). Hidden field may be empty until then. */
+  listingType: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    z.enum(["BUY", "RENT", "LEASE"]).optional()
+  ),
   category: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "HOSPITALITY"]),
+  typeSpecificDetails: z.record(z.string(), z.string()).default({}),
   propertyType: z.string().min(1, "Property type is required"),
   price: z.coerce.number().positive("Price must be positive"),
   priceNegotiable: z.boolean().default(false),
@@ -55,6 +62,22 @@ export const propertySchema = z.object({
     .default("FULL_VISIBILITY"),
   assignedBrokerId: z.string().optional().or(z.literal("")),
   publicBrokerName: z.string().min(2).default("KrrishJazz"),
+});
+
+/** Normalize listingType/category from listingIntent before API persistence. */
+export const propertySchema = propertySchemaBase.transform((data) => {
+  const normalized = normalizeListingForApi({
+    listingIntent: data.listingIntent as ListingIntent,
+    category: data.category as PostingCategory,
+    propertyType: data.propertyType,
+    typeSpecificDetails: data.typeSpecificDetails,
+  });
+  return {
+    ...data,
+    listingType: normalized.listingType,
+    category: normalized.category,
+    typeSpecificDetails: normalized.typeSpecificDetails as Record<string, string>,
+  };
 });
 
 export const enquirySchema = z.object({

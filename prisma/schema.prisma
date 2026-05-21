@@ -67,7 +67,8 @@ model Property {
   totalFloors      Int?
   ageYears         Int?
   furnishing       String?
-  amenities        String // JSON string for array
+  amenities            String @default("[]") // JSON string for array
+  typeSpecificDetails  String @default("{}") // JSON: intent-specific + per-type fields
   address          String
   locality         String          @default("")
   subLocality      String          @default("")

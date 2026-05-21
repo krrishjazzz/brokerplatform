@@ -16,13 +16,15 @@ type UsePostPropertyDraftOptions = {
   step: number;
   images: string[];
   selectedAmenities: string[];
-  categoryNotes: string;
+  typeSpecificDetails: Record<string, string>;
   setImages: (images: string[]) => void;
   setSelectedAmenities: (amenities: string[]) => void;
-  setCategoryNotes: (notes: string) => void;
+  setTypeSpecificDetails: (details: Record<string, string>) => void;
   setStep: (step: number) => void;
   onResumeToast: (message: string) => void;
   onDiscardToast: (message: string) => void;
+  /** Skip autosave while submitting or showing success (avoids a fresh draft after post). */
+  pauseAutosave?: boolean;
 };
 
 export function usePostPropertyDraft({
@@ -31,13 +33,14 @@ export function usePostPropertyDraft({
   step,
   images,
   selectedAmenities,
-  categoryNotes,
+  typeSpecificDetails,
   setImages,
   setSelectedAmenities,
-  setCategoryNotes,
+  setTypeSpecificDetails,
   setStep,
   onResumeToast,
   onDiscardToast,
+  pauseAutosave = false,
 }: UsePostPropertyDraftOptions) {
   const [draftMeta, setDraftMeta] = useState<{ savedAt: number } | null>(null);
   const [pendingDraft, setPendingDraft] = useState<PostPropertyDraftPayload | null>(null);
@@ -74,7 +77,9 @@ export function usePostPropertyDraft({
     }
     if (draft.images?.length) setImages(draft.images);
     if (draft.selectedAmenities?.length) setSelectedAmenities(draft.selectedAmenities);
-    if (typeof draft.categoryNotes === "string") setCategoryNotes(draft.categoryNotes);
+    if (draft.typeSpecificDetails && typeof draft.typeSpecificDetails === "object") {
+      setTypeSpecificDetails(draft.typeSpecificDetails);
+    }
     if (typeof draft.step === "number") {
       setStep(Math.min(Math.max(draft.step, 0), POST_PROPERTY_STEPS.length - 1));
     }
@@ -90,7 +95,7 @@ export function usePostPropertyDraft({
   };
 
   useEffect(() => {
-    if (typeof window === "undefined" || pendingDraft) return;
+    if (typeof window === "undefined" || pendingDraft || pauseAutosave) return;
 
     const subscription = watch((formValues) => {
       if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
@@ -102,12 +107,12 @@ export function usePostPropertyDraft({
             step,
             images,
             selectedAmenities,
-            categoryNotes,
+            typeSpecificDetails,
             savedAt: Date.now(),
           };
           const hasContent =
             !!payload.formValues?.title ||
-            !!payload.formValues?.listingType ||
+            !!payload.formValues?.listingIntent ||
             !!payload.formValues?.category ||
             !!payload.formValues?.propertyType ||
             !!payload.formValues?.city ||
@@ -131,7 +136,7 @@ export function usePostPropertyDraft({
       subscription.unsubscribe();
       if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
     };
-  }, [watch, pendingDraft, step, images, selectedAmenities, categoryNotes]);
+  }, [watch, pendingDraft, pauseAutosave, step, images, selectedAmenities, typeSpecificDetails]);
 
   return {
     draftMeta,

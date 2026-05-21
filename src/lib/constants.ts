@@ -16,7 +16,7 @@ export const PROPERTY_CATEGORY_OPTIONS = [
   },
   {
     value: "AGRICULTURAL",
-    label: "Agricultural",
+    label: "Land / Agriculture",
     hint: "Farm land, farm house, plantation and orchard land",
   },
   {

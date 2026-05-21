@@ -25,26 +25,36 @@ export function WizardNavigation({
   onNext,
   onSubmit,
 }: WizardNavigationProps) {
+  const isLast = step >= STEPS.length - 1;
+
   return (
-    <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-      <Button type="button" variant="ghost" onClick={onBack} disabled={step === 0}>
-        <ChevronLeft size={16} className="mr-1" /> Back
-      </Button>
-      {step < STEPS.length - 1 ? (
-        <Button type="button" onClick={onNext}>
-          Next <ChevronRight size={16} className="ml-1" />
-        </Button>
-      ) : (
+    <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-white/95 px-4 py-3 backdrop-blur sm:static sm:z-auto sm:mt-8 sm:border-t sm:bg-transparent sm:px-0 sm:py-0 sm:pt-6">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
         <Button
           type="button"
-          onClick={onSubmit}
-          loading={submitting || uploadingImages}
-          disabled={uploadingImages || !termsAccepted}
-          className="relative z-10"
+          variant="ghost"
+          className="min-h-[44px] min-w-[96px]"
+          onClick={onBack}
+          disabled={step === 0}
         >
-          Submit Property
+          <ChevronLeft size={16} className="mr-1" /> Back
         </Button>
-      )}
+        {!isLast ? (
+          <Button type="button" className="min-h-[44px] min-w-[120px]" onClick={onNext}>
+            Continue <ChevronRight size={16} className="ml-1" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="min-h-[44px] min-w-[140px]"
+            onClick={onSubmit}
+            loading={submitting || uploadingImages}
+            disabled={uploadingImages || !termsAccepted}
+          >
+            Submit listing
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

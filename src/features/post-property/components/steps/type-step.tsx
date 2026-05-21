@@ -1,14 +1,23 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-unused-vars -- shared wizard prop bag */
-import { Building2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { PROPERTY_CATEGORY_OPTIONS, PROPERTY_TYPES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import {
+  getPostingCategoriesForIntent,
+  getPropertyTypesForPosting,
+  normalizeListingForApi,
+  PRIMARY_POSTING_CHOICES,
+  type ListingIntent,
+  type PostingCategory,
+} from "@/lib/posting-config";
+import { OWNER_CATEGORY_CHIPS, getPropertyTypeChips } from "@/lib/posting-ui-config";
+import {
+  intentToPrimaryChoice,
+  primaryChoiceToIntent,
+  resolveRentLeaseIntent,
+  type PrimaryPostingChoice,
+} from "@/lib/posting-validation";
 import type { PropertyInput } from "@/lib/validations";
-import { CATEGORY_ICON_MAP } from "@/features/post-property/category-icons";
-import { UploadFocusChecklist } from "@/features/post-property/components/upload-focus-checklist";
+import { PostingChip } from "@/features/post-property/components/posting-chip";
 import type { PostPropertyStepProps } from "@/features/post-property/types/wizard-step-props";
 
 export function TypeStep({
@@ -16,155 +25,168 @@ export function TypeStep({
   errors,
   setValue,
   category,
-  selectedListingType,
+  selectedListingIntent,
   selectedPropertyType,
-  watchedTitle,
-  uploadFocusItems,
 }: PostPropertyStepProps) {
+  const [showMoreTypes, setShowMoreTypes] = useState(false);
+  const intent = (selectedListingIntent as ListingIntent) || undefined;
+  const primaryChoice = intentToPrimaryChoice(intent);
+  const categories =
+    intent && intent !== "PG"
+      ? OWNER_CATEGORY_CHIPS.filter((c) =>
+          getPostingCategoriesForIntent(intent).some((x) => x.value === c.value)
+        )
+      : [];
+  const propertyTypes =
+    intent && category
+      ? getPropertyTypesForPosting(intent, category as PostingCategory)
+      : [];
+  const { popular, more } = getPropertyTypeChips(propertyTypes, category as PostingCategory | undefined);
+
+  const syncListingType = (intent: ListingIntent, cat: PostingCategory, propertyType?: string) => {
+    const normalized = normalizeListingForApi({
+      listingIntent: intent,
+      category: cat,
+      propertyType: propertyType || "Apartment",
+      typeSpecificDetails: {},
+    });
+    setValue("listingType", normalized.listingType, { shouldValidate: false });
+    setValue("category", normalized.category as PropertyInput["category"], { shouldValidate: false });
+  };
+
+  const selectPrimary = (choice: PrimaryPostingChoice) => {
+    const nextIntent = primaryChoiceToIntent(choice, category as PostingCategory | undefined);
+    setValue("listingIntent", nextIntent, { shouldValidate: true });
+    setValue("category", "" as PropertyInput["category"], { shouldValidate: true });
+    setValue("propertyType", "", { shouldValidate: true });
+    setShowMoreTypes(false);
+    if (choice === "PG") {
+      setValue("category", "HOSPITALITY", { shouldValidate: true });
+      syncListingType("PG", "HOSPITALITY");
+    } else if (nextIntent === "SELL") {
+      setValue("listingType", "BUY", { shouldValidate: false });
+    }
+  };
 
   return (
-<div className="space-y-6">
-              <div className="rounded-card border border-primary/20 bg-primary-light p-4">
-                <p className="text-sm font-semibold text-primary">Start with what you are listing</p>
-                <p className="text-xs text-text-secondary mt-1">Choose intent, then category and exact property type. Title and description come after, like other portals.</p>
-              </div>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">Start posting your property, it&apos;s free</h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Takes about 2 minutes. KrrishJazz verifies details and manages buyer calls for you.
+        </p>
+      </div>
 
-              <input type="hidden" {...register("category")} />
-              <input type="hidden" {...register("propertyType")} />
-              <input type="hidden" {...register("listingType")} />
+      <input type="hidden" {...register("listingIntent")} />
+      <input type="hidden" {...register("category")} />
+      <input type="hidden" {...register("propertyType")} />
+      <input type="hidden" {...register("listingType")} />
 
-              {/* 1. Listing Type */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-sm font-medium text-foreground">
-                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">1</span>
-                    I want to
-                  </label>
-                  {errors.listingType?.message && <p className="text-xs text-error">{errors.listingType.message}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  {[
-                    { value: "BUY", label: "Sell" },
-                    { value: "RENT", label: "Rent Out" },
-                    { value: "RESALE", label: "Resell" },
-                    { value: "LEASE", label: "Lease" },
-                    { value: "COMMERCIAL", label: "Commercial" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setValue("listingType", option.value as PropertyInput["listingType"], { shouldValidate: true })}
-                      className={cn(
-                        "rounded-btn border px-3 py-2.5 text-sm font-semibold transition-colors",
-                        selectedListingType === option.value
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-white text-text-secondary hover:border-primary/40 hover:text-primary"
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      <div>
+        <p className="mb-2 text-sm font-medium text-foreground">You&apos;re looking to...</p>
+        <div className="flex flex-wrap gap-2">
+          {PRIMARY_POSTING_CHOICES.map((option) => (
+            <PostingChip
+              key={option.id}
+              label={option.label}
+              selected={primaryChoice === option.id}
+              onClick={() => selectPrimary(option.id)}
+            />
+          ))}
+        </div>
+        {errors.listingIntent?.message && (
+          <p className="mt-1 text-xs text-error">{String(errors.listingIntent.message)}</p>
+        )}
+      </div>
 
-              {/* 2. Category */}
-              {selectedListingType && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">2</span>
-                      Category
-                    </label>
-                    {errors.category?.message && <p className="text-xs text-error">{errors.category.message}</p>}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                    {PROPERTY_CATEGORY_OPTIONS.map((item) => (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() => {
-                          setValue("category", item.value as PropertyInput["category"], { shouldValidate: true });
-                          setValue("propertyType", "", { shouldValidate: true });
-                        }}
-                        className={cn(
-                          "rounded-card border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-card",
-                          category === item.value
-                            ? "border-primary bg-primary-light text-primary shadow-card"
-                            : "border-border bg-surface text-foreground hover:border-primary/40"
-                        )}
-                      >
-                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-btn bg-white text-primary">
-                          {CATEGORY_ICON_MAP[item.value] || <Building2 size={20} />}
-                        </div>
-                        <p className="text-sm font-semibold">{item.label}</p>
-                        <p className="mt-1 text-xs leading-5 text-text-secondary">{item.hint}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {intent && intent !== "PG" && (
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">And it&apos;s a...</p>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((item) => (
+              <PostingChip
+                key={item.value}
+                label={item.label}
+                selected={category === item.value}
+                onClick={() => {
+                  const cat = item.value as PostingCategory;
+                  let intent = (selectedListingIntent as ListingIntent) || "SELL";
+                  if (primaryChoice === "RENT_LEASE") {
+                    intent = resolveRentLeaseIntent(cat);
+                    setValue("listingIntent", intent, { shouldValidate: true });
+                  }
+                  setValue("category", cat as PropertyInput["category"], { shouldValidate: true });
+                  syncListingType(intent, cat);
+                  setValue("propertyType", "", { shouldValidate: true });
+                  setShowMoreTypes(false);
+                }}
+              />
+            ))}
+          </div>
+          {errors.category?.message && <p className="mt-1 text-xs text-error">{errors.category.message}</p>}
+        </div>
+      )}
 
-              {/* 3. Property Type */}
-              {category && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm font-medium text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">3</span>
-                      Property Type
-                    </label>
-                    {errors.propertyType?.message && <p className="text-xs text-error">{errors.propertyType.message}</p>}
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    {(PROPERTY_TYPES[category] || []).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          setValue("propertyType", type, { shouldValidate: true });
-                          if (!watchedTitle) {
-                            setValue("title", `${type} in `.trim(), { shouldValidate: false });
-                          }
-                        }}
-                        className={cn(
-                          "rounded-btn border px-3 py-2 text-left text-sm font-medium transition-colors",
-                          selectedPropertyType === type
-                            ? "border-primary bg-primary-light text-primary"
-                            : "border-border bg-white text-text-secondary hover:border-primary/30 hover:text-primary"
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Title + Description (only after property type is picked) */}
-              {selectedPropertyType && (
-                <div className="space-y-4 rounded-card border border-border bg-surface p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">4</span>
-                      Describe your {selectedPropertyType}
-                    </p>
-                    <p className="mt-1 text-xs text-text-secondary">A clear title and short description help buyers shortlist faster.</p>
-                  </div>
-                  <Input
-                    label="Title"
-                    placeholder={`e.g. 3BHK ${selectedPropertyType} in Salt Lake`}
-                    error={errors.title?.message}
-                    {...register("title")}
-                  />
-                  <Textarea
-                    label="Description"
-                    placeholder={`Describe your ${selectedPropertyType}: highlights, amenities, surroundings...`}
-                    error={errors.description?.message}
-                    {...register("description")}
-                  />
-                </div>
-              )}
-
-              <UploadFocusChecklist selectedType={selectedPropertyType} items={uploadFocusItems} />
+      {category && propertyTypes.length > 0 && (
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">Property type</p>
+          <div className="flex flex-wrap gap-2">
+            {popular.map((chip) => (
+              <PostingChip
+                key={chip.value}
+                label={chip.label}
+                selected={selectedPropertyType === chip.value}
+                onClick={() => setValue("propertyType", chip.value, { shouldValidate: true })}
+              />
+            ))}
+            {more.length > 0 && (
+              <PostingChip
+                label={showMoreTypes ? "Fewer types" : `${more.length} more`}
+                selected={false}
+                onClick={() => setShowMoreTypes((v) => !v)}
+                className="border-dashed"
+              />
+            )}
+          </div>
+          {showMoreTypes && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {more.map((chip) => (
+                <PostingChip
+                  key={chip.value}
+                  label={chip.label}
+                  selected={selectedPropertyType === chip.value}
+                  onClick={() => setValue("propertyType", chip.value, { shouldValidate: true })}
+                />
+              ))}
             </div>
+          )}
+          {errors.propertyType?.message && (
+            <p className="mt-1 text-xs text-error">{errors.propertyType.message}</p>
+          )}
+        </div>
+      )}
+
+      {intent === "PG" && category && propertyTypes.length > 0 && (
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">Property type</p>
+          <div className="flex flex-wrap gap-2">
+            {propertyTypes.map((type) => (
+              <PostingChip
+                key={type}
+                label={type}
+                selected={selectedPropertyType === type}
+                onClick={() => setValue("propertyType", type, { shouldValidate: true })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedPropertyType && (
+        <p className="rounded-lg border border-success/20 bg-success-light/50 px-3 py-2 text-sm text-success">
+          Good choice. Next: add price and size - we&apos;ll draft your listing title for review.
+        </p>
+      )}
+    </div>
   );
 }

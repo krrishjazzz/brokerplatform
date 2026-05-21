@@ -4,7 +4,8 @@ import Link from "next/link";
 import { BellRing, Building2, Eye, Heart, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn, formatPrice } from "@/lib/utils";
+import { formatIntentAwarePrice, getListingIntentFromProperty } from "@/lib/posting-field-sync";
+import { cn } from "@/lib/utils";
 import type { Property, PropertySaveTarget } from "./types";
 import { badgeVariant, getFreshness, getSmartSpecs, listingLabel } from "./property-display";
 
@@ -95,7 +96,14 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
           </button>
 
           <Link href={detailHref} className="block pr-12">
-            <p className="text-xl font-bold text-primary lg:text-2xl">{formatPrice(Number(property.price))}</p>
+            <p className="text-xl font-bold text-primary lg:text-2xl">
+              {formatIntentAwarePrice(
+                Number(property.price),
+                getListingIntentFromProperty(
+                  property as { typeSpecificDetails?: string | null; listingType?: string | null }
+                )
+              )}
+            </p>
             <h2 className="mt-1 line-clamp-2 text-base font-semibold text-foreground group-hover:text-primary sm:text-lg">
               {property.title}
             </h2>

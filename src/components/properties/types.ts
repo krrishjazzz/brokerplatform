@@ -3,6 +3,7 @@ export interface Property {
   slug: string;
   title: string;
   listingType: string;
+  typeSpecificDetails?: string | null;
   category: string;
   propertyType: string;
   price: number;

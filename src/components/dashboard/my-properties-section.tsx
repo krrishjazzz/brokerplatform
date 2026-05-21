@@ -32,6 +32,12 @@ export function MyPropertiesSection() {
     fetchMyProperties();
   }, [fetchMyProperties]);
 
+  useEffect(() => {
+    const onPosted = () => fetchMyProperties();
+    window.addEventListener("krrishjazz:property-posted", onPosted);
+    return () => window.removeEventListener("krrishjazz:property-posted", onPosted);
+  }, [fetchMyProperties]);
+
   const getFreshnessLabel = (property: PropertyRow) => {
     const latest = property.latestFreshness;
     if (latest?.availabilityStatus === "CLOSED") return "Closed";

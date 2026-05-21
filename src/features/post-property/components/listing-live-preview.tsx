@@ -1,12 +1,14 @@
 import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/utils";
+import { formatIntentAwarePrice } from "@/lib/posting-field-sync";
+import type { ListingIntent } from "@/lib/posting-config";
 import { getVisibilityLabel } from "@/lib/visibility";
 
 export function ListingLivePreview({
   title,
   description,
   listingType,
+  listingIntent,
   propertyType,
   city,
   locality,
@@ -20,6 +22,7 @@ export function ListingLivePreview({
   title?: string;
   description?: string;
   listingType?: string;
+  listingIntent?: ListingIntent | string;
   propertyType?: string;
   city?: string;
   locality?: string;
@@ -56,7 +59,9 @@ export function ListingLivePreview({
           </div>
           <div className="p-4">
             <p className="text-xl font-bold text-primary">
-              {price ? formatPrice(Number(price)) : "Price pending"}
+              {price
+                ? formatIntentAwarePrice(Number(price), listingIntent as ListingIntent | undefined)
+                : "Price pending"}
             </p>
             <h3 className="mt-2 line-clamp-2 text-base font-semibold text-foreground">
               {title || "Property title will appear here"}
