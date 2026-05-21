@@ -1,9 +1,10 @@
 import { HomeHeroSection } from "@/components/home/home-hero-section";
 import { TrustValueBar } from "@/components/home/trust-value-bar";
 import { PopularLocationsGrid } from "@/components/home/popular-locations-grid";
-import { ExploreByIntent } from "@/components/home/explore-by-intent";
-import { WhyChooseSection } from "@/components/home/why-choose-section";
-import { HomeDualCta } from "@/components/home/home-dual-cta";
+import { FeaturedListingsSection } from "@/components/home/home-sections";
+import { HomeContinueJourneyStrip } from "@/components/home/home-inline-login-section";
+import { HomeRequirementSection } from "@/components/home/home-requirement-section";
+import { HomeOwnerCta } from "@/components/home/home-owner-cta";
 import { POPULAR_LOCATIONS } from "@/components/home/home-data";
 
 export default function HomePage() {
@@ -12,9 +13,10 @@ export default function HomePage() {
       <HomeHeroSection />
       <TrustValueBar />
       <PopularLocationsGrid items={POPULAR_LOCATIONS} />
-      <ExploreByIntent />
-      <WhyChooseSection />
-      <HomeDualCta />
+      <FeaturedListingsSection />
+      <HomeContinueJourneyStrip />
+      <HomeRequirementSection />
+      <HomeOwnerCta />
     </main>
   );
 }

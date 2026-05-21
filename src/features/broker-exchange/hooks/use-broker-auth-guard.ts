@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { buildLoginUrl } from "@/lib/login-intent";
 
 export function useBrokerAuthGuard() {
   const { user, loading } = useAuth();
@@ -11,15 +12,16 @@ export function useBrokerAuthGuard() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace("/login");
+      router.replace(buildLoginUrl({ intent: "broker", redirect: "/broker/properties" }));
       return;
     }
-    if (user.role !== "BROKER" || user.brokerStatus !== "APPROVED") {
-      router.replace("/dashboard?tab=application");
+    if (user.brokerStatus !== "APPROVED") {
+      const tab = user.brokerStatus ? "application" : "apply-broker";
+      router.replace(`/dashboard?tab=${tab}`);
     }
   }, [user, loading, router]);
 
-  const isReady = Boolean(user?.role === "BROKER" && user.brokerStatus === "APPROVED");
+  const isReady = Boolean(user?.brokerStatus === "APPROVED");
 
   return { user, loading, isReady };
 }

@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { Globe, Mail, MapPin, Phone, Share2, Users } from "lucide-react";
+import { useLoginPopup } from "@/lib/login-popup-context";
 import { formatPlatformPhoneDisplay, PLATFORM_PHONE } from "@/lib/platform";
 
 export function Footer() {
+  const { openLoginPopup } = useLoginPopup();
   const linkClass = "text-sm text-white/75 transition-colors hover:text-white";
 
   return (
@@ -33,21 +37,24 @@ export function Footer() {
               <li><Link href="/properties?listingType=BUY" className={linkClass}>Buy</Link></li>
               <li><Link href="/properties?listingType=RENT" className={linkClass}>Rent</Link></li>
               <li><Link href="/properties?category=COMMERCIAL" className={linkClass}>Commercial</Link></li>
-              <li><Link href="/owners" className={linkClass}>Owners</Link></li>
-              <li><Link href="/brokers" className={linkClass}>Brokers</Link></li>
+              <li><Link href="/properties?verified=true" className={linkClass}>Verified listings</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">Company</h4>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-wide text-white">List & partner</h4>
             <ul className="space-y-2.5">
-              <li><Link href="/properties?verified=true" className={linkClass}>About Us</Link></li>
-              <li><Link href="/owners" className={linkClass}>For Owners</Link></li>
-              <li><Link href="/brokers" className={linkClass}>Broker Network</Link></li>
-              <li><Link href="/login?as=broker" className={linkClass}>Broker Login</Link></li>
-              <li><Link href="/owners" className={linkClass}>List Property</Link></li>
-              <li><Link href="/properties" className={linkClass}>Careers</Link></li>
-              <li><Link href="/properties" className={linkClass}>Blog</Link></li>
+              <li><Link href="/owners" className={linkClass}>List your property</Link></li>
+              <li><Link href="/brokers" className={linkClass}>Broker network</Link></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => openLoginPopup({ intent: "buyer" })}
+                  className={linkClass}
+                >
+                  Sign in with OTP
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -57,7 +64,6 @@ export function Footer() {
               <li><Link href="/properties" className={linkClass}>Help Center</Link></li>
               <li><Link href="/properties" className={linkClass}>Privacy Policy</Link></li>
               <li><Link href="/properties" className={linkClass}>Terms of Service</Link></li>
-              <li><Link href="/login" className={linkClass}>Login / Register</Link></li>
             </ul>
           </div>
         </div>
@@ -80,10 +86,6 @@ export function Footer() {
               <span>support@krrishjazz.com</span>
             </li>
           </ul>
-        </div>
-
-        <div className="mt-8 border-t border-white/15 pt-6 text-center text-sm text-white/60">
-          &copy; {new Date().getFullYear()} KrrishJazz. All rights reserved.
         </div>
       </div>
     </footer>

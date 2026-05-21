@@ -1,10 +1,21 @@
-/** Build a safe in-app login URL that returns the user after auth. */
-export function buildLoginUrl(returnPath: string) {
+import type { LoginIntent } from "@/lib/login-intent";
+import { buildLoginUrl as buildLoginUrlWithIntent } from "@/lib/login-intent";
+
+/** Build login URL with optional intent and return path. */
+export function buildLoginUrl(returnPath: string, intent?: LoginIntent) {
   const safe = returnPath.startsWith("/") ? returnPath : "/";
-  return `/login?redirect=${encodeURIComponent(safe)}`;
+  return buildLoginUrlWithIntent({ redirect: safe, intent });
 }
 
-/** Return path for saving a listing from search/cards (property detail + auto-save). */
+/** Return path for saving a listing from search/cards. */
 export function buildPropertySaveLoginUrl(slug: string) {
-  return buildLoginUrl(`/properties/${slug}?intent=save`);
+  return buildLoginUrl(`/properties/${slug}?intent=save`, "buyer");
+}
+
+export function buildOwnerLoginUrl(redirect = "/dashboard?tab=post") {
+  return buildLoginUrlWithIntent({ intent: "owner", redirect });
+}
+
+export function buildBrokerLoginUrl() {
+  return buildLoginUrlWithIntent({ intent: "broker" });
 }

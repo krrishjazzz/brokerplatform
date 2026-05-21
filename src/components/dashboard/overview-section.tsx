@@ -30,7 +30,7 @@ export function OverviewSection() {
             ? Promise.resolve({ properties: [] })
             : fetch("/api/properties?postedBy=me", { credentials: "include" }).then((r) => r.json()).catch(() => ({ properties: [] }));
         const requirementsReq =
-          user.role === "BROKER" && user.brokerStatus === "APPROVED"
+          user.brokerStatus === "APPROVED"
             ? fetch("/api/broker/requirements", { credentials: "include" }).then((r) => r.json()).catch(() => ({ requirements: [] }))
             : Promise.resolve({ requirements: [] });
 
@@ -123,10 +123,10 @@ export function OverviewSection() {
     },
     {
       title: `${activeDemand} active requirement${activeDemand === 1 ? "" : "s"}`,
-      desc: user?.role === "BROKER" ? "Match demand against network inventory." : "Relevant broker demand can improve listing movement.",
+      desc: user?.brokerStatus === "APPROVED" ? "Match demand against network inventory." : "Relevant broker demand can improve listing movement.",
       icon: <ClipboardList size={18} />,
-      cta: user?.role === "BROKER" ? "Open demand" : "Post inventory",
-      href: user?.role === "BROKER" ? "/broker/requirements" : "/dashboard?tab=post",
+      cta: user?.brokerStatus === "APPROVED" ? "Open demand" : "Post inventory",
+      href: user?.brokerStatus === "APPROVED" ? "/broker/requirements" : "/dashboard?tab=post",
       tone: "text-accent bg-accent/10 border-accent/20",
     },
     {
@@ -163,7 +163,7 @@ export function OverviewSection() {
                     <PlusCircle size={16} className="mr-2" />
                     Post Property
                   </Button>
-                  {user?.role === "BROKER" && (
+                  {user?.brokerStatus === "APPROVED" && (
                     <Button variant="outline" onClick={() => router.push("/broker/requirements")}>
                       <ClipboardList size={16} className="mr-2" />
                       Open Demand
@@ -278,7 +278,7 @@ export function OverviewSection() {
                   <h3 className="font-semibold text-foreground">Demand Snapshot</h3>
                   <p className="mt-1 text-sm text-text-secondary">Requirements brokers can act on now.</p>
                 </div>
-                {user?.role === "BROKER" && (
+                {user?.brokerStatus === "APPROVED" && (
                   <Button variant="outline" size="sm" onClick={() => router.push("/broker/requirements")}>
                     Open
                   </Button>
@@ -301,7 +301,7 @@ export function OverviewSection() {
                   </div>
                 ))}
                 {requirements.length === 0 && (
-                  <EmptyWorkHint icon={<ClipboardList size={22} />} title="No demand loaded" desc="Broker requirements will appear here as live demand builds." action={user?.role === "BROKER" ? "Add demand" : "Post inventory"} onClick={() => router.push(user?.role === "BROKER" ? "/broker/requirements" : "/dashboard?tab=post")} />
+                  <EmptyWorkHint icon={<ClipboardList size={22} />} title="No demand loaded" desc="Broker requirements will appear here as live demand builds." action={user?.brokerStatus === "APPROVED" ? "Add demand" : "Post inventory"} onClick={() => router.push(user?.brokerStatus === "APPROVED" ? "/broker/requirements" : "/dashboard?tab=post")} />
                 )}
               </div>
             </div>

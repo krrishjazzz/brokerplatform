@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, getSession } from "@/lib/session";
 import { registerSchema } from "@/lib/validations";
+import { profileNeedsCompletion, userCanList } from "@/lib/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +21,40 @@ export async function POST(req: NextRequest) {
 
     const { name, email, wantToListAsOwner } = parsed.data;
 
+    const existing = await prisma.profile.findUnique({
+      where: { id: session.id },
+      include: { brokerProfile: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
+    if (!profileNeedsCompletion(existing.name) && existing.role !== "CUSTOMER") {
+      return NextResponse.json(
+        { error: "Profile already completed. Update from your dashboard." },
+        { status: 400 }
+      );
+    }
+
+    let role = existing.role;
+    if (existing.role === "CUSTOMER") {
+      role = wantToListAsOwner ? "OWNER" : "CUSTOMER";
+    }
+
     const profile = await prisma.profile.update({
       where: { id: session.id },
       data: {
         name,
         email: email || null,
-        role: wantToListAsOwner ? "OWNER" : "CUSTOMER",
+        role,
       },
+      include: { brokerProfile: true },
     });
 
     await createSession(profile.id);
+
+    const brokerStatus = profile.brokerProfile?.status ?? null;
 
     return NextResponse.json({
       user: {
@@ -39,6 +64,9 @@ export async function POST(req: NextRequest) {
         email: profile.email,
         role: profile.role,
         avatarUrl: profile.avatarUrl,
+        brokerStatus,
+        hasBrokerApplication: Boolean(brokerStatus),
+        canList: userCanList(profile.role),
       },
     });
   } catch (error) {

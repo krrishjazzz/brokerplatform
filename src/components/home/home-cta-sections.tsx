@@ -49,7 +49,7 @@ export function OwnerListPropertyCta() {
                     Post Property Free
                   </Button>
                 </Link>
-                <Link href="/login?intent=post" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                <Link href="/login?intent=owner" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
                   Login to manage listings
                   <ArrowRight size={14} />
                 </Link>
@@ -102,7 +102,7 @@ export function JoinBrokerNetworkCta() {
                     Explore Broker Network
                   </Button>
                 </Link>
-                <Link href="/login?as=broker" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
+                <Link href="/login?intent=broker" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
                   Broker login
                   <ArrowRight size={14} />
                 </Link>

@@ -5,13 +5,11 @@ import {
   Headphones,
   Home,
   IndianRupee,
-  PlusCircle,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { OwnersPageHero } from "@/components/auth/owners-page-hero";
 
 const BENEFITS = [
   { icon: ShieldCheck, title: "Verified exposure", desc: "Listings reviewed by KrrishJazz before they reach serious buyers." },
@@ -20,12 +18,6 @@ const BENEFITS = [
   { icon: Headphones, title: "Dedicated RM", desc: "A relationship manager helps you through enquiries and closure." },
   { icon: IndianRupee, title: "Free to list", desc: "No upfront listing fee. Brokerage only on successful closure." },
   { icon: Home, title: "Full control", desc: "Edit, pause, and track your listing from your owner dashboard." },
-];
-
-const FLOW_CARDS = [
-  { title: "Active enquiries", metric: "12+", desc: "Managed buyer callbacks this week", tone: "from-primary-light to-white" },
-  { title: "Listing views", metric: "840+", desc: "Verified traffic on live listings", tone: "from-white to-primary-light/40" },
-  { title: "Avg. response", metric: "< 2h", desc: "KrrishJazz coordinates first touch", tone: "from-primary-light/50 to-white" },
 ];
 
 const STEPS = [
@@ -62,55 +54,7 @@ export const metadata = {
 export default function OwnersPage() {
   return (
     <main className="bg-surface text-foreground">
-      <section className="relative overflow-hidden border-b border-border-strong bg-gradient-to-b from-primary-light via-white to-surface">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-        <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6 lg:py-16">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-pill border border-primary/20 bg-primary-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                <Sparkles size={12} />
-                For Property Owners
-              </span>
-              <h1 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl lg:text-[44px]">
-                List property free. Close with confidence.
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-7 text-text-secondary">
-                Reach serious buyers and tenants in Kolkata with verified exposure, managed enquiries, and assisted closure — without marketplace noise.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/dashboard?tab=post">
-                  <Button size="lg" className="min-w-44 gap-2">
-                    <PlusCircle size={18} />
-                    Post Property Free
-                  </Button>
-                </Link>
-                <Link href="/login?intent=post">
-                  <Button size="lg" variant="outline" className="min-w-40 gap-2 border-primary text-primary">
-                    Owner Login
-                    <ArrowRight size={16} />
-                  </Button>
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-text-secondary">Free listing · Managed callbacks · Pay brokerage only on closure</p>
-            </div>
-            <div className="rounded-2xl border border-border/80 bg-white p-5 shadow-[0_16px_48px_rgba(0,92,168,0.12)]">
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Owner dashboard preview</p>
-              <div className="mt-4 space-y-3">
-                {FLOW_CARDS.map((card) => (
-                  <div key={card.title} className={cn("rounded-xl border border-border/80 bg-gradient-to-r p-4", card.tone)}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{card.title}</p>
-                      <span className="text-xl font-bold text-primary">{card.metric}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-text-secondary">{card.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <OwnersPageHero />
       <section className="border-b border-border bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 lg:px-6">
           <div className="mx-auto max-w-2xl text-center">
@@ -192,7 +136,7 @@ export default function OwnersPage() {
             ))}
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/login?intent=post">
+            <Link href="/owners#owner-auth">
               <Button size="lg">Get Started</Button>
             </Link>
           </div>
@@ -229,7 +173,7 @@ export default function OwnersPage() {
                   Post Property Free
                 </Button>
               </Link>
-              <Link href="/login?intent=post" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
+              <Link href="/login?intent=owner" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
                 Login to manage listings <ArrowRight size={14} />
               </Link>
             </div>

@@ -22,6 +22,7 @@ export function EnquiryOtpStep({ phone, onBack, onVerified, verifying = false }:
     sendOtp,
     handleOtpChange,
     handleOtpKeyDown,
+    handleOtpPaste,
     getOtpString,
   } = usePhoneOtp();
 
@@ -53,7 +54,7 @@ export function EnquiryOtpStep({ phone, onBack, onVerified, verifying = false }:
         </p>
       </div>
 
-      <div className="flex justify-center gap-2">
+      <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
         {otp.map((digit, index) => (
           <input
             key={index}
@@ -62,6 +63,8 @@ export function EnquiryOtpStep({ phone, onBack, onVerified, verifying = false }:
             }}
             type="text"
             inputMode="numeric"
+            autoComplete={index === 0 ? "one-time-code" : "off"}
+            pattern="[0-9]*"
             maxLength={1}
             value={digit}
             onChange={(event) => handleOtpChange(index, event.target.value)}
@@ -74,19 +77,29 @@ export function EnquiryOtpStep({ phone, onBack, onVerified, verifying = false }:
 
       {error && <p className="text-xs text-error">{error}</p>}
 
-      <Button type="button" onClick={handleVerify} loading={verifying} className="w-full">
+      <Button
+        type="button"
+        onClick={handleVerify}
+        loading={verifying}
+        className="w-full"
+        disabled={getOtpString().length !== 6}
+      >
         Verify &amp; send enquiry
       </Button>
 
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={() => void sendOtp(phone)}
-          disabled={resendCooldown > 0 || sending}
-          className="text-sm text-primary hover:underline disabled:text-text-secondary disabled:no-underline"
-        >
-          {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : sending ? "Sending..." : "Resend OTP"}
-        </button>
+      <div className="text-center text-sm text-text-secondary">
+        {resendCooldown > 0 ? (
+          <span>Resend OTP in {resendCooldown}s</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void sendOtp(phone)}
+            disabled={sending}
+            className="font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            {sending ? "Sending..." : "Resend OTP"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, MessageCircle, Phone, X } from "lucide-react";
@@ -224,7 +224,7 @@ export function AllLeadsSection() {
                       {request.requirementType || "Property"} in {[request.locality, request.city].filter(Boolean).join(", ") || "city pending"}
                     </p>
                     <p className="mt-1 text-xs text-text-secondary">
-                      Budget: {request.budgetMax ? formatPrice(Number(request.budgetMax)) : "Ask"} Â· {new Date(request.createdAt).toLocaleDateString()}
+                      Budget: {request.budgetMax ? formatPrice(Number(request.budgetMax)) : "Ask"} - {new Date(request.createdAt).toLocaleDateString()}
                     </p>
                     {request.note && <p className="mt-2 line-clamp-2 text-xs leading-5 text-text-secondary">{request.note}</p>}
                   </div>
@@ -465,7 +465,7 @@ function LeadDetailDrawer({
             <div>
               <p className="text-xs font-semibold text-white/70">Lead detail</p>
               <h2 className="mt-1 text-xl font-semibold">{lead.name}</h2>
-              <p className="mt-1 text-sm text-white/75">{lead.phone} Â· {readableStatus(lead.status)}</p>
+              <p className="mt-1 text-sm text-white/75">{lead.phone} - {readableStatus(lead.status)}</p>
             </div>
             <button type="button" onClick={onClose} className="rounded-btn p-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Close lead detail">
               <X size={20} />

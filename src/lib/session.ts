@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 import * as jose from "jose";
+import { userCanList } from "@/lib/capabilities";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "krishjazz-secret-key-change-in-production"
@@ -13,10 +14,14 @@ export async function createSession(profileId: string) {
     select: { role: true, brokerProfile: { select: { status: true } } },
   });
 
+  const role = profile?.role || "CUSTOMER";
+  const brokerStatus = profile?.brokerProfile?.status || null;
+
   const token = await new jose.SignJWT({
     profileId,
-    role: profile?.role || "CUSTOMER",
-    brokerStatus: profile?.brokerProfile?.status || null,
+    role,
+    brokerStatus,
+    canList: userCanList(role),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
@@ -49,6 +54,9 @@ export async function getSession() {
 
     if (!profile || !profile.isActive) return null;
 
+    const brokerStatus = profile.brokerProfile?.status ?? null;
+    const hasBrokerApplication = Boolean(brokerStatus);
+
     return {
       id: profile.id,
       phone: profile.phone,
@@ -56,7 +64,9 @@ export async function getSession() {
       email: profile.email,
       role: profile.role,
       avatarUrl: profile.avatarUrl,
-      brokerStatus: profile.brokerProfile?.status,
+      brokerStatus,
+      hasBrokerApplication,
+      canList: userCanList(profile.role),
       brokerApplicationAt: profile.brokerProfile?.createdAt
         ? profile.brokerProfile.createdAt.toISOString()
         : null,

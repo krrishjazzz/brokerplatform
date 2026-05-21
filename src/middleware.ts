@@ -4,19 +4,22 @@ import { jwtVerify } from "jose";
 
 const protectedRoutes = ["/dashboard", "/admin", "/broker"];
 const adminRoutes = ["/admin"];
-const brokerRestrictedRoutes = ["/", "/properties"];
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "krishjazz-secret-key-change-in-production");
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "krishjazz-secret-key-change-in-production"
+);
+
+function isPublicBrowsePath(pathname: string) {
+  return pathname === "/" || pathname === "/properties" || pathname.startsWith("/properties/");
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
-  const isBrokerRestricted = brokerRestrictedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
   const isBrokerRoute = pathname.startsWith("/broker");
   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route));
+  const isPublicBrowse = isPublicBrowsePath(pathname);
 
   const token = request.cookies.get("session")?.value;
   if (!token) {
@@ -25,6 +28,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("intent", "buyer");
     loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
@@ -34,21 +38,11 @@ export async function middleware(request: NextRequest) {
 
     const brokerStatus = payload.brokerStatus as string | null | undefined;
 
-    if (payload.role === "BROKER" && brokerStatus === "APPROVED") {
-      if (isBrokerRestricted) {
-        return NextResponse.redirect(new URL("/broker/properties", request.url));
+    if (isBrokerRoute) {
+      if (brokerStatus !== "APPROVED") {
+        const tab = brokerStatus ? "application" : "apply-broker";
+        return NextResponse.redirect(new URL(`/dashboard?tab=${tab}`, request.url));
       }
-      if (isAdminRoute) {
-        return NextResponse.redirect(new URL("/broker/properties", request.url));
-      }
-    }
-
-    if (isBrokerRoute && payload.role !== "BROKER") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-
-    if (isBrokerRoute && payload.role === "BROKER" && brokerStatus && brokerStatus !== "APPROVED") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     if (isAdminRoute && payload.role !== "ADMIN") {
@@ -57,7 +51,14 @@ export async function middleware(request: NextRequest) {
 
     return NextResponse.next();
   } catch {
+    if (isPublicBrowse) {
+      const response = NextResponse.next();
+      response.cookies.delete("session");
+      return response;
+    }
+
     const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("intent", "buyer");
     loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     const response = NextResponse.redirect(loginUrl);
     response.cookies.delete("session");

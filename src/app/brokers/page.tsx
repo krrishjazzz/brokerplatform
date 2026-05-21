@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BadgeCheck,
   BarChart3,
-  Briefcase,
   Building2,
   ClipboardList,
   Headphones,
@@ -11,11 +10,10 @@ import {
   Layers,
   MessageSquare,
   ShieldCheck,
-  UserPlus,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { BrokersPageHero } from "@/components/auth/brokers-page-hero";
 
 const BENEFITS = [
   { icon: ShieldCheck, title: "Verified leads", desc: "Curated buyer and tenant demand — not open-market spam." },
@@ -25,12 +23,6 @@ const BENEFITS = [
   { icon: Headphones, title: "RM support", desc: "Dedicated relationship manager for onboarding and deals." },
   { icon: IndianRupee, title: "Commission tracking", desc: "Track brokerage milestones and closure payouts clearly." },
   { icon: Users, title: "Verified network badge", desc: "Stand out with a trusted KrrishJazz broker identity." },
-];
-
-const DASHBOARD_CARDS = [
-  { title: "Live requirements", metric: "24+", desc: "Active buyer & tenant briefs in your city", tone: "from-primary-light to-white" },
-  { title: "Matched inventory", metric: "180+", desc: "Verified owner & partner listings", tone: "from-white to-primary-light/40" },
-  { title: "Closure pipeline", metric: "12", desc: "Deals in progress this month", tone: "from-primary-light/50 to-white" },
 ];
 
 const STEPS = [
@@ -62,54 +54,7 @@ const FAQ = [
 export default function BrokersPage() {
   return (
     <main className="bg-surface text-foreground">
-      <section className="relative overflow-hidden border-b border-border-strong bg-gradient-to-b from-primary-light via-white to-surface">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-        <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6 lg:py-16">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-pill border border-primary/20 bg-primary-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                <Briefcase size={12} />
-                KrrishJazz Broker Network
-              </span>
-              <h1 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl lg:text-[44px]">
-                Close deals with verified demand — not chase noise.
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-7 text-text-secondary">
-                A premium broker workspace for verified leads, requirements, inventory, managed closures, and RM-backed support — built for Kolkata&apos;s serious operators.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/login?as=broker">
-                  <Button size="lg" className="min-w-44 gap-2">
-                    <UserPlus size={18} />
-                    Broker Register
-                  </Button>
-                </Link>
-                <Link href="/login?as=broker">
-                  <Button size="lg" variant="outline" className="min-w-40 gap-2 border-primary text-primary">
-                    Broker Login
-                    <ArrowRight size={16} />
-                  </Button>
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-text-secondary">Free to apply · RERA-verified network · Approval typically within 1 business day</p>
-            </div>
-            <div className="rounded-2xl border border-border/80 bg-white p-5 shadow-[0_16px_48px_rgba(0,92,168,0.12)]">
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Dashboard preview</p>
-              <div className="mt-4 space-y-3">
-                {DASHBOARD_CARDS.map((card) => (
-                  <div key={card.title} className={cn("rounded-xl border border-border/80 bg-gradient-to-r p-4", card.tone)}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-foreground">{card.title}</p>
-                      <span className="text-xl font-bold text-primary">{card.metric}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-text-secondary">{card.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <BrokersPageHero />
 
       <section className="border-b border-border bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 lg:px-6">
@@ -189,7 +134,7 @@ export default function BrokersPage() {
             ))}
           </div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/login?as=broker">
+            <Link href="/brokers#broker-auth">
               <Button size="lg">Start Application</Button>
             </Link>
             <Link href="/brokers" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
@@ -224,12 +169,12 @@ export default function BrokersPage() {
               Apply today and get access to verified demand, inventory tools, and managed closures — without public marketplace clutter.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link href="/login?as=broker">
+              <Link href="/brokers#broker-auth">
                 <Button size="lg" className="bg-white text-primary hover:bg-white/95">
                   Register as Broker
                 </Button>
               </Link>
-              <Link href="/login?as=broker" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
+              <Link href="/brokers#broker-auth" className="inline-flex items-center gap-1 text-sm font-semibold text-white underline-offset-4 hover:underline">
                 Already approved? Login <ArrowRight size={14} />
               </Link>
             </div>

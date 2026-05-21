@@ -12,7 +12,9 @@ export interface User {
   email: string | null;
   role: UserRole;
   avatarUrl: string | null;
-  brokerStatus?: BrokerStatusType;
+  brokerStatus?: BrokerStatusType | null;
+  hasBrokerApplication?: boolean;
+  canList?: boolean;
   brokerApplicationAt?: string | null;
   brokerRejectionReason?: string | null;
 }
@@ -20,8 +22,15 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (phone: string, otp: string) => Promise<{ success: boolean; isNew: boolean; error?: string }>;
-  register: (data: { name: string; email?: string; wantToListAsOwner: boolean }) => Promise<void>;
+  login: (
+    phone: string,
+    otp: string
+  ) => Promise<{ success: boolean; isNew: boolean; needsProfile?: boolean; error?: string }>;
+  register: (data: {
+    name: string;
+    email?: string;
+    wantToListAsOwner: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -61,11 +70,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) return { success: false, isNew: false, error: data.error };
+
+    if (data.needsProfile || data.isNew) {
+      setUser(null);
+      return { success: true, isNew: true, needsProfile: Boolean(data.needsProfile) };
+    }
+
     if (data.user) {
       setUser(data.user);
       return { success: true, isNew: false };
     }
-    return { success: true, isNew: true };
+
+    return { success: true, isNew: true, needsProfile: true };
   };
 
   const register = async (data: { name: string; email?: string; wantToListAsOwner: boolean }) => {
@@ -75,10 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       credentials: "include",
       body: JSON.stringify(data),
     });
-    if (res.ok) {
-      const result = await res.json();
-      setUser(result.user);
+    const result = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const err =
+        typeof result.error === "string"
+          ? result.error
+          : "Could not complete profile. Please try again.";
+      return { success: false, error: err };
     }
+
+    setUser(result.user);
+    return { success: true };
   };
 
   const logout = () => {

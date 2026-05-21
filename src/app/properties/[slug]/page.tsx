@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { cn, formatPrice } from "@/lib/utils";
-import { buildPropertySaveLoginUrl } from "@/lib/auth-redirect";
+import { useLoginPopup } from "@/lib/login-popup-context";
 import {
   parseSavedToggleResponse,
   savedPropertyToastMessage,
@@ -164,7 +164,8 @@ export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, login, register: registerUser } = useAuth();
+  const { user, login, register: registerUser, refreshUser } = useAuth();
+  const { openLoginPopup } = useLoginPopup();
   const { toast } = useToast();
   const slug = params.slug as string;
   const pendingSaveHandled = useRef(false);
@@ -377,12 +378,18 @@ export default function PropertyDetailPage() {
         return;
       }
 
-      if (loginResult.isNew) {
-        await registerUser({
+      if (loginResult.isNew || loginResult.needsProfile) {
+        const reg = await registerUser({
           name: pendingEnquiry.name,
           email: "",
           wantToListAsOwner: false,
         });
+        if (!reg.success) {
+          const message = reg.error || "Could not complete profile";
+          setEnquiryError(message);
+          toast(message, "error");
+          return;
+        }
       }
 
       const ok = await submitEnquiry(pendingEnquiry);
@@ -409,13 +416,8 @@ export default function PropertyDetailPage() {
     await submitEnquiry(data);
   };
 
-  const handleSaveProperty = async () => {
-    if (!user) {
-      router.push(buildPropertySaveLoginUrl(slug));
-      return;
-    }
+  const performSaveProperty = async () => {
     if (!property) return;
-
     setSavingProperty(true);
     try {
       const res = await fetch("/api/saved", {
@@ -441,6 +443,22 @@ export default function PropertyDetailPage() {
     } finally {
       setSavingProperty(false);
     }
+  };
+
+  const handleSaveProperty = async () => {
+    if (!user?.name?.trim()) {
+      openLoginPopup({
+        intent: "buyer",
+        redirect: `/properties/${slug}?intent=save`,
+        title: "Sign in to save this property",
+        subtitle: "Shortlist listings and track them from your dashboard.",
+        onSuccess: () => {
+          void refreshUser().then(() => performSaveProperty());
+        },
+      });
+      return;
+    }
+    await performSaveProperty();
   };
 
   const handleShare = async () => {
@@ -928,6 +946,7 @@ export default function PropertyDetailPage() {
           </div>
         </div>
       )}
+
     </main>
   );
 }

@@ -13,9 +13,11 @@ export type DashboardTab =
   | "apply-broker";
 
 export interface DashboardNavItem {
-  id: DashboardTab;
+  id: DashboardTab | "broker-workspace";
   label: string;
   icon: ReactNode;
+  href?: string;
+  emphasis?: boolean;
 }
 
 export interface DashboardStats {

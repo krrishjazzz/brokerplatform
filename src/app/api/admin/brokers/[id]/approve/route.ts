@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, createSession } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 
 export const dynamic = "force-dynamic";
@@ -12,15 +12,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const broker = await prisma.brokerProfile.update({
-      where: { id: params.id },
-      data: { status: "APPROVED" },
-      include: { profile: true },
+    const broker = await prisma.$transaction(async (tx) => {
+      const updated = await tx.brokerProfile.update({
+        where: { id: params.id },
+        data: { status: "APPROVED", rejectionReason: null },
+        include: { profile: true },
+      });
+      await tx.profile.update({
+        where: { id: updated.profileId },
+        data: { role: "BROKER" },
+      });
+      return updated;
     });
 
     await sendSMS(broker.profile.phone, SMS_TEMPLATES.brokerApproved(broker.profile.name || ""));
-
-    await createSession(broker.profileId);
 
     return NextResponse.json({ broker });
   } catch (error) {

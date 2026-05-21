@@ -31,15 +31,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Broker application is already under review" }, { status: 409 });
     }
 
+    // REJECTED applications can be resubmitted (updates same brokerProfile row).
+
     const serviceAreas = parsed.data.serviceAreas
       ? parsed.data.serviceAreas.split(",").map((area) => area.trim()).filter(Boolean)
       : [parsed.data.city];
 
     await prisma.$transaction([
-      prisma.profile.update({
-        where: { id: session.id },
-        data: { role: "BROKER" },
-      }),
       existing
         ? prisma.brokerProfile.update({
             where: { profileId: session.id },
