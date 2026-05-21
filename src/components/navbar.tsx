@@ -1,29 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  ChevronDown,
-  Menu,
-  X,
-  Heart,
-  Briefcase,
-  Building2,
-  FileText,
-  LogOut,
-  Plus,
-  LayoutDashboard,
-  Shield,
-  MessageSquare,
-  User,
-  ClipboardList,
-} from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
-import { deriveAuthCapabilities, profileCanList } from "@/lib/capabilities";
-import { Badge } from "@/components/ui/badge";
+import { UserAccountMenu } from "@/components/account/user-account-menu";
+import { profileCanList } from "@/lib/capabilities";
+import {
+  getAppHomeHref,
+  isDashboardWorkspacePath,
+  isOwnerDashboardPath,
+  OWNER_DASHBOARD_PATH,
+} from "@/lib/dashboard-paths";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -41,40 +32,11 @@ function getNavActiveKey(pathname: string, params: URLSearchParams) {
 }
 
 function NavbarInner() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { openLoginPopup } = useLoginPopup();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const navigateTo = (href: string) => {
-    setDropdownOpen(false);
-    setMobileMenuOpen(false);
-    router.push(href);
-  };
-
-  const openBuyerPopup = (redirect?: string) => {
-    setDropdownOpen(false);
-    setMobileMenuOpen(false);
-    openLoginPopup({
-      intent: "buyer",
-      redirect: redirect ?? null,
-      onSuccess: redirect ? () => router.push(redirect) : undefined,
-    });
-  };
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -82,9 +44,14 @@ function NavbarInner() {
 
   const activeNavKey = getNavActiveKey(pathname, searchParams);
   const canList = user ? profileCanList(user) : false;
+  const homeHref = getAppHomeHref(canList);
   const isPropertiesPage = pathname.startsWith("/properties");
   const { compactActive, compactBar } = usePropertySearchNavbar();
   const showNavbarCompactSearch = isPropertiesPage && compactActive && compactBar;
+
+  if (isDashboardWorkspacePath(pathname)) {
+    return null;
+  }
 
   const navLinkClass = (active: boolean) =>
     cn(
@@ -94,135 +61,10 @@ function NavbarInner() {
         : "text-white/80 hover:bg-white/10 hover:text-white"
     );
 
-  const renderLoggedInDropdown = () => {
-    if (!user) return null;
-
-    if (user.role === "ADMIN") {
-      return (
-        <>
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{user.name || "Admin"}</p>
-            <Badge variant="error">Admin</Badge>
-          </div>
-          <div className="px-2 py-2">
-            <DropdownItem icon={<Shield size={16} />} label="Admin Panel" href="/admin" onClick={navigateTo} />
-            <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
-          </div>
-          <DropdownLogout onLogout={logout} />
-        </>
-      );
-    }
-
-    if (user.brokerStatus === "APPROVED") {
-      return (
-        <>
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
-            <Badge variant="blue">Approved broker</Badge>
-          </div>
-          <div className="px-2 py-2">
-            <DropdownItem
-              icon={<Briefcase size={16} />}
-              label="Broker Workspace"
-              href="/broker/properties"
-              onClick={navigateTo}
-              emphasis
-            />
-            <DropdownItem
-              icon={<FileText size={16} />}
-              label="Managed Requirements"
-              href="/broker/requirements"
-              onClick={navigateTo}
-            />
-            <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
-            <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
-          </div>
-          <DropdownLogout onLogout={logout} />
-        </>
-      );
-    }
-
-    if (user.brokerStatus === "PENDING" || user.brokerStatus === "REJECTED") {
-      return (
-        <>
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
-            <Badge variant={user.brokerStatus === "PENDING" ? "warning" : "error"}>
-              {user.brokerStatus === "PENDING" ? "Application pending" : "Application review"}
-            </Badge>
-          </div>
-          <div className="px-2 py-2">
-            <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
-            <DropdownItem
-              icon={<ClipboardList size={16} />}
-              label="Application Status"
-              href="/dashboard?tab=application"
-              onClick={navigateTo}
-            />
-            <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
-          </div>
-          <DropdownLogout onLogout={logout} />
-        </>
-      );
-    }
-
-    if (user.role === "OWNER" || canList) {
-      const caps = deriveAuthCapabilities({
-        role: user.role,
-        brokerStatus: user.brokerStatus,
-        canList,
-        hasBrokerApplication: user.hasBrokerApplication,
-      });
-      return (
-        <>
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
-            <Badge variant={caps.accountBadgeVariant}>{caps.accountLabel}</Badge>
-          </div>
-          <div className="px-2 py-2">
-            <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
-            <DropdownItem icon={<Building2 size={16} />} label="My Listings" href="/dashboard?tab=properties" onClick={navigateTo} />
-            <DropdownItem icon={<Plus size={16} />} label="Post Property" href="/dashboard?tab=post" onClick={navigateTo} />
-            <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
-            <DropdownItem icon={<MessageSquare size={16} />} label="My Enquiries" href="/dashboard?tab=enquiries" onClick={navigateTo} />
-            {!user.hasBrokerApplication && (
-              <DropdownItem icon={<Briefcase size={16} />} label="Apply as broker" href="/brokers" onClick={navigateTo} />
-            )}
-          </div>
-          <DropdownLogout onLogout={logout} />
-        </>
-      );
-    }
-
-    return (
-      <>
-        <div className="border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
-          <p className="text-xs text-text-secondary">Buyer account</p>
-        </div>
-        <div className="px-2 py-2">
-          <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
-          <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
-          <DropdownItem icon={<MessageSquare size={16} />} label="My Enquiries" href="/dashboard?tab=enquiries" onClick={navigateTo} />
-          <DropdownItem icon={<Plus size={16} />} label="List a Property" href="/owners" onClick={navigateTo} />
-          {!user.hasBrokerApplication && (
-            <DropdownItem icon={<Briefcase size={16} />} label="Apply as broker" href="/brokers" onClick={navigateTo} />
-          )}
-        </div>
-        <DropdownLogout onLogout={logout} />
-      </>
-    );
+  const openBuyerPopup = () => {
+    setMobileMenuOpen(false);
+    openLoginPopup({ intent: "buyer" });
   };
-
-  const initials = user?.name?.trim()
-    ? user.name
-        .trim()
-        .split(/\s+/)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : null;
 
   return (
     <nav className="sticky top-0 z-40 bg-primary-dark text-white shadow-[0_4px_20px_rgba(0,31,77,0.22)]">
@@ -233,7 +75,7 @@ function NavbarInner() {
             showNavbarCompactSearch ? "min-h-16 py-2" : "h-16"
           )}
         >
-          <Link href="/" className="shrink-0 text-xl font-bold tracking-tight text-white sm:text-2xl">
+          <Link href={homeHref} className="shrink-0 text-xl font-bold tracking-tight text-white sm:text-2xl">
             KrrishJazz
           </Link>
 
@@ -246,8 +88,11 @@ function NavbarInner() {
                   {item.label}
                 </Link>
               ))}
-              <Link href="/owners" className={navLinkClass(pathname.startsWith("/owners"))}>
-                List Property
+              <Link
+                href={canList ? OWNER_DASHBOARD_PATH : "/owners"}
+                className={navLinkClass(pathname.startsWith("/owners"))}
+              >
+                {canList ? "My Dashboard" : "List Property"}
               </Link>
               <Link href="/brokers" className={navLinkClass(pathname.startsWith("/brokers"))}>
                 For Brokers
@@ -256,41 +101,7 @@ function NavbarInner() {
           )}
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative" ref={dropdownRef}>
-              {user ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 transition-all hover:bg-white/15"
-                    aria-label="Account menu"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-primary">
-                      {initials}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={cn("hidden text-white transition-transform sm:block", dropdownOpen && "rotate-180")}
-                    />
-                  </button>
-                  {dropdownOpen && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-white text-foreground shadow-modal">
-                      {renderLoggedInDropdown()}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => openBuyerPopup()}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 text-white transition-all hover:bg-white/10"
-                  aria-label="Sign in with OTP"
-                >
-                  <User size={20} />
-                </button>
-              )}
-            </div>
-
+            <UserAccountMenu tone="dark" />
             <button
               type="button"
               className="rounded-lg p-2 transition-colors hover:bg-white/10 lg:hidden"
@@ -320,13 +131,15 @@ function NavbarInner() {
               </Link>
             ))}
             <Link
-              href="/owners"
+              href={canList ? OWNER_DASHBOARD_PATH : "/owners"}
               className={cn(
                 "block rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-                pathname.startsWith("/owners") ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"
+                isOwnerDashboardPath(pathname) || pathname.startsWith("/owners")
+                  ? "bg-white/15 text-white"
+                  : "text-white/85 hover:bg-white/10"
               )}
             >
-              List Property
+              {canList ? "Owner Dashboard" : "List Property"}
             </Link>
             <Link
               href="/brokers"
@@ -340,7 +153,7 @@ function NavbarInner() {
             {!user && (
               <button
                 type="button"
-                onClick={() => openBuyerPopup()}
+                onClick={openBuyerPopup}
                 className="mt-2 w-full rounded-lg border border-white/25 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-white/10"
               >
                 Sign in with OTP
@@ -358,49 +171,5 @@ export function Navbar() {
     <Suspense fallback={null}>
       <NavbarInner />
     </Suspense>
-  );
-}
-
-function DropdownItem({
-  icon,
-  label,
-  href,
-  onClick,
-  emphasis,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  onClick: (href: string) => void;
-  emphasis?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(href)}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors",
-        emphasis
-          ? "font-semibold text-primary hover:bg-primary-light"
-          : "text-text-secondary hover:bg-primary-light hover:text-foreground"
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function DropdownLogout({ onLogout }: { onLogout: () => void }) {
-  return (
-    <div className="border-t border-border px-4 py-3">
-      <button
-        type="button"
-        onClick={onLogout}
-        className="flex w-full items-center gap-2 text-sm text-error hover:underline"
-      >
-        <LogOut size={16} /> Logout
-      </button>
-    </div>
   );
 }

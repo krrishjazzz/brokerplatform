@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const protectedRoutes = ["/dashboard", "/admin", "/broker"];
+const protectedRoutes = ["/dashboard", "/owners/dashboard", "/admin", "/broker"];
 const adminRoutes = ["/admin"];
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -49,6 +49,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
+    const canList = Boolean(payload.canList);
+
+    if (pathname === "/" && canList) {
+      return NextResponse.redirect(new URL("/owners/dashboard", request.url));
+    }
+
+    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+      if (canList) {
+        const url = new URL("/owners/dashboard", request.url);
+        url.search = request.nextUrl.search;
+        return NextResponse.redirect(url);
+      }
+    }
+
+    if (pathname.startsWith("/owners/dashboard") && !canList) {
+      const url = new URL("/dashboard", request.url);
+      url.search = request.nextUrl.search;
+      return NextResponse.redirect(url);
+    }
+
     return NextResponse.next();
   } catch {
     if (isPublicBrowse) {
@@ -67,5 +87,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/properties/:path*", "/dashboard/:path*", "/admin/:path*", "/broker/:path*"],
+  matcher: [
+    "/",
+    "/properties/:path*",
+    "/dashboard/:path*",
+    "/owners/dashboard",
+    "/owners/dashboard/:path*",
+    "/admin/:path*",
+    "/broker/:path*",
+  ],
 };

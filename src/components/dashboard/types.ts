@@ -6,6 +6,8 @@ export type DashboardTab =
   | "post"
   | "leads"
   | "enquiries"
+  | "visits"
+  | "closure-support"
   | "saved"
   | "profile"
   | "application"
@@ -22,8 +24,10 @@ export interface DashboardNavItem {
 export interface DashboardStats {
   totalProperties: number;
   liveProperties: number;
+  pendingReview?: number;
   totalLeads: number;
   newLeads: number;
+  visitRequests?: number;
 }
 
 export interface PropertyRow {

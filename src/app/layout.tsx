@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider>
             <LoginPopupProvider>
               <PropertySearchNavbarProvider>
-                <Suspense fallback={<div className="h-16 bg-primary-dark" />}>
+                <Suspense fallback={null}>
                   <Navbar />
                 </Suspense>
                 <main className="flex-1">{children}</main>

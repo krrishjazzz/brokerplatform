@@ -37,7 +37,7 @@ export function KrrishJazzAssistant() {
       label: "Post Free Listing",
       detail: "Owners can list without upfront charges.",
       icon: <Home size={16} />,
-      onClick: () => router.push("/dashboard?tab=post"),
+      onClick: () => router.push("/owners/dashboard?tab=post"),
     },
     {
       label: "Request Callback",

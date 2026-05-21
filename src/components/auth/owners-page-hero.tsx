@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import { useRouter } from "next/navigation";
+import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
 import { cn } from "@/lib/utils";
 
 const FLOW_CARDS = [
@@ -21,15 +22,15 @@ export function OwnersPageHero() {
 
   const handleListClick = () => {
     if (signedIn) {
-      router.push("/dashboard?tab=post");
+      router.push(`${OWNER_DASHBOARD_PATH}?tab=post`);
       return;
     }
     openLoginPopup({
       intent: "owner",
-      redirect: "/dashboard?tab=post",
+      redirect: `${OWNER_DASHBOARD_PATH}?tab=post`,
       title: "Sign in to list your property",
       subtitle: "Post free. KrrishJazz manages enquiries.",
-      onSuccess: () => router.push("/dashboard?tab=post"),
+      onSuccess: () => router.push(`${OWNER_DASHBOARD_PATH}?tab=post`),
     });
   };
 

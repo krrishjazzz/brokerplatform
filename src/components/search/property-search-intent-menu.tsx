@@ -31,7 +31,7 @@ export function PropertySearchIntentMenu({
 
   const triggerClass =
     tone === "compact"
-      ? "flex h-full min-w-[5.5rem] shrink-0 items-center gap-1 border-r border-border/80 px-3 text-left text-sm font-bold text-primary hover:bg-surface/80"
+      ? "flex h-full min-w-[4.75rem] shrink-0 items-center gap-1 border-r border-border/80 px-3.5 text-left text-sm font-bold text-primary hover:bg-surface/80 sm:min-w-[5.25rem] sm:px-4"
       : "flex h-full w-full items-center gap-1.5 px-4 py-3.5 text-left text-sm font-bold text-primary hover:bg-surface";
 
   return (

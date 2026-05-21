@@ -20,13 +20,29 @@ export async function GET() {
     }
 
     if (session.canList) {
-      const [totalProperties, liveProperties, totalLeads, newLeads] = await Promise.all([
-        prisma.property.count({ where: { postedById: session.id } }),
-        prisma.property.count({ where: { postedById: session.id, status: "LIVE" } }),
-        prisma.enquiry.count({ where: { property: { postedById: session.id } } }),
-        prisma.enquiry.count({ where: { property: { postedById: session.id }, status: "NEW" } }),
-      ]);
-      return NextResponse.json({ totalProperties, liveProperties, totalLeads, newLeads });
+      const ownerPropertyWhere = { property: { postedById: session.id } };
+      const [totalProperties, liveProperties, pendingReview, totalLeads, newLeads, visitRequests] =
+        await Promise.all([
+          prisma.property.count({ where: { postedById: session.id } }),
+          prisma.property.count({ where: { postedById: session.id, status: "LIVE" } }),
+          prisma.property.count({ where: { postedById: session.id, status: "PENDING_REVIEW" } }),
+          prisma.enquiry.count({ where: ownerPropertyWhere }),
+          prisma.enquiry.count({ where: { ...ownerPropertyWhere, status: "NEW" } }),
+          prisma.enquiry.count({
+            where: {
+              ...ownerPropertyWhere,
+              OR: [{ status: "VISIT_SCHEDULED" }, { visitDate: { not: null } }],
+            },
+          }),
+        ]);
+      return NextResponse.json({
+        totalProperties,
+        liveProperties,
+        pendingReview,
+        totalLeads,
+        newLeads,
+        visitRequests,
+      });
     }
 
     if (session.role === "ADMIN") {

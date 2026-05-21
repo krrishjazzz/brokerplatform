@@ -191,5 +191,5 @@ export const NAV_TABS = [
   { label: "New Launch", href: "/properties?listingType=BUY&new=true", badge: "NEW" },
   { label: "Commercial", href: "/properties?category=COMMERCIAL" },
   { label: "Plots/Land", href: "/properties?propertyType=Residential%20Plot" },
-  { label: "Post Property", href: "/dashboard?tab=post", badge: "FREE", badgeColor: "green" },
+  { label: "Post Property", href: "/owners/dashboard?tab=post", badge: "FREE", badgeColor: "green" },
 ];

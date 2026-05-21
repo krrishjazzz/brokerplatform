@@ -17,6 +17,10 @@ export function resolveDashboardTab(
     return { tab: getDefaultTab(ctx), redirectTo: "/brokers#broker-auth" };
   }
 
+  if (requestedTab === "leads" && ctx.canList) {
+    return { tab: "enquiries" };
+  }
+
   const allowed = getAllowedDashboardTabs(ctx);
   if (requestedTab && allowed.includes(requestedTab as DashboardTab)) {
     return { tab: requestedTab as DashboardTab };

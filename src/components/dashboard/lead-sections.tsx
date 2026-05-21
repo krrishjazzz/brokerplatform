@@ -8,7 +8,15 @@ import { cn } from "@/lib/utils";
 import { LEAD_PIPELINE, leadStatusHint, leadStatusLabel, leadStatusVariant } from "@/components/dashboard/lead-pipeline";
 import type { LeadRow } from "@/components/dashboard/types";
 
-export function LeadsSection() {
+function formatEnquiryDate(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return "Today";
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Owner-facing enquiries on their listings (KrrishJazz-managed, no raw buyer phone). */
+export function OwnerEnquiriesSection() {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,8 +26,8 @@ export function LeadsSection() {
       .then((data) => {
         const items = (data.enquiries || []).map((enquiry: any) => ({
           id: enquiry.id,
-          customerName: enquiry.customer?.name || enquiry.name,
-          phone: enquiry.customer?.phone || enquiry.phone,
+          customerName: enquiry.customer?.name || "Buyer",
+          phone: "",
           propertyTitle: enquiry.property?.title || "",
           propertySlug: enquiry.property?.slug,
           message: enquiry.message,
@@ -43,32 +51,36 @@ export function LeadsSection() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">Managed Enquiries Received</h2>
-      <p className="mb-6 text-sm text-text-secondary">Customer contact stays protected. KrrishJazz coordinates callbacks and shares deal-ready context.</p>
+      <h2 className="text-2xl font-semibold text-foreground">Enquiries</h2>
+      <p className="mb-6 mt-1 text-sm text-text-secondary">
+        KrrishJazz-managed buyer interest on your listings. We coordinate callbacks and visits — you stay in the loop.
+      </p>
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : leads.length === 0 ? (
-        <div className="bg-white rounded-card shadow-card p-8 text-center border border-border">
-          <Users size={48} className="mx-auto text-text-secondary mb-3" />
-          <p className="text-text-secondary">No enquiries received yet.</p>
+        <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-card">
+          <Users size={48} className="mx-auto mb-3 text-text-secondary" />
+          <p className="font-medium text-foreground">No enquiries yet</p>
+          <p className="mt-2 text-sm text-text-secondary">
+            Improve photos, price clarity, and freshness to get better responses.
+          </p>
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {pipelineCounts.map((item) => (
-              <div key={item.value} className="rounded-card border border-border bg-white p-3 shadow-card">
+              <div key={item.value} className="rounded-xl border border-border bg-white p-3 shadow-card">
                 <p className="text-xl font-bold text-foreground">{item.count}</p>
                 <p className="mt-1 text-xs font-semibold text-foreground">{item.label}</p>
-                <p className="mt-0.5 text-[11px] leading-4 text-text-secondary">{item.ownerHint}</p>
               </div>
             ))}
           </div>
 
           <div className="grid gap-4">
             {leads.map((lead) => (
-              <LeadPipelineCard key={lead.id} lead={lead} />
+              <OwnerEnquiryCard key={lead.id} lead={lead} />
             ))}
           </div>
         </div>
@@ -77,7 +89,10 @@ export function LeadsSection() {
   );
 }
 
-function LeadPipelineCard({ lead }: { lead: LeadRow }) {
+/** @deprecated Use OwnerEnquiriesSection */
+export const LeadsSection = OwnerEnquiriesSection;
+
+function OwnerEnquiryCard({ lead }: { lead: LeadRow }) {
   const currentIndex = Math.max(0, LEAD_PIPELINE.findIndex((item) => item.value === lead.status));
   const visibleSteps = LEAD_PIPELINE.filter((item) => item.value !== "LOST");
   const isLost = lead.status === "LOST";
@@ -92,7 +107,7 @@ function LeadPipelineCard({ lead }: { lead: LeadRow }) {
           </div>
           <h3 className="text-base font-semibold text-foreground">{lead.propertyTitle || "Property enquiry"}</h3>
           <p className="mt-1 text-sm text-text-secondary">
-            {lead.customerName || "Customer"} - {lead.phone || "KrrishJazz managed contact"}
+            {lead.customerName || "Buyer interested"} - KrrishJazz will coordinate buyer callback
           </p>
           <p className="mt-3 line-clamp-2 text-sm leading-6 text-text-secondary">{lead.message}</p>
         </div>
@@ -101,12 +116,26 @@ function LeadPipelineCard({ lead }: { lead: LeadRow }) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-card border border-primary/10 bg-primary-light p-3">
+      <div className="mt-4 rounded-xl border border-primary/10 bg-primary-light p-3">
         <p className="text-sm font-semibold text-primary">{leadStatusHint(lead.status)}</p>
-        <p className="mt-1 text-xs leading-5 text-text-secondary">KrrishJazz manages callback, visit coordination and deal discussion before brokerage applies on closure.</p>
+        <p className="mt-1 text-xs leading-5 text-text-secondary">
+          Status: KrrishJazz follow-up. Received {formatEnquiryDate(lead.date)}.
+        </p>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-5">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => lead.propertySlug && (window.location.href = `/properties/${lead.propertySlug}`)}>
+          View Details
+        </Button>
+        <Button variant="secondary" size="sm" disabled title="Coming soon">
+          Confirm Availability
+        </Button>
+        <Button variant="ghost" size="sm" disabled title="Coming soon">
+          Suggest Visit Slot
+        </Button>
+      </div>
+
+      <div className="mt-4 hidden gap-2 sm:grid-cols-5">
         {visibleSteps.map((step, index) => {
           const complete = !isLost && index <= currentIndex;
           return (

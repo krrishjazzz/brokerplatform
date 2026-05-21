@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export type PropertySearchBarRowProps = {
   filters: IntentSearchFilters;
-  layout: "full" | "compact";
+  layout: "full" | "compact" | "navbar";
   presetOpen: boolean;
   cityOpen: boolean;
   onPresetOpenChange: (open: boolean) => void;
@@ -18,6 +18,10 @@ export type PropertySearchBarRowProps = {
   onSwitchPreset: (preset: SearchPresetId) => void;
   onRunSearch: () => void;
   onOpenOverlay?: () => void;
+  /** Full layout only: hide the inline Search button (use footer action instead). */
+  hideInlineSearch?: boolean;
+  /** Navbar layout: hide trailing magnifying-glass (footer Search only). */
+  hideTrailingSearch?: boolean;
   className?: string;
 };
 
@@ -32,22 +36,31 @@ export function PropertySearchBarRow({
   onSwitchPreset,
   onRunSearch,
   onOpenOverlay,
+  hideInlineSearch = false,
+  hideTrailingSearch = false,
   className,
 }: PropertySearchBarRowProps) {
   const cityRef = useRef<HTMLDivElement>(null);
   const isCompact = layout === "compact";
+  const isNavbar = layout === "navbar";
+  const isSingleRow = isCompact || isNavbar;
 
   const barShell = cn(
-    "overflow-visible rounded-xl border bg-white",
-    isCompact ? "border-border/90 shadow-sm" : "border-border/90"
+    "overflow-visible border bg-white",
+    isCompact && "rounded-full border-border/90 shadow-sm",
+    isNavbar && "rounded-lg border-border/90 shadow-md",
+    !isSingleRow && "rounded-xl border-border/90"
   );
+
+  const navbarIconBtn =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white hover:bg-primary-dark";
 
   const openFilters = () => {
     if (onOpenOverlay) onOpenOverlay();
   };
 
-  const handleCompactShellClick = (e: MouseEvent) => {
-    if (!isCompact || !onOpenOverlay) return;
+  const handleShellClick = (e: MouseEvent) => {
+    if (!isSingleRow || !onOpenOverlay) return;
     const target = e.target as HTMLElement;
     if (target.closest("[data-search-intent]") || target.closest("[data-search-action]")) return;
     onOpenOverlay();
@@ -55,29 +68,47 @@ export function PropertySearchBarRow({
 
   return (
     <div
-      className={cn(barShell, isCompact && onOpenOverlay && "cursor-pointer", className)}
-      onClick={isCompact ? handleCompactShellClick : undefined}
+      className={cn(barShell, isSingleRow && onOpenOverlay && "cursor-pointer", className)}
+      onClick={isSingleRow ? handleShellClick : undefined}
     >
-      <div className={cn("flex", isCompact ? "h-10 items-stretch" : "flex-col md:flex-row")}>
+      <div
+        className={cn(
+          "flex",
+          isSingleRow ? "h-11 items-stretch" : "flex-col md:flex-row"
+        )}
+      >
         <PropertySearchIntentMenu
           preset={filters.preset}
           open={presetOpen}
           onOpenChange={onPresetOpenChange}
           onSelect={onSwitchPreset}
-          tone={isCompact ? "compact" : "default"}
-          className={cn(!isCompact && "border-b border-border md:min-w-[9.5rem] md:shrink-0 md:border-b-0 md:border-r")}
+          tone={isSingleRow ? "compact" : "default"}
+          className={cn(
+            isCompact && "rounded-l-full",
+            isNavbar && "rounded-l-lg border-r border-border",
+            !isSingleRow && "border-b border-border md:min-w-[9.5rem] md:shrink-0 md:border-b-0 md:border-r"
+          )}
         />
 
-        {!isCompact && (
+        {(isNavbar || !isCompact) && (
           <div
             ref={cityRef}
             data-search-city
-            className="relative hidden border-b border-border sm:block md:min-w-[9rem] md:max-w-[11rem] md:shrink-0 md:border-b-0 md:border-r"
+            className={cn(
+              "relative shrink-0 border-border sm:block",
+              isNavbar
+                ? "hidden border-r sm:block md:max-w-[10rem]"
+                : "hidden border-b border-border md:min-w-[9rem] md:max-w-[11rem] md:border-b-0 md:border-r"
+            )}
           >
             <button
               type="button"
+              data-search-action
               onClick={() => onCityOpenChange(!cityOpen)}
-              className="flex h-full w-full items-center gap-2 px-3 py-3.5 text-left text-sm font-semibold text-foreground hover:bg-surface"
+              className={cn(
+                "flex h-full w-full items-center gap-2 text-left text-sm font-semibold text-foreground hover:bg-surface",
+                isNavbar ? "px-3" : "px-3 py-3.5"
+              )}
             >
               <MapPin size={16} className="shrink-0 text-primary" />
               <span className="truncate">{filters.city}</span>
@@ -107,28 +138,31 @@ export function PropertySearchBarRow({
 
         <div
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2",
-            isCompact
-              ? "border-r border-border/80 px-3"
-              : "border-b border-border px-4 py-3 md:border-b-0 md:border-r md:py-3.5"
+            "flex min-w-0 flex-1 items-center",
+            isSingleRow
+              ? "gap-1.5 px-3 sm:gap-2 sm:px-4"
+              : cn(
+                  "gap-2 border-b border-border px-4 py-3 md:border-b-0 md:py-3.5",
+                  !hideInlineSearch && "md:border-r"
+                )
           )}
         >
-          {!isCompact && <Search size={18} className="shrink-0 text-primary" />}
+          {!isSingleRow && <Search size={18} className="shrink-0 text-primary" />}
           <input
             value={filters.query}
             onChange={(e) => onUpdateFilters({ query: e.target.value })}
             onKeyDown={(e) => e.key === "Enter" && onRunSearch()}
-            onFocus={isCompact ? openFilters : undefined}
-            onClick={isCompact ? openFilters : undefined}
-            list={isCompact ? undefined : "kj-search-locations"}
+            onFocus={isSingleRow ? openFilters : undefined}
+            onClick={isSingleRow ? openFilters : undefined}
+            list={isSingleRow ? undefined : "kj-search-locations"}
             placeholder="Enter locality / project / society / landmark"
             className={cn(
               "min-w-0 flex-1 bg-transparent font-medium outline-none placeholder:text-text-secondary",
-              isCompact ? "text-sm text-foreground" : "text-sm"
+              isSingleRow ? "text-sm text-foreground" : "text-sm"
             )}
             aria-label="Search locality, project, or landmark"
           />
-          {!isCompact && (
+          {!isSingleRow && (
             <datalist id="kj-search-locations">
               {SEARCH_LOCATION_OPTIONS.map((loc) => (
                 <option key={loc} value={loc} />
@@ -139,19 +173,25 @@ export function PropertySearchBarRow({
             type="button"
             data-search-action
             title="Search near me"
-            className="shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary"
+            className={cn(
+              isNavbar
+                ? navbarIconBtn
+                : "shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary"
+            )}
             onClick={() => onUpdateFilters({ query: filters.city || DEFAULT_SEARCH_CITY })}
           >
-            <Navigation size={isCompact ? 16 : 18} />
+            <Navigation size={isNavbar ? 15 : isCompact ? 16 : 18} />
           </button>
           <button
             type="button"
             data-search-action
             title="Voice search (coming soon)"
-            className="shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface"
+            className={cn(
+              isNavbar ? navbarIconBtn : "shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface"
+            )}
             aria-disabled
           >
-            <Mic size={isCompact ? 16 : 18} />
+            <Mic size={isNavbar ? 15 : isCompact ? 16 : 18} />
           </button>
         </div>
 
@@ -160,12 +200,22 @@ export function PropertySearchBarRow({
             type="button"
             data-search-action
             onClick={onRunSearch}
-            className="flex w-11 shrink-0 items-center justify-center text-primary hover:bg-surface/80"
+            className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-full border-l border-border/80 text-primary hover:bg-surface/80 sm:w-11"
             aria-label="Search"
           >
             <Search size={18} strokeWidth={2.5} />
           </button>
-        ) : (
+        ) : isNavbar && !hideTrailingSearch ? (
+          <button
+            type="button"
+            data-search-action
+            onClick={onRunSearch}
+            className="flex h-full w-11 shrink-0 items-center justify-center rounded-r-lg border-l border-border/80 text-primary hover:bg-surface/80"
+            aria-label="Search"
+          >
+            <Search size={18} strokeWidth={2.5} />
+          </button>
+        ) : isNavbar ? null : hideInlineSearch ? null : (
           <button
             type="button"
             onClick={onRunSearch}
@@ -177,7 +227,7 @@ export function PropertySearchBarRow({
         )}
       </div>
 
-      {!isCompact && (
+      {!isSingleRow && (
         <p className="mt-2 flex items-center gap-1 px-4 pb-1 text-xs text-text-secondary sm:hidden">
           <MapPin size={12} className="text-primary" />
           {filters.city}

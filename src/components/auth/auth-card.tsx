@@ -17,7 +17,9 @@ import {
   authCardInlineTitle,
   type LoginIntent,
 } from "@/lib/login-intent";
+import { getDashboardBasePath } from "@/lib/dashboard-paths";
 import { resolvePostLoginDestination, sanitizeRedirect } from "@/lib/post-login";
+import { profileCanList } from "@/lib/capabilities";
 import {
   formatPhoneDisplay,
   formatPhoneInputValue,
@@ -233,7 +235,7 @@ export function AuthCard({
         const { user: meUser } = await meRes.json();
         finishAuth(meUser);
       } else if (intent === "owner") {
-        router.push("/dashboard?tab=post");
+        router.push("/owners/dashboard");
       } else {
         router.push(safeRedirect ?? "/properties");
       }
@@ -266,7 +268,7 @@ export function AuthCard({
           </Button>
         ) : (
           <Link
-            href="/dashboard"
+            href={user ? getDashboardBasePath(profileCanList(user)) : "/dashboard"}
             className="mt-4 inline-block text-sm font-semibold text-primary hover:underline"
           >
             Open your dashboard

@@ -4,13 +4,24 @@ import Link from "next/link";
 import { AlertTriangle, BadgeCheck, Building2, Clock, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/lib/auth-context";
-import { deriveAuthCapabilities } from "@/lib/post-login";
+import { deriveAuthCapabilities, type AuthCapabilities } from "@/lib/capabilities";
+import { OWNER_TRUST_LINES } from "@/lib/owner-dashboard";
 
-export function AccountStatusBanner({ user }: { user: User }) {
-  const caps = deriveAuthCapabilities({
-    role: user.role,
-    brokerStatus: user.brokerStatus,
-  });
+export function AccountStatusBanner({
+  user,
+  caps: capsProp,
+}: {
+  user: User;
+  caps?: AuthCapabilities;
+}) {
+  const caps =
+    capsProp ??
+    deriveAuthCapabilities({
+      role: user.role,
+      brokerStatus: user.brokerStatus,
+      canList: user.canList,
+      hasBrokerApplication: user.hasBrokerApplication,
+    });
 
   if (caps.isApprovedBroker) {
     return (
@@ -83,7 +94,7 @@ export function AccountStatusBanner({ user }: { user: User }) {
             <p className="font-semibold text-foreground">Want to list?</p>
           </div>
           <p className="mt-2 text-sm text-text-secondary">Enable owner listing on the same account.</p>
-          <Link href="/dashboard?tab=post" className="mt-2 inline-block text-sm font-semibold text-primary hover:underline">
+          <Link href="/owners/dashboard?tab=post" className="mt-2 inline-block text-sm font-semibold text-primary hover:underline">
             List a property
           </Link>
         </div>
@@ -91,14 +102,30 @@ export function AccountStatusBanner({ user }: { user: User }) {
     );
   }
 
-  if (user.role === "OWNER" || caps.canList) {
+  if (caps.canList && !caps.isApprovedBroker) {
     return (
-      <div className="mb-6 flex items-start gap-3 rounded-card border border-success/25 bg-success-light/50 p-4">
+      <div className="mb-6 rounded-2xl border border-primary/15 bg-primary-light/40 p-4">
+        <div className="flex items-start gap-3">
+          <Building2 className="mt-0.5 shrink-0 text-primary" size={22} />
+          <div>
+            <p className="font-semibold text-foreground">Owner command center</p>
+            <p className="mt-1 text-sm text-text-secondary">
+              {OWNER_TRUST_LINES[0]} {OWNER_TRUST_LINES[3]}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (caps.canList) {
+    return (
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-success/25 bg-success-light/50 p-4">
         <Building2 className="mt-0.5 shrink-0 text-success" size={22} />
         <div>
-          <p className="font-semibold text-foreground">Owner listing is active</p>
+          <p className="font-semibold text-foreground">Owner tools active</p>
           <p className="mt-1 text-sm text-text-secondary">
-            Post and manage properties. Brokerage is charged only on successful closure.
+            Listings and broker workspace are both available on this account.
           </p>
         </div>
       </div>

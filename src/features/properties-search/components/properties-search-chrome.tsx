@@ -6,6 +6,9 @@ import { ChevronRight } from "lucide-react";
 import { PropertySearchShell } from "@/components/search/property-search-shell";
 import { getBrowseIntentLabel, RESULT_QUICK_FILTERS } from "@/components/properties/search-options";
 import { PropertiesTrustBanner } from "@/features/properties-search/components/properties-trust-banner";
+import { useAuth } from "@/lib/auth-context";
+import { profileCanList } from "@/lib/capabilities";
+import { getAppHomeHref } from "@/lib/dashboard-paths";
 import { cn } from "@/lib/utils";
 
 type PropertiesSearchChromeProps = {
@@ -32,6 +35,10 @@ export function PropertiesSearchChrome({
   onQuickFilter,
 }: PropertiesSearchChromeProps) {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const canList = user ? profileCanList(user) : false;
+  const homeHref = getAppHomeHref(canList);
+  const homeLabel = canList ? "Dashboard" : "Home";
   const displayCity = city.trim() || "Kolkata";
   const intentLabel = getBrowseIntentLabel(listingType, category, preset);
 
@@ -40,8 +47,8 @@ export function PropertiesSearchChrome({
       <section className="border-b border-border bg-white">
         <div className="mx-auto max-w-7xl px-4 py-4 lg:px-6 lg:py-5">
           <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-medium text-text-secondary">
-            <Link href="/" className="hover:text-primary">
-              Home
+            <Link href={homeHref} className="hover:text-primary">
+              {homeLabel}
             </Link>
             <ChevronRight size={12} className="text-text-tertiary" />
             <span className="text-primary">{intentLabel}</span>

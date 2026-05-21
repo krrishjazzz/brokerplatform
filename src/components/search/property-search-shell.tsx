@@ -131,23 +131,16 @@ export function PropertySearchShell({
     [buildParams, onSearch]
   );
 
-  const switchPreset = useCallback(
-    (preset: SearchPresetId) => {
-      setDraftFilters((prev) => {
-        const next: IntentSearchFilters = {
-          ...EMPTY_FILTERS(),
-          preset,
-          city: prev.city,
-          query: prev.query,
-        };
-        applySearch(next);
-        return next;
-      });
-      setActivePill(null);
-      setPresetOpen(false);
-    },
-    [applySearch]
-  );
+  const switchPreset = useCallback((preset: SearchPresetId) => {
+    setDraftFilters((prev) => ({
+      ...EMPTY_FILTERS(),
+      preset,
+      city: prev.city,
+      query: prev.query,
+    }));
+    setActivePill(null);
+    setPresetOpen(false);
+  }, []);
 
   const cancelOverlay = useCallback(() => {
     setDraftFilters(appliedFilters);
@@ -368,6 +361,7 @@ export function PropertySearchShell({
                   onUpdateFilters={updateDraft}
                   onSwitchPreset={switchPreset}
                   onRunSearch={() => applySearch(draftFilters)}
+                  hideInlineSearch
                 />
               </div>
               <div className="lg:hidden">{compactBar}</div>

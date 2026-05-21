@@ -43,7 +43,7 @@ export function OwnerListPropertyCta() {
                 ))}
               </ul>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/dashboard?tab=post">
+                <Link href="/owners/dashboard?tab=post">
                   <Button size="lg" className="min-w-44 gap-2">
                     <PlusCircle size={18} />
                     Post Property Free

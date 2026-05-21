@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, Edit, Mail, Phone, User, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { deriveAuthCapabilities, getAccountCapabilityLines } from "@/lib/capabilities";
+import { KRRISHJAZZ_OWNER_SUPPORT_PHONE } from "@/lib/owner-dashboard";
 import { INDIAN_CITIES } from "@/lib/constants";
 
 type DashboardUser = {
@@ -33,6 +34,15 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
   const [name, setName] = useState(user.name || "");
   const [email, setEmail] = useState(user.email || "");
   const [saving, setSaving] = useState(false);
+  const [listedCount, setListedCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!caps.canList) return;
+    fetch("/api/dashboard/stats", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setListedCount(d.totalProperties ?? 0))
+      .catch(() => {});
+  }, [caps.canList]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -130,6 +140,26 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
               </label>
               <p className="text-sm text-text-secondary px-3 py-2 bg-surface border border-border rounded-btn">{user.phone}</p>
             </div>
+
+            {caps.canList && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Properties listed</label>
+                  <p className="text-sm text-text-secondary px-3 py-2 bg-surface border border-border rounded-btn">
+                    {listedCount === null ? "—" : listedCount}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">KrrishJazz support</label>
+                  <p className="text-sm font-semibold text-primary px-3 py-2 bg-primary-light border border-primary/15 rounded-btn">
+                    {KRRISHJAZZ_OWNER_SUPPORT_PHONE}
+                  </p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    Buyer contact and visits are coordinated by our team.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-6 flex gap-3">

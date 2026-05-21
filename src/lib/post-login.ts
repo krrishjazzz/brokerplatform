@@ -40,7 +40,7 @@ export function resolvePostLoginDestination(
   }
 
   if (intent === "owner") {
-    return "/dashboard?tab=post";
+    return "/owners/dashboard";
   }
 
   if (safeRedirect) {

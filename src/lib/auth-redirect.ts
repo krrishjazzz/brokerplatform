@@ -12,7 +12,7 @@ export function buildPropertySaveLoginUrl(slug: string) {
   return buildLoginUrl(`/properties/${slug}?intent=save`, "buyer");
 }
 
-export function buildOwnerLoginUrl(redirect = "/dashboard?tab=post") {
+export function buildOwnerLoginUrl(redirect = "/owners/dashboard?tab=post") {
   return buildLoginUrlWithIntent({ intent: "owner", redirect });
 }
 

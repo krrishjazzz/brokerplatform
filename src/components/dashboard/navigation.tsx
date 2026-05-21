@@ -1,14 +1,15 @@
 import {
   Briefcase,
   Building2,
+  Calendar,
   ClipboardList,
+  Handshake,
   Heart,
   LayoutDashboard,
   MessageSquare,
   PlusCircle,
   Shield,
   User,
-  Users,
 } from "lucide-react";
 import { deriveAuthCapabilities } from "@/lib/capabilities";
 import type { DashboardNavItem, DashboardTab } from "./types";
@@ -20,8 +21,22 @@ export type NavContext = {
   hasBrokerApplication?: boolean;
 };
 
+const iconSize = 20;
+
+/** Owner listing command center — no broker CRM or buyer saved-search noise. */
+function getOwnerNavItems(): DashboardNavItem[] {
+  return [
+    { id: "overview", label: "Overview", icon: <LayoutDashboard size={iconSize} /> },
+    { id: "properties", label: "My Properties", icon: <Building2 size={iconSize} /> },
+    { id: "post", label: "Post Property", icon: <PlusCircle size={iconSize} /> },
+    { id: "enquiries", label: "Enquiries", icon: <MessageSquare size={iconSize} /> },
+    { id: "visits", label: "Visits", icon: <Calendar size={iconSize} /> },
+    { id: "closure-support", label: "Closure Support", icon: <Handshake size={iconSize} /> },
+    { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
+  ];
+}
+
 export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication }: NavContext): DashboardNavItem[] {
-  const iconSize = 20;
   const caps = deriveAuthCapabilities({ role, brokerStatus, canList, hasBrokerApplication });
 
   if (caps.isAdmin) {
@@ -53,33 +68,22 @@ export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication 
   }
 
   if (caps.isPendingBroker || caps.isRejectedBroker) {
-    const items: DashboardNavItem[] = [
-      { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
-      { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-      { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
-    ];
     if (caps.canList) {
-      items.push(
-        { id: "overview", label: "Today's Work", icon: <LayoutDashboard size={iconSize} /> },
-        { id: "properties", label: "My Properties", icon: <Building2 size={iconSize} /> },
-        { id: "post", label: "Post Property", icon: <PlusCircle size={iconSize} /> },
-        { id: "leads", label: "Leads", icon: <Users size={iconSize} /> }
-      );
+      return [
+        { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
+        ...getOwnerNavItems(),
+      ];
     }
-    items.push({ id: "profile", label: "Profile", icon: <User size={iconSize} /> });
-    return items;
-  }
-
-  if (caps.canList) {
     return [
-      { id: "overview", label: "Overview", icon: <LayoutDashboard size={iconSize} /> },
-      { id: "properties", label: "My Properties", icon: <Building2 size={iconSize} /> },
-      { id: "post", label: "Post Property", icon: <PlusCircle size={iconSize} /> },
-      { id: "leads", label: "Leads", icon: <Users size={iconSize} /> },
+      { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
       { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
       { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
       { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
     ];
+  }
+
+  if (caps.canList) {
+    return getOwnerNavItems();
   }
 
   return [
@@ -98,4 +102,3 @@ export function getDefaultTab(ctx: NavContext): DashboardTab {
   if (caps.canList) return "overview";
   return "enquiries";
 }
-
