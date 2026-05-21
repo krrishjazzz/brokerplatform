@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrokersPageHero } from "@/components/auth/brokers-page-hero";
+import { BrokersAuthPanel } from "@/components/brokers/brokers-auth-panel";
 
 const BENEFITS = [
   { icon: ShieldCheck, title: "Verified leads", desc: "Curated buyer and tenant demand — not open-market spam." },
@@ -55,6 +56,7 @@ export default function BrokersPage() {
   return (
     <main className="bg-surface text-foreground">
       <BrokersPageHero />
+      <BrokersAuthPanel />
 
       <section className="border-b border-border bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 lg:px-6">

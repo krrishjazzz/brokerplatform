@@ -225,7 +225,7 @@ export function AuthCard({
         return;
       }
       if (intent === "broker") {
-        router.push("/dashboard?tab=apply-broker");
+        router.push("/brokers#broker-auth");
         return;
       }
       const meRes = await fetch("/api/auth/me", { credentials: "include" });

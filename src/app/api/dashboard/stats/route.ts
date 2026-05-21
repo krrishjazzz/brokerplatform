@@ -19,7 +19,7 @@ export async function GET() {
       return NextResponse.json({ enquiries, saved });
     }
 
-    if (session.role === "OWNER" || session.role === "BROKER") {
+    if (session.canList) {
       const [totalProperties, liveProperties, totalLeads, newLeads] = await Promise.all([
         prisma.property.count({ where: { postedById: session.id } }),
         prisma.property.count({ where: { postedById: session.id, status: "LIVE" } }),

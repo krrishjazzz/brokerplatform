@@ -1,5 +1,4 @@
 import type { LoginIntent } from "@/lib/login-intent";
-import { userCanList } from "@/lib/capabilities";
 
 export type PostLoginUser = {
   role: string;
@@ -37,7 +36,7 @@ export function resolvePostLoginDestination(
     if (user.hasBrokerApplication) {
       return "/dashboard?tab=application";
     }
-    return "/dashboard?tab=apply-broker";
+    return "/brokers#broker-auth";
   }
 
   if (intent === "owner") {
@@ -51,27 +50,4 @@ export function resolvePostLoginDestination(
   return "/properties";
 }
 
-export function deriveAuthCapabilities(user: {
-  role: string;
-  brokerStatus?: string | null;
-}) {
-  const hasBrokerApplication = Boolean(
-    user.brokerStatus === "PENDING" ||
-      user.brokerStatus === "APPROVED" ||
-      user.brokerStatus === "REJECTED"
-  );
-  const canList = userCanList(user.role);
-  const isApprovedBroker = user.brokerStatus === "APPROVED";
-  const isPendingBroker =
-    hasBrokerApplication && user.brokerStatus === "PENDING";
-  const isRejectedBroker =
-    hasBrokerApplication && user.brokerStatus === "REJECTED";
-
-  return {
-    canList,
-    hasBrokerApplication,
-    isApprovedBroker,
-    isPendingBroker,
-    isRejectedBroker,
-  };
-}
+export { deriveAuthCapabilities } from "@/lib/capabilities";

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 import { validateIndianPhone } from "@/lib/utils";
-import { profileNeedsCompletion, userCanList } from "@/lib/capabilities";
+import { profileCanList, profileNeedsCompletion } from "@/lib/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ function serializeUser(profile: {
   name: string | null;
   email: string | null;
   role: string;
+  canList: boolean;
   avatarUrl: string | null;
   brokerProfile?: { status: string } | null;
 }) {
@@ -27,7 +28,7 @@ function serializeUser(profile: {
     avatarUrl: profile.avatarUrl,
     brokerStatus,
     hasBrokerApplication: Boolean(brokerStatus),
-    canList: userCanList(profile.role),
+    canList: profileCanList(profile),
   };
 }
 

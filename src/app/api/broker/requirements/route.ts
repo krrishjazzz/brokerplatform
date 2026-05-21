@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || session.role !== "BROKER" || session.brokerStatus !== "APPROVED") {
+    if (!session || session.brokerStatus !== "APPROVED") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -170,10 +170,6 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (session.role !== "BROKER") {
-      return NextResponse.json({ error: "Only brokers can post requirements" }, { status: 403 });
     }
 
     if (session.brokerStatus !== "APPROVED") {

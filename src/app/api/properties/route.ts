@@ -178,11 +178,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.role !== "OWNER" && session.role !== "BROKER" && session.role !== "ADMIN") {
+    if (!session.canList && session.role !== "ADMIN") {
       return NextResponse.json({ error: "Only owners and approved brokers can post properties" }, { status: 403 });
     }
 
-    if (session.role === "BROKER" && session.brokerStatus !== "APPROVED") {
+    if (
+      session.brokerStatus &&
+      session.brokerStatus !== "APPROVED" &&
+      !session.canList
+    ) {
       return NextResponse.json({ error: "Broker account not yet approved" }, { status: 403 });
     }
 
@@ -212,7 +216,11 @@ export async function POST(req: NextRequest) {
         slug,
         postedById: session.id,
         assignedBrokerId:
-          session.role === "ADMIN" && assignedBrokerId ? assignedBrokerId : session.role === "BROKER" ? session.id : null,
+          session.role === "ADMIN" && assignedBrokerId
+            ? assignedBrokerId
+            : session.brokerStatus === "APPROVED"
+              ? session.id
+              : null,
         visibilityType: normalizedVisibilityType,
         listingStatus: "PENDING",
         publicBrokerName: publicBrokerName || "KrrishJazz",

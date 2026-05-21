@@ -19,26 +19,30 @@ export function BrokersPageHero() {
   const router = useRouter();
   const signedIn = Boolean(user?.name?.trim());
 
-  const goAfterAuth = () => {
-    if (user?.brokerStatus === "APPROVED") {
-      router.push("/broker/properties");
-    } else if (user?.hasBrokerApplication) {
-      router.push("/dashboard?tab=application");
-    } else {
-      router.push("/dashboard?tab=apply-broker");
-    }
+  const scrollToApplication = () => {
+    document.getElementById("broker-auth")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleApply = () => {
     if (signedIn) {
-      goAfterAuth();
+      if (user?.brokerStatus === "APPROVED") {
+        router.push("/broker/properties");
+        return;
+      }
+      if (user?.hasBrokerApplication && user.brokerStatus !== "REJECTED") {
+        router.push("/dashboard?tab=application");
+        return;
+      }
+      scrollToApplication();
       return;
     }
     openLoginPopup({
       intent: "broker",
       title: "Sign in to apply as broker",
       subtitle: "Join the managed KrrishJazz broker network.",
-      onSuccess: () => router.push("/dashboard?tab=apply-broker"),
+      onSuccess: () => {
+        window.location.href = "/brokers#broker-auth";
+      },
     });
   };
 

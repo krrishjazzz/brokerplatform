@@ -21,22 +21,24 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const { name, email, wantToListAsOwner } = body;
-    const shouldEnableOwnerAccess = wantToListAsOwner === true && session.role === "CUSTOMER";
+    const shouldEnableListing =
+      wantToListAsOwner === true && !session.canList && session.role !== "ADMIN";
 
     const updated = await prisma.profile.update({
       where: { id: session.id },
       data: {
         ...(name && { name }),
         ...(email && { email }),
-        ...(shouldEnableOwnerAccess && { role: "OWNER" }),
+        ...(shouldEnableListing && { canList: true }),
       },
     });
 
-    if (shouldEnableOwnerAccess) {
+    if (name || email || shouldEnableListing) {
       await createSession(updated.id);
     }
 
-    return NextResponse.json({ profile: updated });
+    const sessionUser = await getSession();
+    return NextResponse.json({ profile: updated, user: sessionUser });
   } catch (error) {
     console.error("Profile update error:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

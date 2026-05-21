@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BadgeCheck, Briefcase, CheckCircle2, ClipboardList, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
@@ -37,9 +38,10 @@ const BROKER_BENEFITS = [
   },
 ];
 
-export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void }) {
+export function BrokerApplicationSection() {
   const { refreshUser } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -64,7 +66,6 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
         toast("Broker application submitted.", "success");
         setSubmitted(true);
         await refreshUser();
-        onSubmitted?.();
       } else {
         const err = await res.json().catch(() => ({}));
         toast(err.error || "Application failed.", "error");
@@ -78,22 +79,19 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
 
   if (submitted) {
     return (
-      <div>
-        <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-foreground">Application Sent</h2>
-          <p className="mt-1 text-sm text-text-secondary">KrrishJazz ops will verify your details and approve within 1 business day.</p>
-        </div>
-        <div className="max-w-2xl rounded-card border border-success/20 bg-success-light p-6 shadow-card">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-              <CheckCircle2 size={24} />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Your broker application is under review</p>
-              <p className="mt-1 text-sm text-text-secondary">
-                You will see Application Status in the sidebar shortly. We&apos;ll notify you via SMS once approved.
-              </p>
-            </div>
+      <div className="rounded-2xl border border-success/20 bg-success-light p-6 shadow-card">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Application submitted</p>
+            <p className="mt-1 text-sm text-text-secondary">
+              KrrishJazz ops will verify your details within one business day. Track status anytime from your dashboard.
+            </p>
+            <Button className="mt-4" variant="outline" onClick={() => router.push("/dashboard?tab=application")}>
+              View application status
+            </Button>
           </div>
         </div>
       </div>
@@ -102,16 +100,16 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-card border border-border bg-white shadow-card">
+      <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-card">
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-6 lg:p-8">
             <Badge variant="blue" className="mb-4">
               <Briefcase size={12} className="mr-1" />
               Broker network
             </Badge>
-            <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Become a verified KrrishJazz broker</h2>
+            <h2 className="text-2xl font-semibold text-foreground sm:text-3xl">Apply to the KrrishJazz broker network</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-text-secondary">
-              Get matched to live demand, access verified inventory, and close deals with a structured workflow. Approval typically takes 1 business day.
+              Submit RERA and market details here. After approval, your broker workspace unlocks at /broker.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center gap-1.5 rounded-pill border border-success/20 bg-success-light px-3 py-1 font-semibold text-success">
@@ -126,7 +124,7 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
           </div>
           <div className="grid grid-cols-1 gap-3 bg-primary-light p-5 sm:grid-cols-2 lg:p-6">
             {BROKER_BENEFITS.map((item) => (
-              <div key={item.title} className="rounded-card border border-primary/10 bg-white p-3 shadow-sm">
+              <div key={item.title} className="rounded-xl border border-primary/10 bg-white p-3 shadow-sm">
                 <div className="flex h-8 w-8 items-center justify-center rounded-btn bg-primary-light text-primary">
                   <item.icon size={16} />
                 </div>
@@ -139,7 +137,7 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-        <div className="rounded-card border border-border bg-white p-6 shadow-card">
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-card">
           <h3 className="text-lg font-semibold text-foreground">Broker application</h3>
           <p className="mt-1 text-sm text-text-secondary">Add your RERA, experience, and local market focus.</p>
           <div className="mt-5 space-y-4">
@@ -186,30 +184,18 @@ export function BecomeBrokerSection({ onSubmitted }: { onSubmitted?: () => void 
         </div>
 
         <aside className="space-y-3">
-          <div className="rounded-card border border-border bg-white p-5 shadow-card">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-card">
             <p className="text-sm font-semibold text-foreground">What happens next</p>
-            <ol className="mt-3 space-y-3 text-sm">
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">1</span>
-                <span className="text-text-secondary">Submit your details — we save them instantly.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">2</span>
-                <span className="text-text-secondary">Ops verifies RERA, experience, and local market.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">3</span>
-                <span className="text-text-secondary">Approval typically lands within 1 business day.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success text-[11px] font-bold text-white">4</span>
-                <span className="text-text-secondary">Get access to the broker workspace and demand desk.</span>
-              </li>
+            <ol className="mt-3 space-y-3 text-sm text-text-secondary">
+              <li>1. Submit your details on this page.</li>
+              <li>2. Ops verifies RERA, experience, and local market.</li>
+              <li>3. Approval typically within one business day.</li>
+              <li>4. Broker workspace unlocks after approval.</li>
             </ol>
           </div>
-          <div className="rounded-card border border-warning/20 bg-warning/5 p-4 text-xs leading-5 text-text-secondary">
+          <div className="rounded-2xl border border-warning/20 bg-warning/5 p-4 text-xs leading-5 text-text-secondary">
             <p className="font-semibold text-foreground">Keep your buyer/owner access</p>
-            <p className="mt-1">Becoming a broker does not remove your current buyer/owner experience. You can still post personal listings and save searches.</p>
+            <p className="mt-1">Applying as a broker does not remove saved searches, enquiries, or owner listing tools.</p>
           </div>
         </aside>
       </form>

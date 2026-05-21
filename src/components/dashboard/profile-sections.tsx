@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Clock, Edit, Mail, Phone, User, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
+import { deriveAuthCapabilities, getAccountCapabilityLines } from "@/lib/capabilities";
 import { INDIAN_CITIES } from "@/lib/constants";
 
 type DashboardUser = {
@@ -17,11 +19,16 @@ type DashboardUser = {
   email: string | null;
   phone: string;
   role: string;
+  brokerStatus?: string | null;
+  hasBrokerApplication?: boolean;
+  canList?: boolean;
 };
 
 export function ProfileSection({ user }: { user: DashboardUser }) {
   const { refreshUser } = useAuth();
   const { toast } = useToast();
+  const caps = deriveAuthCapabilities(user);
+  const capabilityLines = getAccountCapabilityLines(user);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name || "");
   const [email, setEmail] = useState(user.email || "");
@@ -52,7 +59,7 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
     <div>
       <div className="mb-5">
         <h2 className="text-2xl font-semibold text-foreground">Profile</h2>
-        <p className="text-sm text-text-secondary mt-1">Manage your account details and broker identity.</p>
+        <p className="text-sm text-text-secondary mt-1">Your account details and what you can do on KrrishJazz.</p>
       </div>
       <div className="bg-white rounded-card shadow-card border border-border overflow-hidden max-w-lg">
         <div className="h-2 bg-gradient-to-r from-primary via-success to-accent" />
@@ -63,10 +70,35 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">{user.name || "User"}</p>
-              <Badge variant={user.role === "ADMIN" ? "error" : user.role === "BROKER" ? "blue" : user.role === "OWNER" ? "accent" : "default"}>
-                {user.role}
-              </Badge>
+              <Badge variant={caps.accountBadgeVariant}>{caps.accountLabel}</Badge>
             </div>
+          </div>
+
+          <div className="mb-6 rounded-xl border border-border bg-surface/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-text-tertiary">Account capabilities</p>
+            <ul className="mt-2 space-y-1.5">
+              {capabilityLines.map((line) => (
+                <li key={line} className="text-sm text-text-secondary">
+                  {line}
+                </li>
+              ))}
+            </ul>
+            {caps.isOwner && !caps.hasBrokerApplication && (
+              <p className="mt-3 text-xs text-text-secondary">
+                Want to join the broker network?{" "}
+                <Link href="/brokers" className="font-semibold text-primary hover:underline">
+                  Apply separately
+                </Link>
+                — your owner listing tools stay unchanged.
+              </p>
+            )}
+            {caps.isRejectedBroker && (
+              <p className="mt-3 text-xs text-text-secondary">
+                <Link href="/brokers" className="font-semibold text-primary hover:underline">
+                  Re-apply on the brokers page
+                </Link>
+              </p>
+            )}
           </div>
 
           <div className="space-y-4">

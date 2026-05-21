@@ -60,8 +60,8 @@ export function AccountStatusBanner({ user }: { user: User }) {
             </p>
           </div>
         </div>
-        <Link href="/dashboard?tab=apply-broker">
-          <Button variant="outline">Apply again</Button>
+        <Link href="/brokers">
+          <Button variant="outline">Apply again on brokers page</Button>
         </Link>
       </div>
     );

@@ -592,7 +592,7 @@ export function parseIntentSearchFromUrl(searchParams: URLSearchParams): IntentS
 export function getPresetMenuLabel(presetId: SearchPresetId): string {
   const config = getSearchPreset(presetId);
   if (config.group === "commercial") {
-    return `Commercial · ${config.menuLabel}`;
+    return `Commercial - ${config.menuLabel}`;
   }
   return config.menuLabel;
 }
@@ -601,9 +601,9 @@ export function getPresetMenuLabel(presetId: SearchPresetId): string {
 export function getPresetContextLine(presetId: SearchPresetId): string {
   const config = getSearchPreset(presetId);
   if (config.group === "commercial") {
-    return `Searching commercial properties · ${config.menuLabel}`;
+    return `Searching commercial properties - ${config.menuLabel}`;
   }
   if (presetId === "pg") return "Searching PG & co-living";
   if (presetId.includes("projects")) return "Searching new & ongoing projects";
-  return `Searching residential properties · ${config.menuLabel}`;
+  return `Searching residential properties - ${config.menuLabel}`;
 }

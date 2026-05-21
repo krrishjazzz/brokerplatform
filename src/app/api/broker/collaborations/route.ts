@@ -20,7 +20,7 @@ const allowedEvents = new Set([
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || session.role !== "BROKER" || session.brokerStatus !== "APPROVED") {
+    if (!session || session.brokerStatus !== "APPROVED") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

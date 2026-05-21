@@ -16,8 +16,7 @@ export function useBrokerAuthGuard() {
       return;
     }
     if (user.brokerStatus !== "APPROVED") {
-      const tab = user.brokerStatus ? "application" : "apply-broker";
-      router.replace(`/dashboard?tab=${tab}`);
+      router.replace(user.brokerStatus ? "/dashboard?tab=application" : "/brokers");
     }
   }, [user, loading, router]);
 

@@ -40,8 +40,8 @@ export async function middleware(request: NextRequest) {
 
     if (isBrokerRoute) {
       if (brokerStatus !== "APPROVED") {
-        const tab = brokerStatus ? "application" : "apply-broker";
-        return NextResponse.redirect(new URL(`/dashboard?tab=${tab}`, request.url));
+        const dest = brokerStatus ? "/dashboard?tab=application" : "/brokers#broker-auth";
+        return NextResponse.redirect(new URL(dest, request.url));
       }
     }
 

@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
-import { userCanList } from "@/lib/capabilities";
+import { deriveAuthCapabilities, profileCanList } from "@/lib/capabilities";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +81,7 @@ function NavbarInner() {
   }, [pathname]);
 
   const activeNavKey = getNavActiveKey(pathname, searchParams);
-  const canList = user ? (user.canList ?? userCanList(user.role)) : false;
+  const canList = user ? profileCanList(user) : false;
   const isPropertiesPage = pathname.startsWith("/properties");
   const { compactActive, compactBar } = usePropertySearchNavbar();
   const showNavbarCompactSearch = isPropertiesPage && compactActive && compactBar;
@@ -167,11 +167,17 @@ function NavbarInner() {
     }
 
     if (user.role === "OWNER" || canList) {
+      const caps = deriveAuthCapabilities({
+        role: user.role,
+        brokerStatus: user.brokerStatus,
+        canList,
+        hasBrokerApplication: user.hasBrokerApplication,
+      });
       return (
         <>
           <div className="border-b border-border px-4 py-3">
             <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
-            <Badge variant="accent">Owner</Badge>
+            <Badge variant={caps.accountBadgeVariant}>{caps.accountLabel}</Badge>
           </div>
           <div className="px-2 py-2">
             <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
@@ -179,6 +185,9 @@ function NavbarInner() {
             <DropdownItem icon={<Plus size={16} />} label="Post Property" href="/dashboard?tab=post" onClick={navigateTo} />
             <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
             <DropdownItem icon={<MessageSquare size={16} />} label="My Enquiries" href="/dashboard?tab=enquiries" onClick={navigateTo} />
+            {!user.hasBrokerApplication && (
+              <DropdownItem icon={<Briefcase size={16} />} label="Apply as broker" href="/brokers" onClick={navigateTo} />
+            )}
           </div>
           <DropdownLogout onLogout={logout} />
         </>
@@ -195,7 +204,10 @@ function NavbarInner() {
           <DropdownItem icon={<LayoutDashboard size={16} />} label="Dashboard" href="/dashboard" onClick={navigateTo} />
           <DropdownItem icon={<Heart size={16} />} label="Saved Properties" href="/dashboard?tab=saved" onClick={navigateTo} />
           <DropdownItem icon={<MessageSquare size={16} />} label="My Enquiries" href="/dashboard?tab=enquiries" onClick={navigateTo} />
-          <DropdownItem icon={<Plus size={16} />} label="List Property" href="/owners" onClick={navigateTo} />
+          <DropdownItem icon={<Plus size={16} />} label="List a Property" href="/owners" onClick={navigateTo} />
+          {!user.hasBrokerApplication && (
+            <DropdownItem icon={<Briefcase size={16} />} label="Apply as broker" href="/brokers" onClick={navigateTo} />
+          )}
         </div>
         <DropdownLogout onLogout={logout} />
       </>

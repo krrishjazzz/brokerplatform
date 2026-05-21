@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, getSession } from "@/lib/session";
 import { registerSchema } from "@/lib/validations";
-import { profileNeedsCompletion, userCanList } from "@/lib/capabilities";
+import { profileCanList, profileNeedsCompletion } from "@/lib/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -37,17 +37,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let role = existing.role;
-    if (existing.role === "CUSTOMER") {
-      role = wantToListAsOwner ? "OWNER" : "CUSTOMER";
-    }
-
     const profile = await prisma.profile.update({
       where: { id: session.id },
       data: {
         name,
         email: email || null,
-        role,
+        canList: existing.canList || wantToListAsOwner,
       },
       include: { brokerProfile: true },
     });
@@ -66,7 +61,7 @@ export async function POST(req: NextRequest) {
         avatarUrl: profile.avatarUrl,
         brokerStatus,
         hasBrokerApplication: Boolean(brokerStatus),
-        canList: userCanList(profile.role),
+        canList: profileCanList(profile),
       },
     });
   } catch (error) {

@@ -59,8 +59,7 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
 
     const session = await getSession();
     const canViewAsBroker =
-      session?.role === "BROKER" &&
-      session.brokerStatus === "APPROVED" &&
+      session?.brokerStatus === "APPROVED" &&
       property.status !== "REJECTED" &&
       BROKER_VISIBLE_TYPES.includes(property.visibilityType);
 
@@ -71,7 +70,6 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
         session.id === property.assignedBrokerId ||
         canViewAsBroker ||
         (BROKER_VISIBLE_TYPES.includes(property.visibilityType) &&
-          session.role === "BROKER" &&
           session.brokerStatus === "APPROVED"));
 
     if (property.status !== "LIVE" && !canViewRestricted) {
