@@ -6,6 +6,7 @@ import { sendSMS, SMS_TEMPLATES } from "@/lib/twilio";
 import { rateLimit } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/workflow";
 import { canSubmitEnquiry } from "@/server/property-enquiry-access";
+import { recordPropertyEnquiryMetric } from "@/lib/property-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,11 @@ export async function POST(req: NextRequest) {
         customerId: session.id,
       },
     });
+
+    await recordPropertyEnquiryMetric(
+      property.id,
+      Boolean(parsed.data.visitDate)
+    );
 
     await logActivity({
       actorId: session.id,

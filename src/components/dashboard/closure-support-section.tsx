@@ -1,34 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Handshake, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  CLOSURE_STAGES,
+  getHighestClosureStage,
+  type ClosureStageId,
+} from "@/components/dashboard/lead-pipeline";
+import { dashboardFetch } from "@/lib/dashboard-api";
 import { KRRISHJAZZ_OWNER_SUPPORT_PHONE } from "@/lib/owner-dashboard";
+import {
+  ownerClosureFeeReminderBody,
+  ownerClosureFeeReminderTitle,
+} from "@/lib/owner-copy";
 
-const CLOSURE_STAGES = [
-  { id: "enquiry", label: "Enquiry", desc: "Buyer interest received and qualified." },
-  { id: "visit", label: "Visit", desc: "Site visit coordinated by KrrishJazz." },
-  { id: "negotiation", label: "Negotiation", desc: "Price and terms under discussion." },
-  { id: "token", label: "Token", desc: "Token amount and timeline agreed." },
-  { id: "agreement", label: "Agreement", desc: "Documentation in progress." },
-  { id: "closed", label: "Closed", desc: "Deal completed — brokerage on successful closure only." },
-] as const;
+const STAGE_ORDER = CLOSURE_STAGES.map((s) => s.id);
+
+function stageIndex(id: ClosureStageId) {
+  return STAGE_ORDER.indexOf(id);
+}
 
 export function ClosureSupportSection() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeDeals, setActiveDeals] = useState(0);
+  const [highlightStage, setHighlightStage] = useState<ClosureStageId>("enquiry");
 
   useEffect(() => {
-    fetch("/api/enquiries?type=received", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        const active = (data.enquiries || []).filter(
-          (e: { status?: string }) => e.status && !["CLOSED", "LOST"].includes(e.status)
-        ).length;
-        setActiveDeals(active);
-      })
-      .finally(() => setLoading(false));
+    void (async () => {
+      const result = await dashboardFetch<{ enquiries: { status?: string }[] }>(
+        "/api/enquiries?type=received"
+      );
+      if (result.error) {
+        setError(result.error);
+      } else {
+        const enquiries = result.data?.enquiries || [];
+        const active = enquiries.filter(
+          (e) => e.status && !["CLOSED", "LOST"].includes(e.status)
+        );
+        const statuses = active.map((e) => e.status as string);
+        setActiveDeals(active.length);
+        setHighlightStage(getHighestClosureStage(statuses));
+      }
+      setLoading(false);
+    })();
   }, []);
+
+  const highlightIndex = useMemo(() => stageIndex(highlightStage), [highlightStage]);
 
   if (loading) {
     return (
@@ -47,22 +66,37 @@ export function ClosureSupportSection() {
         </p>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-error/20 bg-error-light px-4 py-3 text-sm text-error">
+          {error}
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
           <h3 className="font-semibold text-foreground">Closure pipeline</h3>
           <ol className="mt-5 space-y-3">
-            {CLOSURE_STAGES.map((stage, index) => {
-              const isCurrent = index === Math.min(activeDeals > 0 ? 1 : 0, CLOSURE_STAGES.length - 1);
+            {CLOSURE_STAGES.filter((s) => s.id !== "lost").map((stage, index) => {
+              const isCurrent = index === highlightIndex && activeDeals > 0;
+              const isPast = activeDeals > 0 && index < highlightIndex;
               return (
                 <li
                   key={stage.id}
                   className={`flex gap-4 rounded-xl border p-4 ${
-                    isCurrent ? "border-primary/25 bg-primary-light/50" : "border-border bg-surface"
+                    isCurrent
+                      ? "border-primary/25 bg-primary-light/50"
+                      : isPast
+                        ? "border-success/15 bg-success-light/20"
+                        : "border-border bg-surface"
                   }`}
                 >
                   <span
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      isCurrent ? "bg-primary text-white" : "bg-white text-text-secondary"
+                      isCurrent
+                        ? "bg-primary text-white"
+                        : isPast
+                          ? "bg-success text-white"
+                          : "bg-white text-text-secondary"
                     }`}
                   >
                     {index + 1}
@@ -72,7 +106,7 @@ export function ClosureSupportSection() {
                     <p className="mt-1 text-xs text-text-secondary">{stage.desc}</p>
                     {isCurrent && activeDeals > 0 && (
                       <Badge variant="blue" className="mt-2">
-                        {activeDeals} active deal{activeDeals === 1 ? "" : "s"}
+                        {activeDeals} active deal{activeDeals === 1 ? "" : "s"} at this stage
                       </Badge>
                     )}
                   </div>
@@ -80,6 +114,11 @@ export function ClosureSupportSection() {
               );
             })}
           </ol>
+          {highlightStage === "lost" && (
+            <p className="mt-4 text-sm text-text-secondary">
+              Some leads were marked lost. Focus on fresh enquiries and listing freshness.
+            </p>
+          )}
         </section>
 
         <aside className="space-y-4">
@@ -90,22 +129,20 @@ export function ClosureSupportSection() {
               Your KrrishJazz team coordinates buyer callbacks, visit slots, and negotiation. You&apos;ll see stage
               updates here as deals progress.
             </p>
-            <p className="mt-4 text-sm font-semibold text-foreground">Next action</p>
+            <p className="mt-4 text-sm font-semibold text-foreground">Current focus</p>
             <p className="mt-1 text-sm text-text-secondary">
               {activeDeals > 0
-                ? "Keep listings fresh and confirm availability when buyers show interest."
+                ? `Most active leads are in the ${CLOSURE_STAGES.find((s) => s.id === highlightStage)?.label ?? "pipeline"} stage.`
                 : "Post a property and respond to enquiries to start a closure journey."}
             </p>
           </div>
           <div className="rounded-2xl border border-warning/20 bg-warning-light/30 p-4 text-sm">
-            <p className="font-semibold text-foreground">Brokerage reminder</p>
-            <p className="mt-1 text-text-secondary">
-              One month brokerage applies only after a successful closure, as per KrrishJazz terms.
-            </p>
+            <p className="font-semibold text-foreground">{ownerClosureFeeReminderTitle()}</p>
+            <p className="mt-1 text-text-secondary">{ownerClosureFeeReminderBody()}</p>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
             <p className="font-semibold text-foreground">KrrishJazz support</p>
-            <p className="mt-1 text-primary font-semibold">{KRRISHJAZZ_OWNER_SUPPORT_PHONE}</p>
+            <p className="mt-1 font-semibold text-primary">{KRRISHJAZZ_OWNER_SUPPORT_PHONE}</p>
           </div>
         </aside>
       </div>

@@ -29,7 +29,11 @@ export async function PATCH(req: NextRequest) {
       data: {
         ...(name && { name }),
         ...(email && { email }),
-        ...(shouldEnableListing && { canList: true }),
+        ...(shouldEnableListing && {
+          canList: true,
+          ownerStatus: "PENDING",
+          permissionsVersion: { increment: 1 },
+        }),
       },
     });
 

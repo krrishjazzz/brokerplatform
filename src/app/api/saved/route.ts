@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { logActivity } from "@/lib/workflow";
+import { recordPropertyMetric } from "@/lib/property-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
     await prisma.savedProperty.create({
       data: { userId: session.id, propertyId },
     });
+
+    await recordPropertyMetric(propertyId, "SAVE");
 
     await logActivity({
       actorId: session.id,

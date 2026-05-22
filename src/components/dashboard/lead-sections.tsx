@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LEAD_PIPELINE, leadStatusHint, leadStatusLabel, leadStatusVariant } from "@/components/dashboard/lead-pipeline";
+import { dashboardFetch } from "@/lib/dashboard-api";
 import type { LeadRow } from "@/components/dashboard/types";
 
 function formatEnquiryDate(value: string) {
@@ -21,10 +22,10 @@ export function OwnerEnquiriesSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/enquiries?type=received", { credentials: "include" })
-      .then((response) => response.json())
-      .then((data) => {
-        const items = (data.enquiries || []).map((enquiry: any) => ({
+    void (async () => {
+      const result = await dashboardFetch<{ enquiries: any[] }>("/api/enquiries?type=received");
+      if (result.data?.enquiries) {
+        const items = result.data.enquiries.map((enquiry: any) => ({
           id: enquiry.id,
           customerName: enquiry.customer?.name || "Buyer",
           phone: "",
@@ -36,9 +37,9 @@ export function OwnerEnquiriesSection() {
           visitDate: enquiry.visitDate,
         }));
         setLeads(items);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      }
+      setLoading(false);
+    })();
   }, []);
 
   const pipelineCounts = useMemo(
@@ -161,10 +162,10 @@ export function EnquiriesSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/enquiries?type=sent", { credentials: "include" })
-      .then((response) => response.json())
-      .then((data) => {
-        const items = (data.enquiries || []).map((enquiry: any) => ({
+    void (async () => {
+      const result = await dashboardFetch<{ enquiries: any[] }>("/api/enquiries?type=sent");
+      if (result.data?.enquiries) {
+        const items = result.data.enquiries.map((enquiry: any) => ({
           id: enquiry.id,
           customerName: "",
           phone: "",
@@ -176,9 +177,9 @@ export function EnquiriesSection() {
           visitDate: enquiry.visitDate,
         }));
         setEnquiries(items);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      }
+      setLoading(false);
+    })();
   }, []);
 
   return (

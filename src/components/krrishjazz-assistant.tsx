@@ -14,9 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { isDashboardWorkspacePath } from "@/lib/dashboard-paths";
 import { buildPlatformWhatsAppUrl, normalizePlatformPhoneForTel } from "@/lib/platform";
-
-const HIDDEN_PREFIXES = ["/admin"];
 
 export function KrrishJazzAssistant() {
   const pathname = usePathname();
@@ -24,7 +23,7 @@ export function KrrishJazzAssistant() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
-  if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+  if (isDashboardWorkspacePath(pathname ?? "")) return null;
 
   const actions = [
     {

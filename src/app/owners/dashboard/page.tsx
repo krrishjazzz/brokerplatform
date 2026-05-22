@@ -11,6 +11,7 @@ export default function OwnerDashboardPage() {
     <DashboardShell
       basePath={OWNER_DASHBOARD_PATH}
       loginRedirect={`${OWNER_DASHBOARD_PATH}?tab=overview`}
+      mode="owner"
     />
   );
 }

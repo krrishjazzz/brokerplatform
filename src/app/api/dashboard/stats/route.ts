@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { getOwnerAnalyticsSummary } from "@/lib/property-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export async function GET() {
             },
           }),
         ]);
+      const analytics = await getOwnerAnalyticsSummary(session.id);
       return NextResponse.json({
         totalProperties,
         liveProperties,
@@ -42,6 +44,7 @@ export async function GET() {
         totalLeads,
         newLeads,
         visitRequests,
+        analytics,
       });
     }
 

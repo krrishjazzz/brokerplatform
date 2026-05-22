@@ -13,6 +13,10 @@ function isPublicBrowsePath(pathname: string) {
   return pathname === "/" || pathname === "/properties" || pathname.startsWith("/properties/");
 }
 
+function loginIntentForPath(pathname: string) {
+  return pathname.startsWith("/owners/dashboard") ? "owner" : "buyer";
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -20,6 +24,7 @@ export async function middleware(request: NextRequest) {
   const isBrokerRoute = pathname.startsWith("/broker");
   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route));
   const isPublicBrowse = isPublicBrowsePath(pathname);
+  const loginIntent = loginIntentForPath(pathname);
 
   const token = request.cookies.get("session")?.value;
   if (!token) {
@@ -28,7 +33,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("intent", "buyer");
+    loginUrl.searchParams.set("intent", loginIntent);
     loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
@@ -37,6 +42,7 @@ export async function middleware(request: NextRequest) {
     const { payload } = await jwtVerify(token, JWT_SECRET);
 
     const brokerStatus = payload.brokerStatus as string | null | undefined;
+    const jwtPermissionsVersion = Number(payload.permissionsVersion ?? 0);
 
     if (isBrokerRoute) {
       if (brokerStatus !== "APPROVED") {
@@ -69,7 +75,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set("x-permissions-version", String(jwtPermissionsVersion));
+    return response;
   } catch {
     if (isPublicBrowse) {
       const response = NextResponse.next();
@@ -78,7 +86,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("intent", "buyer");
+    loginUrl.searchParams.set("intent", loginIntent);
     loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     const response = NextResponse.redirect(loginUrl);
     response.cookies.delete("session");

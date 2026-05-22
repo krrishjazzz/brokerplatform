@@ -25,11 +25,29 @@ type DashboardUser = {
   canList?: boolean;
 };
 
-export function ProfileSection({ user }: { user: DashboardUser }) {
+export function ProfileSection({
+  user,
+  ownerDashboardMode = false,
+}: {
+  user: DashboardUser;
+  ownerDashboardMode?: boolean;
+}) {
   const { refreshUser } = useAuth();
   const { toast } = useToast();
   const caps = deriveAuthCapabilities(user);
-  const capabilityLines = getAccountCapabilityLines(user);
+  const capabilityLines = getAccountCapabilityLines(user, { ownerDashboard: ownerDashboardMode });
+  const profileBadgeLabel =
+    ownerDashboardMode && caps.canList
+      ? caps.canPostProperty
+        ? "Listing tools active"
+        : caps.ownerStatus === "PENDING"
+          ? "Listing tools pending approval"
+          : caps.ownerStatus === "REJECTED"
+            ? "Listing access not approved"
+            : "Owner account"
+      : caps.accountLabel;
+  const profileBadgeVariant =
+    ownerDashboardMode && caps.canList ? (caps.canPostProperty ? "accent" : "warning") : caps.accountBadgeVariant;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name || "");
   const [email, setEmail] = useState(user.email || "");
@@ -80,7 +98,7 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
             </div>
             <div>
               <p className="text-lg font-semibold text-foreground">{user.name || "User"}</p>
-              <Badge variant={caps.accountBadgeVariant}>{caps.accountLabel}</Badge>
+              <Badge variant={profileBadgeVariant}>{profileBadgeLabel}</Badge>
             </div>
           </div>
 
@@ -93,19 +111,19 @@ export function ProfileSection({ user }: { user: DashboardUser }) {
                 </li>
               ))}
             </ul>
-            {caps.isOwner && !caps.hasBrokerApplication && (
+            {!ownerDashboardMode && caps.isOwner && !caps.hasBrokerApplication && (
               <p className="mt-3 text-xs text-text-secondary">
-                Want to join the broker network?{" "}
+                Interested in partnering with KrrishJazz as a property professional?{" "}
                 <Link href="/brokers" className="font-semibold text-primary hover:underline">
-                  Apply separately
+                  Learn about partner access
                 </Link>
                 — your owner listing tools stay unchanged.
               </p>
             )}
-            {caps.isRejectedBroker && (
+            {!ownerDashboardMode && caps.isRejectedBroker && (
               <p className="mt-3 text-xs text-text-secondary">
                 <Link href="/brokers" className="font-semibold text-primary hover:underline">
-                  Re-apply on the brokers page
+                  Re-apply on the partners page
                 </Link>
               </p>
             )}

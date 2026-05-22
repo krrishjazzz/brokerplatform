@@ -12,19 +12,22 @@ import {
   User,
 } from "lucide-react";
 import { deriveAuthCapabilities } from "@/lib/capabilities";
+import type { DashboardMode } from "@/components/dashboard/dashboard-mode";
 import type { DashboardNavItem, DashboardTab } from "./types";
 
 export type NavContext = {
   role: string;
   brokerStatus?: string | null;
   canList?: boolean;
+  ownerStatus?: string | null;
   hasBrokerApplication?: boolean;
+  mode?: DashboardMode;
 };
 
 const iconSize = 20;
 
 /** Owner listing command center — no broker CRM or buyer saved-search noise. */
-function getOwnerNavItems(): DashboardNavItem[] {
+export function getOwnerNavItems(): DashboardNavItem[] {
   return [
     { id: "overview", label: "Overview", icon: <LayoutDashboard size={iconSize} /> },
     { id: "properties", label: "My Properties", icon: <Building2 size={iconSize} /> },
@@ -36,8 +39,34 @@ function getOwnerNavItems(): DashboardNavItem[] {
   ];
 }
 
-export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication }: NavContext): DashboardNavItem[] {
-  const caps = deriveAuthCapabilities({ role, brokerStatus, canList, hasBrokerApplication });
+function getBrokerNavItems(): DashboardNavItem[] {
+  return [
+    {
+      id: "broker-workspace",
+      label: "Broker Workspace",
+      icon: <Briefcase size={iconSize} />,
+      href: "/broker/properties",
+      emphasis: true,
+    },
+    { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
+    { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
+    { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
+  ];
+}
+
+function getBuyerNavItems(): DashboardNavItem[] {
+  return [
+    { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
+    { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
+    { id: "requirements", label: "My Requirements", icon: <ClipboardList size={iconSize} /> },
+    { id: "post", label: "List a Property", icon: <PlusCircle size={iconSize} /> },
+    { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
+  ];
+}
+
+export function getNavItems(ctx: NavContext): DashboardNavItem[] {
+  const caps = deriveAuthCapabilities(ctx);
+  const mode = ctx.mode ?? "buyer";
 
   if (caps.isAdmin) {
     return [
@@ -52,19 +81,12 @@ export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication 
     ];
   }
 
+  if (mode === "owner" && caps.canList) {
+    return getOwnerNavItems();
+  }
+
   if (caps.isApprovedBroker) {
-    return [
-      {
-        id: "broker-workspace",
-        label: "Broker Workspace",
-        icon: <Briefcase size={iconSize} />,
-        href: "/broker/properties",
-        emphasis: true,
-      },
-      { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-      { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
-      { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
-    ];
+    return getBrokerNavItems();
   }
 
   if (caps.isPendingBroker || caps.isRejectedBroker) {
@@ -76,9 +98,8 @@ export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication 
     }
     return [
       { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
-      { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-      { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
-      { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
+      ...getBuyerNavItems().filter((i) => i.id !== "post"),
+      { id: "post", label: "List a Property", icon: <PlusCircle size={iconSize} /> },
     ];
   }
 
@@ -86,18 +107,15 @@ export function getNavItems({ role, brokerStatus, canList, hasBrokerApplication 
     return getOwnerNavItems();
   }
 
-  return [
-    { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-    { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
-    { id: "requirements", label: "My Requirements", icon: <ClipboardList size={iconSize} /> },
-    { id: "post", label: "List a Property", icon: <PlusCircle size={iconSize} /> },
-    { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
-  ];
+  return getBuyerNavItems();
 }
 
 export function getDefaultTab(ctx: NavContext): DashboardTab {
   const caps = deriveAuthCapabilities(ctx);
-  if (caps.isApprovedBroker) return "enquiries";
+  const mode = ctx.mode ?? "buyer";
+
+  if (mode === "owner" && caps.canList) return "overview";
+  if (caps.isApprovedBroker && mode !== "owner") return "enquiries";
   if (caps.isPendingBroker || caps.isRejectedBroker) return "application";
   if (caps.canList) return "overview";
   return "enquiries";

@@ -58,7 +58,7 @@ export const OWNER_TRUST_LINES = [
   "Your property is reviewed before going live.",
   "Buyer contact is handled by KrrishJazz.",
   "Visits and negotiation are coordinated by our team.",
-  "Brokerage applies only after successful closure.",
+  "Service fee applies only after a successful closure.",
 ] as const;
 
 export const KRRISHJAZZ_OWNER_SUPPORT_PHONE = process.env.NEXT_PUBLIC_KRRISHJAZZ_SUPPORT_PHONE || "+91 33 0000 0000";

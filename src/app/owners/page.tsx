@@ -14,9 +14,13 @@ import { OwnersPageHero } from "@/components/auth/owners-page-hero";
 const BENEFITS = [
   { icon: ShieldCheck, title: "Verified exposure", desc: "Listings reviewed by KrrishJazz before they reach serious buyers." },
   { icon: BadgeCheck, title: "Assisted closure", desc: "Managed callbacks and visit coordination — no spam calls." },
-  { icon: Users, title: "Broker network support", desc: "Tap into approved brokers when you want faster matching." },
+  {
+    icon: Users,
+    title: "Managed buyer matching",
+    desc: "KrrishJazz routes serious enquiries and coordinates follow-ups for faster closure.",
+  },
   { icon: Headphones, title: "Dedicated RM", desc: "A relationship manager helps you through enquiries and closure." },
-  { icon: IndianRupee, title: "Free to list", desc: "No upfront listing fee. Brokerage only on successful closure." },
+  { icon: IndianRupee, title: "Free to list", desc: "No upfront listing fee. Service fee only on successful closure." },
   { icon: Home, title: "Full control", desc: "Edit, pause, and track your listing from your owner dashboard." },
 ];
 
@@ -30,7 +34,7 @@ const STEPS = [
 const FAQ = [
   {
     q: "Does it cost anything to list?",
-    a: "Listing is free. KrrishJazz charges one month brokerage only when a deal closes successfully through our managed workflow.",
+    a: "Listing is free. A one month service fee applies only when a deal closes successfully through KrrishJazz.",
   },
   {
     q: "Will my phone number be public?",
@@ -106,7 +110,7 @@ export default function OwnersPage() {
                   "Post and edit residential, commercial, and plot listings",
                   "Track enquiry status and visit requests",
                   "Confirm availability and freshness",
-                  "Apply for broker help when you need faster matching",
+                  "Request KrrishJazz assisted matching when you need faster closure",
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2 text-sm text-foreground">
                     <BadgeCheck size={16} className="mt-0.5 shrink-0 text-success" />

@@ -173,6 +173,7 @@ export function PropertiesResultsSection({
                 property={property}
                 isLoggedIn={isLoggedIn}
                 isSaved={isPropertySaved(property.id)}
+                trackSearchImpression
                 onSave={onSaveProperty}
                 onShare={onShareProperty}
               />

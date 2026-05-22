@@ -5,6 +5,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 export type UserRole = "CUSTOMER" | "OWNER" | "BROKER" | "ADMIN";
 export type BrokerStatusType = "PENDING" | "APPROVED" | "REJECTED";
 
+export type OwnerListingStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+
 export interface User {
   id: string;
   phone: string;
@@ -15,6 +17,9 @@ export interface User {
   brokerStatus?: BrokerStatusType | null;
   hasBrokerApplication?: boolean;
   canList?: boolean;
+  canPostProperty?: boolean;
+  ownerStatus?: OwnerListingStatus;
+  permissionsVersion?: number;
   brokerApplicationAt?: string | null;
   brokerRejectionReason?: string | null;
 }

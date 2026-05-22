@@ -21,7 +21,15 @@ export function isBuyerDashboardPath(pathname: string): boolean {
 }
 
 export function isDashboardWorkspacePath(pathname: string): boolean {
-  return isOwnerDashboardPath(pathname) || isBuyerDashboardPath(pathname);
+  if (!pathname) return false;
+  return (
+    isOwnerDashboardPath(pathname) ||
+    isBuyerDashboardPath(pathname) ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/broker" ||
+    pathname.startsWith("/broker/")
+  );
 }
 
 /** Logo / “Home” for logged-in owners — dashboard instead of marketing homepage. */

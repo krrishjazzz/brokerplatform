@@ -38,6 +38,22 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const caps = deriveAuthCapabilities(ctx);
   const navItems = getNavItems(ctx).filter((item) => item.id !== "broker-workspace");
+  const sidebarAccountLabel =
+    ctx.mode === "owner" && caps.canList
+      ? caps.canPostProperty
+        ? "Listing tools active"
+        : caps.ownerStatus === "PENDING"
+          ? "Listing pending approval"
+          : caps.ownerStatus === "REJECTED"
+            ? "Listing not approved"
+            : "Owner account"
+      : caps.accountLabel;
+  const sidebarBadgeVariant =
+    ctx.mode === "owner" && caps.canList
+      ? caps.canPostProperty
+        ? "accent"
+        : "warning"
+      : caps.accountBadgeVariant;
 
   return (
     <>
@@ -67,8 +83,8 @@ export function DashboardSidebar({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground">{user.name || "User"}</p>
-              <Badge variant={caps.accountBadgeVariant} className="mt-0.5">
-                {caps.accountLabel}
+              <Badge variant={sidebarBadgeVariant} className="mt-0.5">
+                {sidebarAccountLabel}
               </Badge>
             </div>
             <button

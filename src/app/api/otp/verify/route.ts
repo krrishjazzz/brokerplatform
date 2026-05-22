@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createSession } from "@/lib/session";
+import { createSession, getSession } from "@/lib/session";
 import { validateIndianPhone } from "@/lib/utils";
 import { profileCanList, profileNeedsCompletion } from "@/lib/capabilities";
 
@@ -83,9 +83,10 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      const sessionUser = await getSession();
       return NextResponse.json({
         success: true,
-        user: serializeUser(profile),
+        user: sessionUser ?? serializeUser(profile),
       });
     }
 

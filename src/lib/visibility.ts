@@ -39,3 +39,53 @@ export function getVisibilityShortLabel(value?: string) {
   if (value === "PUBLIC_TO_CUSTOMERS") return "Customers + Broker Network";
   return VISIBILITY_OPTIONS.find((option) => option.value === value)?.shortLabel || "Customers + Broker Network";
 }
+
+/** Plain-language visibility for owners (no broker network wording). */
+export const OWNER_FACING_VISIBILITY = [
+  {
+    value: "FULL_VISIBILITY",
+    label: "Public listing",
+    shortLabel: "Public listing",
+    description:
+      "Visible to buyers and tenants on KrrishJazz. KrrishJazz can also use assisted matching while your contact stays protected.",
+  },
+  {
+    value: "DIRECT_CUSTOMERS_ONLY",
+    label: "Public listing",
+    shortLabel: "Public listing",
+    description: "Visible to buyers and tenants on KrrishJazz. Contact stays protected.",
+  },
+  {
+    value: "PUBLIC_TO_CUSTOMERS",
+    label: "Public listing",
+    shortLabel: "Public listing",
+    description: "Visible to buyers and tenants on KrrishJazz. Contact stays protected.",
+  },
+  {
+    value: "BROKER_NETWORK_ONLY",
+    label: "Assisted matching",
+    shortLabel: "Assisted matching",
+    description:
+      "KrrishJazz can share the listing with trusted matching partners while protecting your contact.",
+  },
+  {
+    value: "PRIVATE",
+    label: "Private assisted listing",
+    shortLabel: "Private assisted",
+    description: "Not shown publicly. KrrishJazz only uses it for managed matching.",
+  },
+] as const;
+
+export function getOwnerVisibilityLabel(value?: string) {
+  const match = OWNER_FACING_VISIBILITY.find(
+    (option) => option.value === value || (value === "PUBLIC_TO_CUSTOMERS" && option.value === "PUBLIC_TO_CUSTOMERS")
+  );
+  if (match) return match.label;
+  if (value === "FULL_VISIBILITY") return "Public listing";
+  return "Listing visibility";
+}
+
+export function getOwnerVisibilityDescription(value?: string) {
+  const match = OWNER_FACING_VISIBILITY.find((option) => option.value === value);
+  return match?.description ?? "KrrishJazz manages visibility and buyer contact for you.";
+}

@@ -2,7 +2,7 @@ import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatIntentAwarePrice } from "@/lib/posting-field-sync";
 import type { ListingIntent } from "@/lib/posting-config";
-import { getVisibilityLabel } from "@/lib/visibility";
+import { getOwnerVisibilityLabel } from "@/lib/visibility";
 
 export function ListingLivePreview({
   title,
@@ -39,9 +39,9 @@ export function ListingLivePreview({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Live listing preview</p>
-            <p className="text-xs text-text-secondary">How buyers and brokers will scan it.</p>
+            <p className="text-xs text-text-secondary">How interested buyers will see your listing.</p>
           </div>
-          <Badge variant="blue">{getVisibilityLabel(visibility)}</Badge>
+          <Badge variant="blue">{getOwnerVisibilityLabel(visibility)}</Badge>
         </div>
         <div className="overflow-hidden rounded-card border border-border bg-white">
           <div className="relative h-44 bg-surface">

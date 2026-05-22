@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { BellRing, Building2, Eye, Heart, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatIntentAwarePrice, getListingIntentFromProperty } from "@/lib/posting-field-sync";
 import { cn } from "@/lib/utils";
+import { trackPropertyMetric } from "@/lib/track-property-metric";
 import type { Property, PropertySaveTarget } from "./types";
 import { badgeVariant, getFreshness, getSmartSpecs, listingLabel } from "./property-display";
 
@@ -13,6 +15,7 @@ interface PropertyCardProps {
   property: Property;
   isLoggedIn?: boolean;
   isSaved?: boolean;
+  trackSearchImpression?: boolean;
   onSave: (property: PropertySaveTarget) => void | Promise<void>;
   onShare?: (property: Property) => void;
 }
@@ -46,18 +49,33 @@ function getDifferentiatingBadges(property: Property) {
   return badges.slice(0, 2);
 }
 
-export function PropertyCard({ property, isSaved = false, onSave }: PropertyCardProps) {
+export function PropertyCard({
+  property,
+  isSaved = false,
+  trackSearchImpression = false,
+  onSave,
+}: PropertyCardProps) {
   const freshness = getFreshness(property.updatedAt);
   const image = property.coverImage || property.images[0];
   const specs = getSmartSpecs(property).slice(0, 3);
   const compareBadges = getDifferentiatingBadges(property);
   const detailHref = `/properties/${property.slug}`;
 
+  useEffect(() => {
+    if (!trackSearchImpression || property.status !== "LIVE") return;
+    trackPropertyMetric(property.slug, "SEARCH_IMPRESSION");
+  }, [trackSearchImpression, property.slug, property.status]);
+
+  const handleDetailNavigate = () => {
+    trackPropertyMetric(property.slug, "CLICK");
+  };
+
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-[0_8px_30px_rgba(0,31,77,0.06)] transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-[0_12px_40px_rgba(0,31,77,0.1)]">
       <div className="grid sm:grid-cols-[200px_1fr] lg:grid-cols-[280px_1fr]">
         <Link
           href={detailHref}
+          onClick={handleDetailNavigate}
           className="relative block min-h-[180px] overflow-hidden bg-surface sm:min-h-[200px]"
         >
           {image ? (
@@ -95,7 +113,7 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
             <Heart size={17} className={cn(isSaved && "fill-current")} />
           </button>
 
-          <Link href={detailHref} className="block pr-12">
+          <Link href={detailHref} onClick={handleDetailNavigate} className="block pr-12">
             <p className="text-xl font-bold text-primary lg:text-2xl">
               {formatIntentAwarePrice(
                 Number(property.price),
@@ -166,7 +184,10 @@ export function PropertyCard({ property, isSaved = false, onSave }: PropertyCard
             <Link
               href={detailHref}
               className="text-sm font-semibold text-primary hover:underline"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDetailNavigate();
+              }}
             >
               View details
             </Link>

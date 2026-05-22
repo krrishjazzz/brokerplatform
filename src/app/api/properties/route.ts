@@ -12,6 +12,7 @@ import { normalizeListingForApi } from "@/lib/posting-config";
 import { syncPrimaryFieldsFromTypeDetails } from "@/lib/posting-field-sync";
 import { validatePostingPayload } from "@/lib/posting-validation";
 import { formatProperty } from "@/server/public-property";
+import { computeListingQualityScore } from "@/lib/listing-quality-score";
 import { nanoid } from "nanoid";
 
 export const dynamic = "force-dynamic";
@@ -214,8 +215,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!session.canList && session.role !== "ADMIN") {
-      return NextResponse.json({ error: "Only owners and approved brokers can post properties" }, { status: 403 });
+    if (!session.canPostProperty && session.role !== "ADMIN") {
+      if (session.canList && session.ownerStatus === "PENDING") {
+        return NextResponse.json(
+          { error: "Listing tools are pending approval. KrrishJazz will notify you when you can post." },
+          { status: 403 }
+        );
+      }
+      if (session.canList && session.ownerStatus === "REJECTED") {
+        return NextResponse.json(
+          { error: "Listing access was not approved. Contact KrrishJazz support." },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json({ error: "Only approved owners and brokers can post properties" }, { status: 403 });
     }
 
     if (
@@ -263,6 +276,25 @@ export async function POST(req: NextRequest) {
       typeSpecificDetails: (typeSpecificDetails ?? {}) as Record<string, unknown>,
     });
 
+    const quality = computeListingQualityScore({
+      images,
+      price: Number(propertyData.price),
+      city: propertyData.city,
+      locality: propertyData.locality,
+      subLocality: propertyData.subLocality,
+      landmark: propertyData.landmark,
+      projectOrSociety: propertyData.projectOrSociety,
+      amenities,
+      bedrooms: propertyData.bedrooms,
+      bathrooms: propertyData.bathrooms,
+      floor: propertyData.floor,
+      totalFloors: propertyData.totalFloors,
+      furnishing: propertyData.furnishing,
+      description: propertyData.description,
+      typeSpecificDetails: normalized.typeSpecificDetails as Record<string, string>,
+      latestFreshness: null,
+    });
+
     const property = await prisma.property.create({
       data: {
         ...propertyData,
@@ -270,6 +302,8 @@ export async function POST(req: NextRequest) {
         category: normalized.category,
         price: propertyData.price,
         slug,
+        listingQualityScore: quality.score,
+        listingQualityBreakdown: JSON.stringify(quality.breakdown),
         postedById: session.id,
         assignedBrokerId:
           session.role === "ADMIN" && assignedBrokerId

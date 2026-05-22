@@ -38,7 +38,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-76px)] bg-surface">
+    <div className="flex min-h-full flex-1 bg-surface">
       <button
         onClick={() => setSideOpen(true)}
         className="fixed bottom-4 right-4 z-40 rounded-full bg-primary p-3 text-white shadow-lg lg:hidden"
@@ -53,7 +53,7 @@ export default function AdminPage() {
 
       <aside
         className={cn(
-          "fixed top-[76px] z-50 flex h-[calc(100vh-76px)] w-72 shrink-0 flex-col border-r border-border bg-white shadow-card transition-transform lg:sticky lg:translate-x-0 lg:shadow-none",
+          "fixed top-0 z-50 flex h-screen w-72 shrink-0 flex-col border-r border-border bg-white shadow-card transition-transform lg:sticky lg:translate-x-0 lg:shadow-none",
           sideOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

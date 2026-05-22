@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, getSession } from "@/lib/session";
 import { registerSchema } from "@/lib/validations";
-import { profileCanList, profileNeedsCompletion } from "@/lib/capabilities";
+import { profileNeedsCompletion } from "@/lib/capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -37,32 +37,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const enableListing = wantToListAsOwner && !existing.canList;
+
     const profile = await prisma.profile.update({
       where: { id: session.id },
       data: {
         name,
         email: email || null,
-        canList: existing.canList || wantToListAsOwner,
+        ...(enableListing && {
+          canList: true,
+          ownerStatus: "PENDING",
+          permissionsVersion: { increment: 1 },
+        }),
+        ...(!enableListing && existing.canList && { canList: true }),
       },
       include: { brokerProfile: true },
     });
 
     await createSession(profile.id);
 
-    const brokerStatus = profile.brokerProfile?.status ?? null;
+    const sessionUser = await getSession();
 
     return NextResponse.json({
-      user: {
-        id: profile.id,
-        phone: profile.phone,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role,
-        avatarUrl: profile.avatarUrl,
-        brokerStatus,
-        hasBrokerApplication: Boolean(brokerStatus),
-        canList: profileCanList(profile),
-      },
+      user: sessionUser,
     });
   } catch (error) {
     console.error("Register error:", error);

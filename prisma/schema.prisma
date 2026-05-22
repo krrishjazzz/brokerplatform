@@ -15,6 +15,9 @@ model Profile {
   email              String?
   role               String          @default("CUSTOMER")
   canList            Boolean         @default(false)
+  // Listing tools: NONE | PENDING | APPROVED | REJECTED
+  ownerStatus        String          @default("NONE")
+  permissionsVersion Int             @default(0)
   avatarUrl          String?
   isActive           Boolean         @default(true)
   createdAt          DateTime        @default(now())
@@ -91,12 +94,20 @@ model Property {
   publicBrokerName String          @default("KrrishJazz")
   status           String          @default("PENDING_REVIEW")
   rejectionReason  String?
+  listingQualityScore     Int      @default(0)
+  listingQualityBreakdown String   @default("{}")
+  viewCount               Int      @default(0)
+  searchImpressionCount   Int      @default(0)
+  clickCount              Int      @default(0)
+  enquiryCount            Int      @default(0)
+  visitCount              Int      @default(0)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   enquiries        Enquiry[]
   saved            SavedProperty[]
   collaborations   Collaboration[]
   freshnessHistory ListingFreshness[]
+  metricDays       PropertyMetricDaily[]
 
   @@index([city, locality, status, listingType, category])
   @@index([visibilityType, listingStatus])
@@ -242,4 +253,20 @@ model ListingFreshness {
 
   @@index([propertyId, confirmedAt])
   @@index([availabilityStatus, expiresAt])
+}
+
+model PropertyMetricDaily {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  day               DateTime @db.Date
+  views             Int      @default(0)
+  searchImpressions Int      @default(0)
+  clicks            Int      @default(0)
+  saves             Int      @default(0)
+  enquiries         Int      @default(0)
+  visits            Int      @default(0)
+
+  @@unique([propertyId, day])
+  @@index([propertyId])
 }

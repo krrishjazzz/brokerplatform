@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { profileCanPostProperty } from "@/lib/capabilities";
 import { propertySchema } from "@/lib/validations";
 import { logActivity } from "@/lib/workflow";
 import { BROKER_VISIBLE_TYPES, CUSTOMER_VISIBLE_TYPES } from "@/lib/visibility";
 import { formatProperty, toListingStatus } from "@/server/public-property";
+import { normalizeListingForApi } from "@/lib/posting-config";
+import { computeListingQualityScore } from "@/lib/listing-quality-score";
 
 export const dynamic = "force-dynamic";
 
@@ -126,13 +129,32 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
     }
 
     const { slug } = params;
-    const property = await prisma.property.findUnique({ where: { slug } });
+    const property = await prisma.property.findUnique({
+      where: { slug },
+      include: {
+        freshnessHistory: { orderBy: { confirmedAt: "desc" }, take: 1 },
+      },
+    });
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
     if (property.postedById !== session.id && session.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (
+      session.role !== "ADMIN" &&
+      !profileCanPostProperty({
+        role: session.role,
+        canList: session.canList,
+        ownerStatus: session.ownerStatus,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Listing edits are not available until your owner access is approved." },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
@@ -148,14 +170,52 @@ export async function PUT(req: NextRequest, { params }: { params: { slug: string
       publicBrokerName,
       visibilityType,
       coverImage,
+      typeSpecificDetails,
+      listingIntent,
       ...propertyData
     } = parsed.data;
     const normalizedVisibilityType = visibilityType === "PUBLIC_TO_CUSTOMERS" ? "FULL_VISIBILITY" : visibilityType;
 
+    const normalized = normalizeListingForApi({
+      listingIntent,
+      category: propertyData.category,
+      propertyType: propertyData.propertyType,
+      typeSpecificDetails: (typeSpecificDetails ?? {}) as Record<string, unknown>,
+    });
+
+    const quality = computeListingQualityScore({
+      images,
+      price: Number(propertyData.price),
+      city: propertyData.city,
+      locality: propertyData.locality,
+      subLocality: propertyData.subLocality,
+      landmark: propertyData.landmark,
+      projectOrSociety: propertyData.projectOrSociety,
+      amenities,
+      bedrooms: propertyData.bedrooms,
+      bathrooms: propertyData.bathrooms,
+      floor: propertyData.floor,
+      totalFloors: propertyData.totalFloors,
+      furnishing: propertyData.furnishing,
+      description: propertyData.description,
+      typeSpecificDetails: normalized.typeSpecificDetails as Record<string, string>,
+      latestFreshness: property.freshnessHistory[0]
+        ? {
+            availabilityStatus: property.freshnessHistory[0].availabilityStatus,
+            expiresAt: property.freshnessHistory[0].expiresAt?.toISOString() ?? null,
+          }
+        : null,
+    });
+
     const nextStatus = session.role === "ADMIN" ? property.status : "PENDING_REVIEW";
     const data = {
       ...propertyData,
+      listingType: normalized.listingType,
+      category: normalized.category,
       amenities: JSON.stringify(amenities),
+      typeSpecificDetails: JSON.stringify(normalized.typeSpecificDetails),
+      listingQualityScore: quality.score,
+      listingQualityBreakdown: JSON.stringify(quality.breakdown),
       images: JSON.stringify(images),
       coverImage: coverImage || images[0] || null,
       visibilityType: normalizedVisibilityType,

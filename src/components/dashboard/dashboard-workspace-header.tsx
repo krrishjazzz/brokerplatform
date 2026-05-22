@@ -18,7 +18,7 @@ import {
   PropertySearchFilterPanels,
 } from "@/components/search/property-search-filter-panels";
 import { UserAccountMenu } from "@/components/account/user-account-menu";
-import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
+import { useDashboardPath } from "@/components/dashboard/dashboard-path-context";
 import { cn } from "@/lib/utils";
 
 const EMPTY_FILTERS = (): IntentSearchFilters => ({
@@ -39,6 +39,7 @@ const EMPTY_FILTERS = (): IntentSearchFilters => ({
 
 /** Fixed navy strip (h-14); white filter panel expands below search — blue never grows. */
 export function DashboardWorkspaceHeader() {
+  const dashboardPath = useDashboardPath();
   const router = useRouter();
   const headerRef = useRef<HTMLElement>(null);
 
@@ -157,7 +158,7 @@ export function DashboardWorkspaceHeader() {
         <div className="relative mx-auto max-w-7xl px-4 lg:px-6">
           <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 sm:gap-x-4">
             <Link
-              href={OWNER_DASHBOARD_PATH}
+              href={dashboardPath}
               className="relative z-10 flex h-14 shrink-0 items-center text-lg font-bold tracking-tight text-white sm:text-xl lg:text-2xl"
             >
               KrrishJazz

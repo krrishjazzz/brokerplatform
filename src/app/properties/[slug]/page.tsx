@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import { formatIntentAwarePrice, getListingIntentFromProperty } from "@/lib/posting-field-sync";
+import { trackPropertyMetric } from "@/lib/track-property-metric";
 import { cn, formatPrice } from "@/lib/utils";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import {
@@ -256,6 +257,9 @@ export default function PropertyDetailPage() {
         const data = await res.json();
         setProperty(data.property);
         setSimilar(data.similar || []);
+        if (data.property?.slug && data.property?.status === "LIVE") {
+          trackPropertyMetric(data.property.slug, "VIEW");
+        }
       } catch {
         setLoadError("Property details could not be loaded. Please try again.");
       } finally {

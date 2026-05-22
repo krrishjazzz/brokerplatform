@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Home, Save } from "lucide-react";
+import { Check, Home, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
@@ -11,8 +11,11 @@ import { AMENITIES, CATEGORY_AMENITIES } from "@/lib/constants";
 import { getIntentLabel, getPriceFieldsForIntent, normalizeListingForApi, type ListingIntent } from "@/lib/posting-config";
 import {
   formatIntentAwarePrice,
+  getListingIntentFromProperty,
+  parseTypeSpecificDetails,
   syncPrimaryFieldsFromTypeDetails,
 } from "@/lib/posting-field-sync";
+import { dashboardFetch } from "@/lib/dashboard-api";
 import {
   MIN_IMAGES_RECOMMENDED,
   validatePostingPayload,
@@ -59,10 +62,19 @@ function firstFormErrorField(fieldErrors: FieldErrors<PropertyInput>): string | 
   return undefined;
 }
 
-export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
+export function PostPropertySection({
+  onPosted,
+  editSlug,
+}: {
+  onPosted: () => void;
+  editSlug?: string | null;
+}) {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
+  const isEditMode = Boolean(editSlug);
   const [step, setStep] = useState(0);
+  const [editLoading, setEditLoading] = useState(Boolean(editSlug));
+  const [editReviewSuccess, setEditReviewSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [upgradingOwner, setUpgradingOwner] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -133,6 +145,70 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [submitSuccess]);
+
+  useEffect(() => {
+    if (!editSlug) return;
+    let cancelled = false;
+    void (async () => {
+      setEditLoading(true);
+      const result = await dashboardFetch<{ property: Record<string, unknown> }>(
+        `/api/properties/${editSlug}`
+      );
+      if (cancelled) return;
+      if (result.error || !result.data?.property) {
+        toast(result.error || "Could not load listing for edit", "error");
+        setEditLoading(false);
+        return;
+      }
+      const p = result.data.property;
+      const details = parseTypeSpecificDetails(p.typeSpecificDetails as string | Record<string, string>);
+      const listingIntent =
+        getListingIntentFromProperty({
+          typeSpecificDetails: details,
+          listingType: p.listingType as string,
+        }) || "SELL";
+      const amenities = Array.isArray(p.amenities) ? (p.amenities as string[]) : [];
+      const imgs = Array.isArray(p.images) ? (p.images as string[]) : [];
+      reset({
+        listingIntent,
+        listingType: (p.listingType as PropertyInput["listingType"]) || undefined,
+        category: p.category as PropertyInput["category"],
+        propertyType: String(p.propertyType || ""),
+        title: String(p.title || ""),
+        description: String(p.description || ""),
+        price: Number(p.price) || 0,
+        priceNegotiable: Boolean(p.priceNegotiable),
+        area: Number(p.area) || 0,
+        areaUnit: (p.areaUnit as PropertyInput["areaUnit"]) || "sqft",
+        bedrooms: p.bedrooms != null ? Number(p.bedrooms) : undefined,
+        bathrooms: p.bathrooms != null ? Number(p.bathrooms) : undefined,
+        floor: p.floor != null ? Number(p.floor) : undefined,
+        totalFloors: p.totalFloors != null ? Number(p.totalFloors) : undefined,
+        furnishing: (p.furnishing as string) || undefined,
+        city: String(p.city || ""),
+        locality: String(p.locality || ""),
+        subLocality: String(p.subLocality || ""),
+        projectOrSociety: String(p.projectOrSociety || ""),
+        landmark: String(p.landmark || ""),
+        address: String(p.address || ""),
+        state: String(p.state || ""),
+        pincode: String(p.pincode || ""),
+        visibilityType: (p.visibilityType as PropertyInput["visibilityType"]) || "FULL_VISIBILITY",
+        publicBrokerName: String(p.publicBrokerName || "KrrishJazz"),
+        amenities,
+        images: imgs,
+        typeSpecificDetails: details,
+      });
+      setImages(imgs);
+      setSelectedAmenities(amenities);
+      setTypeSpecificDetails(details);
+      setTitleCustomized(true);
+      setEditLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editSlug, reset, toast]);
 
   const category = watch("category");
   const selectedPropertyType = watch("propertyType");
@@ -286,6 +362,24 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
       setUpgradingOwner(false);
     }
   };
+
+  if (user?.canList && !user?.canPostProperty && user?.role !== "ADMIN") {
+    return (
+      <div>
+        <h2 className="mb-6 text-xl font-semibold text-foreground">
+          {isEditMode ? "Edit Property" : "Post Property"}
+        </h2>
+        <div className="max-w-xl rounded-card border border-border bg-white p-8 shadow-card">
+          <h3 className="mb-2 text-lg font-semibold text-foreground">Listing tools pending approval</h3>
+          <p className="text-sm text-text-secondary">
+            {user.ownerStatus === "REJECTED"
+              ? "Your listing access was not approved. Contact KrrishJazz support to re-apply."
+              : "KrrishJazz is reviewing your owner access. You can browse the dashboard; posting and edits unlock after approval."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (user?.role === "CUSTOMER") {
     return (
@@ -457,31 +551,35 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     payload.images = images;
     payload.coverImage = images[0];
     try {
-      const res = await fetch("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const url = isEditMode && editSlug ? `/api/properties/${editSlug}` : "/api/properties";
+      const method = isEditMode ? "PUT" : "POST";
+      const result = await dashboardFetch<{ property?: unknown }>(url, {
+        method,
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        try {
-          localStorage.removeItem(POST_PROPERTY_DRAFT_KEY);
-          sessionStorage.setItem(POST_PROPERTY_SUCCESS_KEY, "1");
-        } catch {
-          // ignore
+      if (result.data) {
+        if (isEditMode) {
+          setEditReviewSuccess(true);
+          window.dispatchEvent(new CustomEvent("krrishjazz:property-posted"));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          try {
+            localStorage.removeItem(POST_PROPERTY_DRAFT_KEY);
+            sessionStorage.setItem(POST_PROPERTY_SUCCESS_KEY, "1");
+          } catch {
+            // ignore
+          }
+          clearDraft();
+          setSubmitSuccess(true);
+          window.dispatchEvent(new CustomEvent("krrishjazz:property-posted"));
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }
-        clearDraft();
-        setSubmitSuccess(true);
-        window.dispatchEvent(new CustomEvent("krrishjazz:property-posted"));
-        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        const err = await res.json();
-        console.error("Property post failed", err);
-        toast(typeof err.error === "string" ? err.error : "Failed to post property", "error");
+        toast(result.error || (isEditMode ? "Failed to save changes" : "Failed to post property"), "error");
       }
     } catch (error) {
-      console.error("Property post error", error);
-      toast("Something went wrong while posting property.", "error");
+      console.error("Property submit error", error);
+      toast(isEditMode ? "Something went wrong while saving changes." : "Something went wrong while posting property.", "error");
     } finally {
       setSubmitting(false);
       submitLockRef.current = false;
@@ -558,6 +656,31 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
     setSubmitSuccess(false);
   };
 
+  if (editLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (editReviewSuccess) {
+    return (
+      <div className="max-w-xl rounded-2xl border border-border bg-white p-8 shadow-card">
+        <h2 className="text-xl font-semibold text-foreground">Changes sent for review</h2>
+        <p className="mt-3 text-sm text-text-secondary">
+          KrrishJazz will review your updates before they go live. You can track status under My Properties.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button onClick={() => onPosted()}>View My Properties</Button>
+          <Button variant="outline" onClick={() => setEditReviewSuccess(false)}>
+            Edit again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (submitSuccess) {
     return (
       <div>
@@ -576,7 +699,9 @@ export function PostPropertySection({ onPosted }: { onPosted: () => void }) {
   return (
     <div className="pb-24 sm:pb-0">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
-        <h2 className="text-xl font-semibold text-foreground">Post Property</h2>
+        <h2 className="text-xl font-semibold text-foreground">
+          {isEditMode ? "Edit Property" : "Post Property"}
+        </h2>
         {draftMeta && !pendingDraft && (
           <div className="inline-flex items-center gap-2 rounded-pill border border-success/20 bg-success/10 px-3 py-1 text-xs font-medium text-success">
             {draftSaving ? (

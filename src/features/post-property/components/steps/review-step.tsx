@@ -170,9 +170,9 @@ export function ReviewStep({
             className="mt-1 h-4 w-4 rounded border-primary text-primary"
           />
           <span>
-            <span className="block text-sm font-semibold text-foreground">Free listing - brokerage only on closure</span>
+            <span className="block text-sm font-semibold text-foreground">Free listing — service fee only on closure</span>
             <span className="mt-1 block text-xs leading-5 text-text-secondary">
-              KrrishJazz verifies and coordinates enquiries. One month brokerage applies only after a successful deal.
+              KrrishJazz verifies and coordinates enquiries. One month service fee applies only after a successful deal.
             </span>
           </span>
         </label>

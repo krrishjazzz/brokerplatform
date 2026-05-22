@@ -4,14 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   Calendar,
   Camera,
   Clock,
+  Eye,
   Loader2,
   MessageSquare,
+  MousePointerClick,
   PlusCircle,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDashboardPath } from "@/components/dashboard/dashboard-path-context";
@@ -151,6 +155,40 @@ export function OwnerOverviewSection() {
           </div>
         ))}
       </div>
+
+      {stats?.analytics && (
+        <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
+          <div className="mb-4 flex items-center gap-2">
+            <BarChart3 className="text-primary" size={22} />
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Listing performance (7 days)</h2>
+              <p className="text-sm text-text-secondary">
+                Views, discovery, and conversion — use this to see what is working.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {[
+              { label: "Views", value: stats.analytics.views7d, icon: Eye },
+              { label: "Search impressions", value: stats.analytics.searchImpressions7d, icon: Sparkles },
+              { label: "Clicks", value: stats.analytics.clicks7d, icon: MousePointerClick },
+              { label: "Saves", value: stats.analytics.saves7d, icon: BarChart3 },
+              { label: "Enquiries", value: stats.analytics.enquiries7d, icon: MessageSquare },
+              { label: "Avg quality", value: `${stats.analytics.avgQualityScore}%`, icon: Sparkles },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl border border-border bg-surface px-3 py-3">
+                <item.icon size={16} className="mb-1 text-primary" />
+                <p className="text-lg font-bold text-foreground">{item.value}</p>
+                <p className="text-xs text-text-secondary">{item.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-text-secondary">
+            Enquiry conversion: {stats.analytics.viewToEnquiryRate}% of views · Visit conversion:{" "}
+            {stats.analytics.viewToVisitRate}% of views
+          </p>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-border bg-white p-5 shadow-card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

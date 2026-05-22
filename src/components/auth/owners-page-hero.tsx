@@ -57,7 +57,7 @@ export function OwnersPageHero() {
                 <ArrowRight size={16} />
               </Button>
             </div>
-            <p className="mt-4 text-sm text-text-secondary">Free listing · Managed callbacks · Pay brokerage only on closure</p>
+            <p className="mt-4 text-sm text-text-secondary">Free listing · Managed callbacks · Service fee only on closure</p>
           </div>
 
           <div className="rounded-2xl border border-border/80 bg-white p-5 shadow-[0_16px_48px_rgba(0,92,168,0.12)]">

@@ -10,6 +10,8 @@ import {
   getOwnerPropertyStatusVariant,
 } from "@/lib/owner-dashboard";
 import { cn, formatPrice } from "@/lib/utils";
+import { dashboardFetch } from "@/lib/dashboard-api";
+import { listingQualityLabel } from "@/lib/listing-quality-score";
 import type { PropertyRow } from "./types";
 
 export function MyPropertiesSection() {
@@ -19,13 +21,15 @@ export function MyPropertiesSection() {
   const [refreshingSlug, setRefreshingSlug] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchMyProperties = useCallback(() => {
+  const fetchMyProperties = useCallback(async () => {
     setLoading(true);
-    fetch("/api/properties?postedBy=me", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setProperties(d.properties || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const result = await dashboardFetch<{ properties: PropertyRow[] }>("/api/properties?postedBy=me");
+    if (result.data?.properties) {
+      setProperties(result.data.properties);
+    } else if (result.error) {
+      setNotice({ type: "error", text: result.error });
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -142,7 +146,8 @@ export function MyPropertiesSection() {
             const statusLabel = getOwnerPropertyStatusLabel(p.status, p.listingStatus);
             const statusVariant = getOwnerPropertyStatusVariant(p.status, p.listingStatus);
             const freshness = getFreshnessLabel(p);
-            const enquiries = p._count?.enquiries ?? 0;
+            const enquiries = p._count?.enquiries ?? p.enquiryCount ?? 0;
+            const qualityScore = p.listingQualityScore ?? 0;
             const reviewCopy = emptyStateCopy(p.status);
 
             return (
@@ -165,6 +170,11 @@ export function MyPropertiesSection() {
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant}>{statusLabel}</Badge>
                       <Badge variant="default">{freshness}</Badge>
+                      {qualityScore > 0 && (
+                        <Badge variant={qualityScore >= 70 ? "success" : "warning"}>
+                          Quality {qualityScore}% · {listingQualityLabel(qualityScore)}
+                        </Badge>
+                      )}
                     </div>
                     <h3 className="line-clamp-1 text-lg font-semibold text-foreground">{p.title}</h3>
                     <p className="mt-0.5 text-sm text-text-secondary">
@@ -172,7 +182,7 @@ export function MyPropertiesSection() {
                       {p.city}
                     </p>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-6">
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
                       <div>
                         <p className="text-xs text-text-secondary">Price</p>
                         <p className="font-semibold text-foreground">{formatPrice(p.price)}</p>
@@ -182,8 +192,12 @@ export function MyPropertiesSection() {
                         <p className="font-semibold text-foreground">{enquiries}</p>
                       </div>
                       <div>
+                        <p className="text-xs text-text-secondary">Views</p>
+                        <p className="font-semibold text-foreground">{p.viewCount ?? 0}</p>
+                      </div>
+                      <div>
                         <p className="text-xs text-text-secondary">Visits</p>
-                        <p className="font-semibold text-foreground">0</p>
+                        <p className="font-semibold text-foreground">{p.visitCount ?? 0}</p>
                       </div>
                       <div className="col-span-2 sm:col-span-2 lg:col-span-3">
                         <p className="text-xs text-text-secondary">Last updated</p>
@@ -211,7 +225,7 @@ export function MyPropertiesSection() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => (window.location.href = `/properties/${p.slug}`)}
+                    onClick={() => (window.location.href = `${dashboardPath}?tab=post&edit=${p.slug}`)}
                   >
                     Edit
                   </Button>

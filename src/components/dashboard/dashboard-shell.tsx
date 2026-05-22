@@ -3,11 +3,14 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deriveAuthCapabilities, profileCanList } from "@/lib/capabilities";
+import type { DashboardMode } from "@/components/dashboard/dashboard-mode";
+import { ownerListingBannerLine, ownerPostFreeCta } from "@/lib/owner-copy";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { ClosureSupportSection } from "@/components/dashboard/closure-support-section";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { usesDashboardSearchLayout } from "@/components/dashboard/dashboard-tab-strip";
+import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
 import { DashboardWorkspaceHeader } from "@/components/dashboard/dashboard-workspace-header";
 import { DashboardPathProvider } from "@/components/dashboard/dashboard-path-context";
 import { MyPropertiesSection } from "@/components/dashboard/my-properties-section";
@@ -29,9 +32,10 @@ import type { DashboardTab as Tab } from "@/components/dashboard/types";
 export type DashboardShellProps = {
   basePath: string;
   loginRedirect: string;
+  mode?: DashboardMode;
 };
 
-function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
+function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: DashboardShellProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,9 +44,10 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace(`/login?intent=buyer&redirect=${encodeURIComponent(loginRedirect)}`);
+      const intent = mode === "owner" ? "owner" : "buyer";
+      router.replace(`/login?intent=${intent}&redirect=${encodeURIComponent(loginRedirect)}`);
     }
-  }, [user, loading, router, loginRedirect]);
+  }, [user, loading, router, loginRedirect, mode]);
 
   useEffect(() => {
     if (!user) return;
@@ -51,23 +56,30 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
       role: user.role,
       brokerStatus: user.brokerStatus,
       canList: profileCanList(user),
+      ownerStatus: user.ownerStatus,
       hasBrokerApplication: user.hasBrokerApplication,
+      mode,
     };
 
-    const { tab, redirectTo } = resolveDashboardTab(searchParams.get("tab"), navCtx);
+    const editSlug = searchParams.get("edit");
+    const { tab, redirectTo } = resolveDashboardTab(searchParams.get("tab"), navCtx, mode, editSlug);
     if (redirectTo) {
       router.replace(redirectTo);
       return;
     }
     setActiveTab(tab);
-  }, [user, searchParams, router]);
+  }, [user, searchParams, router, mode]);
+
+  const editSlug = searchParams.get("edit");
 
   const navCtx = user
     ? {
         role: user.role,
         brokerStatus: user.brokerStatus,
         canList: profileCanList(user),
+        ownerStatus: user.ownerStatus,
         hasBrokerApplication: user.hasBrokerApplication,
+        mode,
       }
     : null;
 
@@ -91,20 +103,25 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
 
   const caps = deriveAuthCapabilities(navCtx);
   const searchLayout = usesDashboardSearchLayout(navCtx);
-  const allowedTabs = getAllowedDashboardTabs(navCtx);
-  const showTab = (tab: Tab) => activeTab === tab && canRenderDashboardTab(tab, navCtx);
+  const allowedTabs = getAllowedDashboardTabs(navCtx, mode);
+  const showTab = (tab: Tab) => activeTab === tab && canRenderDashboardTab(tab, navCtx, mode);
 
   const dashboardMain = (
     <>
-      <AccountStatusBanner user={user} caps={caps} />
+      <AccountStatusBanner user={user} caps={caps} dashboardMode={mode} />
       {showTab("overview") && (caps.canList ? <OwnerOverviewSection /> : null)}
       {showTab("properties") && <MyPropertiesSection />}
-      {showTab("post") && <PostPropertySection onPosted={() => handleTabChange("properties")} />}
+      {showTab("post") && (
+        <PostPropertySection
+          editSlug={editSlug}
+          onPosted={() => handleTabChange("properties")}
+        />
+      )}
       {showTab("enquiries") && (caps.canList ? <OwnerEnquiriesSection /> : <EnquiriesSection />)}
       {showTab("visits") && <VisitsSection />}
       {showTab("closure-support") && <ClosureSupportSection />}
       {showTab("saved") && <SavedSection />}
-      {showTab("profile") && <ProfileSection user={user} />}
+      {showTab("profile") && <ProfileSection user={user} ownerDashboardMode={mode === "owner"} />}
       {showTab("application") && (
         <ApplicationStatusSection
           brokerStatus={user.brokerStatus}
@@ -125,7 +142,7 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
             <div className="hidden items-center justify-center gap-3 border-b border-border bg-primary-light px-4 py-3 text-sm font-semibold text-foreground lg:flex lg:pl-64">
               <AlertTriangle size={20} className="text-primary" />
               <span>
-                Post property for free. KrrishJazz charges one month brokerage only after a successful closure.
+                {ownerListingBannerLine()}
               </span>
               {allowedTabs.includes("post") && (
                 <button
@@ -133,7 +150,7 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
                   onClick={() => handleTabChange("post")}
                   className="font-bold text-accent hover:underline"
                 >
-                  Post Free
+                  {ownerPostFreeCta()}
                 </button>
               )}
             </div>
@@ -150,6 +167,7 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
           />
           <div className="lg:ml-64">
             <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:px-8 lg:py-6">{dashboardMain}</main>
+            <DashboardFooter />
           </div>
         </div>
       </DashboardPathProvider>
@@ -173,6 +191,7 @@ function DashboardShellInner({ basePath, loginRedirect }: DashboardShellProps) {
         />
         <div className="lg:ml-64">
           <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:px-8 lg:py-6">{dashboardMain}</main>
+          <DashboardFooter />
         </div>
       </div>
     </DashboardPathProvider>

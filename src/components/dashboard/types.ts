@@ -21,6 +21,18 @@ export interface DashboardNavItem {
   emphasis?: boolean;
 }
 
+export interface OwnerListingAnalytics {
+  views7d: number;
+  searchImpressions7d: number;
+  clicks7d: number;
+  saves7d: number;
+  enquiries7d: number;
+  visits7d: number;
+  viewToEnquiryRate: number;
+  viewToVisitRate: number;
+  avgQualityScore: number;
+}
+
 export interface DashboardStats {
   totalProperties: number;
   liveProperties: number;
@@ -28,6 +40,7 @@ export interface DashboardStats {
   totalLeads: number;
   newLeads: number;
   visitRequests?: number;
+  analytics?: OwnerListingAnalytics;
 }
 
 export interface PropertyRow {
@@ -54,6 +67,13 @@ export interface PropertyRow {
   slug: string;
   createdAt?: string;
   updatedAt?: string;
+  listingQualityScore?: number;
+  listingQualityBreakdown?: string | Record<string, number>;
+  viewCount?: number;
+  searchImpressionCount?: number;
+  clickCount?: number;
+  enquiryCount?: number;
+  visitCount?: number;
 }
 
 export interface DashboardRequirement {

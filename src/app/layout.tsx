@@ -4,9 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { LoginPopupProvider } from "@/lib/login-popup-context";
 import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
+import { LayoutChrome } from "@/components/layout-chrome";
 import { ToastProvider } from "@/components/ui/toast";
-import { KrrishJazzAssistant } from "@/components/krrishjazz-assistant";
 import { PropertySearchNavbarProvider } from "@/lib/property-search-navbar-context";
 
 export const metadata: Metadata = {
@@ -27,8 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </Suspense>
                 <main className="flex-1">{children}</main>
               </PropertySearchNavbarProvider>
-              <KrrishJazzAssistant />
-              <Footer />
+              <LayoutChrome />
             </LoginPopupProvider>
           </ToastProvider>
         </AuthProvider>

@@ -46,6 +46,7 @@ function BuyerDashboardRouter() {
     <DashboardShell
       basePath={BUYER_DASHBOARD_PATH}
       loginRedirect={`${BUYER_DASHBOARD_PATH}?tab=enquiries`}
+      mode="buyer"
     />
   );
 }

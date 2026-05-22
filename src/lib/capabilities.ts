@@ -1,12 +1,29 @@
+export type OwnerListingStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+
 /** Legacy role-based listing access (kept for backward compatibility). */
 export function userCanList(role: string): boolean {
   return role === "OWNER" || role === "BROKER" || role === "ADMIN";
 }
 
-/** Preferred: explicit canList flag, then legacy role. */
-export function profileCanList(profile: { role: string; canList?: boolean }): boolean {
+/** Listing tools enabled (canList flag or legacy owner/broker role). */
+export function profileCanList(profile: {
+  role: string;
+  canList?: boolean;
+}): boolean {
   if (profile.canList === true) return true;
   return userCanList(profile.role);
+}
+
+/** Can submit or edit property listings (listing tools + approved owner status). */
+export function profileCanPostProperty(profile: {
+  role: string;
+  canList?: boolean;
+  ownerStatus?: string | null;
+}): boolean {
+  if (profile.role === "ADMIN") return true;
+  if (!profileCanList(profile)) return false;
+  const status = (profile.ownerStatus || "NONE") as OwnerListingStatus;
+  return status === "APPROVED";
 }
 
 export function profileNeedsCompletion(name: string | null | undefined): boolean {
@@ -21,11 +38,14 @@ export type AccountCapabilityUser = {
   role: string;
   brokerStatus?: string | null;
   canList?: boolean;
+  ownerStatus?: string | null;
   hasBrokerApplication?: boolean;
 };
 
 export type AuthCapabilities = {
   canList: boolean;
+  canPostProperty: boolean;
+  ownerStatus: OwnerListingStatus;
   canAccessBrokerWorkspace: boolean;
   hasBrokerApplication: boolean;
   isApprovedBroker: boolean;
@@ -40,6 +60,8 @@ export type AuthCapabilities = {
 
 export function deriveAuthCapabilities(user: AccountCapabilityUser): AuthCapabilities {
   const canList = profileCanList(user);
+  const canPostProperty = profileCanPostProperty(user);
+  const ownerStatus = (user.ownerStatus || (canList ? "APPROVED" : "NONE")) as OwnerListingStatus;
   const hasBrokerApplication = Boolean(
     user.hasBrokerApplication ??
       (user.brokerStatus === "PENDING" ||
@@ -60,8 +82,8 @@ export function deriveAuthCapabilities(user: AccountCapabilityUser): AuthCapabil
     accountLabel = "Admin";
     accountBadgeVariant = "error";
   } else if (isApprovedBroker && isOwner) {
-    accountLabel = "Owner - Approved broker";
-    accountBadgeVariant = "blue";
+    accountLabel = "Listing tools active";
+    accountBadgeVariant = "accent";
   } else if (isApprovedBroker) {
     accountLabel = "Approved broker";
     accountBadgeVariant = "blue";
@@ -71,13 +93,24 @@ export function deriveAuthCapabilities(user: AccountCapabilityUser): AuthCapabil
   } else if (isRejectedBroker) {
     accountLabel = "Application not approved";
     accountBadgeVariant = "error";
-  } else if (isOwner) {
-    accountLabel = "Owner tools active";
+  } else if (ownerStatus === "PENDING") {
+    accountLabel = "Listing tools pending approval";
+    accountBadgeVariant = "warning";
+  } else if (ownerStatus === "REJECTED") {
+    accountLabel = "Listing access not approved";
+    accountBadgeVariant = "error";
+  } else if (isOwner && canPostProperty) {
+    accountLabel = "Listing tools active";
     accountBadgeVariant = "accent";
+  } else if (isOwner) {
+    accountLabel = "Listing tools limited";
+    accountBadgeVariant = "warning";
   }
 
   return {
     canList,
+    canPostProperty,
+    ownerStatus,
     canAccessBrokerWorkspace: isApprovedBroker,
     hasBrokerApplication,
     isApprovedBroker,
@@ -92,8 +125,12 @@ export function deriveAuthCapabilities(user: AccountCapabilityUser): AuthCapabil
 }
 
 /** Human-readable capability lines for profile / dashboard. */
-export function getAccountCapabilityLines(user: AccountCapabilityUser): string[] {
+export function getAccountCapabilityLines(
+  user: AccountCapabilityUser,
+  options?: { ownerDashboard?: boolean }
+): string[] {
   const caps = deriveAuthCapabilities(user);
+  const ownerDashboard = options?.ownerDashboard ?? false;
   const lines: string[] = [];
 
   if (caps.isAdmin) {
@@ -101,22 +138,35 @@ export function getAccountCapabilityLines(user: AccountCapabilityUser): string[]
     return lines;
   }
 
-  if (caps.isBuyer) {
+  if (caps.isBuyer && !ownerDashboard) {
     lines.push("Search, save, and enquire on listings");
     lines.push("Post property requirements for KrrishJazz matching");
   }
 
   if (caps.canList) {
-    lines.push("List and manage your properties");
-    lines.push("Track enquiries and listing freshness");
+    if (caps.canPostProperty) {
+      lines.push("List and manage your properties");
+      lines.push("Track buyer interest, visits, and listing freshness");
+      lines.push("KrrishJazz coordinates callbacks and closure support");
+    } else if (caps.ownerStatus === "PENDING") {
+      lines.push("Listing tools are pending KrrishJazz approval");
+    } else if (caps.ownerStatus === "REJECTED") {
+      lines.push("Listing access was not approved — contact KrrishJazz");
+    } else {
+      lines.push("Enable listing tools from Profile to post properties");
+    }
   }
 
-  if (caps.isApprovedBroker) {
-    lines.push("Broker workspace: requirements, inventory, and collaborations");
-  } else if (caps.isPendingBroker) {
-    lines.push("Broker application under review");
-  } else if (caps.isRejectedBroker) {
-    lines.push("Broker application was not approved — you can re-apply from the brokers page");
+  if (!ownerDashboard) {
+    if (caps.isApprovedBroker) {
+      lines.push("Broker workspace: requirements, inventory, and collaborations");
+    } else if (caps.isPendingBroker) {
+      lines.push("Broker application under review");
+    } else if (caps.isRejectedBroker) {
+      lines.push("Broker application was not approved — you can re-apply from the brokers page");
+    }
+  } else if (caps.isApprovedBroker) {
+    lines.push("Partner workspace is available separately from this owner dashboard");
   }
 
   return lines;
