@@ -1,13 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
 import {
   buildIntentSearchParams,
-  DEFAULT_SEARCH_PRESET,
-  FILTER_PILL_LABELS,
   getPresetContextLine,
-  getSearchPreset,
   parseIntentSearchFromUrl,
   type FilterPillId,
   type IntentSearchFilters,
@@ -16,27 +12,12 @@ import {
 import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
 import { PropertySearchBarRow } from "@/components/search/property-search-bar-row";
 import {
-  FilterPillButton,
-  filterPillLabel,
-  PropertySearchFilterPanels,
-} from "@/components/search/property-search-filter-panels";
+  EMPTY_INTENT_FILTERS,
+  PropertySearchFiltersStrip,
+} from "@/components/search/property-search-filters-strip";
 import { cn } from "@/lib/utils";
 
-const EMPTY_FILTERS = (): IntentSearchFilters => ({
-  preset: DEFAULT_SEARCH_PRESET,
-  city: "Kolkata",
-  query: "",
-  propertyTypeIds: [],
-  budget: "",
-  bedrooms: "",
-  furnishing: "",
-  constructionStatus: "",
-  possession: "",
-  availableFrom: "",
-  area: "",
-  lockIn: "",
-  projectCategory: "",
-});
+const EMPTY_FILTERS = EMPTY_INTENT_FILTERS;
 
 export type PropertySearchShellProps = {
   initialParams: URLSearchParams;
@@ -105,11 +86,6 @@ export function PropertySearchShell({
   const updateDraft = useCallback((patch: Partial<IntentSearchFilters>) => {
     setDraftFilters((prev) => ({ ...prev, ...patch }));
   }, []);
-
-  const presetConfig = useMemo(() => getSearchPreset(draftFilters.preset), [draftFilters.preset]);
-  const visiblePills = presetConfig.filterPills.filter(
-    (id) => id !== "postedBy" && id !== "area" && id !== "lockIn" && id !== "developer"
-  );
 
   const buildParams = useCallback(
     (filters: IntentSearchFilters) => {
@@ -197,6 +173,8 @@ export function PropertySearchShell({
 
   const openOverlay = useCallback(() => {
     setDraftFilters(appliedFilters);
+    setPresetOpen(false);
+    setCityOpen(false);
     setOverlayOpen(true);
   }, [appliedFilters]);
 
@@ -205,8 +183,8 @@ export function PropertySearchShell({
       <PropertySearchBarRow
         filters={draftFilters}
         layout="compact"
-        presetOpen={presetOpen}
-        cityOpen={cityOpen}
+        presetOpen={overlayOpen ? false : presetOpen}
+        cityOpen={overlayOpen ? false : cityOpen}
         onPresetOpenChange={setPresetOpen}
         onCityOpenChange={setCityOpen}
         onUpdateFilters={updateDraft}
@@ -224,6 +202,7 @@ export function PropertySearchShell({
       switchPreset,
       applySearch,
       openOverlay,
+      overlayOpen,
     ]
   );
 
@@ -232,27 +211,16 @@ export function PropertySearchShell({
     return () => setCompactBar(null);
   }, [compactBar, setCompactBar]);
 
-  const renderFilterPills = (onPillClick: (id: FilterPillId) => void) => (
-    <div className="flex flex-wrap items-center gap-2">
-      {visiblePills.map((pillId) => (
-        <FilterPillButton
-          key={pillId}
-          label={filterPillLabel(pillId, draftFilters, draftFilters.preset)}
-          active={activePill === pillId}
-          onClick={() => onPillClick(pillId)}
-        />
-      ))}
-      {onToggleMobileFilters && (
-        <button
-          type="button"
-          onClick={onToggleMobileFilters}
-          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-text-secondary hover:border-primary/35 hover:text-primary lg:hidden"
-        >
-          <SlidersHorizontal size={14} />
-          All filters
-        </button>
-      )}
-    </div>
+  const filtersStrip = (
+    <PropertySearchFiltersStrip
+      filters={draftFilters}
+      activePill={activePill}
+      onActivePillChange={setActivePill}
+      onUpdateFilters={updateDraft}
+      onSwitchPreset={switchPreset}
+      onClearAll={clearDraftFilters}
+      onToggleMobileFilters={onToggleMobileFilters}
+    />
   );
 
   return (
@@ -274,7 +242,21 @@ export function PropertySearchShell({
         <p className="mt-2 text-xs font-medium text-text-secondary">
           {getPresetContextLine(draftFilters.preset)}
         </p>
-        <div className="mt-3">{renderFilterPills((id) => { setActivePill(id); openOverlay(); })}</div>
+        <div className="mt-3">
+          <PropertySearchFiltersStrip
+            filters={draftFilters}
+            activePill={activePill}
+            onActivePillChange={(id) => {
+              setActivePill(id);
+              if (id) openOverlay();
+            }}
+            onUpdateFilters={updateDraft}
+            onSwitchPreset={switchPreset}
+            onClearAll={clearDraftFilters}
+            showHeader={false}
+            onToggleMobileFilters={onToggleMobileFilters}
+          />
+        </div>
       </div>
 
       {/* Desktop: full panel until scrolled */}
@@ -300,28 +282,7 @@ export function PropertySearchShell({
           <p className="mt-2 text-xs font-medium text-text-secondary">
             {getPresetContextLine(draftFilters.preset)}
           </p>
-          <div className="mt-3">{renderFilterPills((id) => setActivePill((c) => (c === id ? null : id)))}</div>
-          {activePill && (
-            <div className="mt-3 rounded-xl border border-border bg-surface/40 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-foreground">{FILTER_PILL_LABELS[activePill]}</p>
-                <button
-                  type="button"
-                  onClick={() => setActivePill(null)}
-                  className="rounded-lg p-1 text-text-secondary hover:bg-white"
-                  aria-label="Close filter panel"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <PropertySearchFilterPanels
-                activePill={activePill}
-                filters={draftFilters}
-                onUpdateFilters={updateDraft}
-                onSwitchPreset={switchPreset}
-              />
-            </div>
-          )}
+          <div className="mt-3">{filtersStrip}</div>
         </div>
       </div>
 
@@ -339,17 +300,6 @@ export function PropertySearchShell({
             className="fixed left-0 right-0 z-[50] border-b border-border bg-white shadow-[0_16px_48px_rgba(0,31,77,0.12)] lg:top-16"
           >
             <div className="mx-auto max-w-7xl px-4 py-4 lg:px-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-bold text-foreground">Filters</p>
-                <button
-                  type="button"
-                  onClick={clearDraftFilters}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Clear all filters
-                </button>
-              </div>
-
               <div className="hidden lg:block">
                 <PropertySearchBarRow
                   filters={draftFilters}
@@ -370,35 +320,18 @@ export function PropertySearchShell({
                 {getPresetContextLine(draftFilters.preset)}
               </p>
 
-              <div className="mt-4">{renderFilterPills((id) => setActivePill((c) => (c === id ? null : id)))}</div>
-
-              {activePill && (
-                <div className="mt-4 rounded-xl border border-border bg-surface/40 p-4">
-                  <p className="mb-2 text-sm font-bold text-foreground">{FILTER_PILL_LABELS[activePill]}</p>
-                  <PropertySearchFilterPanels
-                    activePill={activePill}
-                    filters={draftFilters}
-                    onUpdateFilters={updateDraft}
-                    onSwitchPreset={switchPreset}
-                  />
-                </div>
-              )}
-
-              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
-                <button
-                  type="button"
-                  onClick={() => applySearch(draftFilters)}
-                  className="rounded-xl bg-primary px-8 py-2.5 text-sm font-bold text-white hover:bg-primary-dark"
-                >
-                  Search
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelOverlay}
-                  className="text-sm font-semibold text-primary hover:underline"
-                >
-                  Cancel
-                </button>
+              <div className="mt-4">
+                <PropertySearchFiltersStrip
+                  filters={draftFilters}
+                  activePill={activePill}
+                  onActivePillChange={setActivePill}
+                  onUpdateFilters={updateDraft}
+                  onSwitchPreset={switchPreset}
+                  onClearAll={clearDraftFilters}
+                  showFooter
+                  onSearch={() => applySearch(draftFilters)}
+                  onCancel={cancelOverlay}
+                />
               </div>
             </div>
           </div>

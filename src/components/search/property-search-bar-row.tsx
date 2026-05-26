@@ -169,6 +169,8 @@ export function PropertySearchBarRow({
               })
             }
             onKeyDown={(e) => e.key === "Enter" && onRunSearch()}
+            onFocus={isNavbar && onOpenOverlay ? () => onOpenOverlay() : undefined}
+            onClick={isNavbar && onOpenOverlay ? () => onOpenOverlay() : undefined}
             placeholder="Search locality, project, society, landmark"
             inputClassName={isSingleRow ? "text-sm text-foreground" : "text-sm"}
             className="data-search-input relative z-30"
@@ -232,9 +234,9 @@ export function PropertySearchBarRow({
           <button
             type="button"
             data-search-action
-            onClick={onRunSearch}
+            onClick={onOpenOverlay ?? onRunSearch}
             className="flex h-full w-11 shrink-0 items-center justify-center rounded-r-lg border-l border-border/80 text-primary hover:bg-surface/80"
-            aria-label="Search"
+            aria-label={onOpenOverlay ? "Open filters" : "Search"}
           >
             <Search size={18} strokeWidth={2.5} />
           </button>

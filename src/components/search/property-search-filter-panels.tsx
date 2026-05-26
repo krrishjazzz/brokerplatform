@@ -15,6 +15,7 @@ import {
   PROJECT_CATEGORY_OPTIONS,
   type FilterPillId,
   type IntentSearchFilters,
+  type SearchPresetConfig,
   type SearchPresetId,
 } from "@/lib/search-intent-config";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,9 @@ export function filterPillLabel(
   preset: SearchPresetId
 ): string {
   const base = FILTER_PILL_LABELS[pillId];
-  if (pillId === "propertyTypes" && filters.propertyTypeIds.length > 0) {
-    return `${base}(${filters.propertyTypeIds.length})`;
+  if (pillId === "propertyTypes") {
+    const count = getEffectivePropertyTypeIds(filters, preset).length;
+    if (count > 0) return `${base}(${count})`;
   }
   const budgetOptions = getBudgetOptionsForPreset(preset);
   if (pillId === "budget" || pillId === "rentBudget" || pillId === "monthlyRent") {
@@ -56,17 +58,41 @@ export function FilterPillButton({
     <button
       type="button"
       onClick={onClick}
+      aria-expanded={active}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+        "inline-flex items-center gap-1 rounded-md border bg-white px-3.5 py-2 text-xs font-semibold transition-all",
         active
-          ? "border-primary bg-primary-light text-primary"
-          : "border-border bg-white text-text-secondary hover:border-primary/30 hover:text-primary"
+          ? "border-primary text-primary shadow-[0_0_0_1px_rgba(0,92,168,0.35)]"
+          : "border-border text-text-secondary hover:border-primary/40 hover:text-primary"
       )}
     >
       {label}
-      <ChevronDown size={12} className={cn("ml-0.5 inline opacity-60", active && "rotate-180")} />
+      <ChevronDown size={13} className={cn("shrink-0 opacity-70", active && "rotate-180")} />
     </button>
   );
+}
+
+/** When URL has no types selected, treat as all types (99acres-style). */
+export function getEffectivePropertyTypeIds(
+  filters: IntentSearchFilters,
+  presetId: SearchPresetId
+): string[] {
+  if (filters.propertyTypeIds.length > 0) return filters.propertyTypeIds;
+  return getSearchPreset(presetId).propertyTypes.map((o) => o.id);
+}
+
+export function togglePropertyTypeId(
+  filters: IntentSearchFilters,
+  presetId: SearchPresetId,
+  id: string
+): string[] {
+  const preset = getSearchPreset(presetId);
+  const allIds = preset.propertyTypes.map((o) => o.id);
+  const current =
+    filters.propertyTypeIds.length > 0 ? filters.propertyTypeIds : allIds;
+  const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+  if (next.length === 0 || next.length === allIds.length) return [];
+  return next;
 }
 
 function OptionGrid({
@@ -99,6 +125,71 @@ function OptionGrid({
   );
 }
 
+function PropertyTypesFilterPanel({
+  filters,
+  presetConfig,
+  onUpdateFilters,
+  onSwitchPreset,
+}: {
+  filters: IntentSearchFilters;
+  presetConfig: SearchPresetConfig;
+  onUpdateFilters: (patch: Partial<IntentSearchFilters>) => void;
+  onSwitchPreset: (preset: SearchPresetId) => void;
+}) {
+  const selectedIds = getEffectivePropertyTypeIds(filters, filters.preset);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {presetConfig.propertyTypes.map((option) => {
+          const checked = selectedIds.includes(option.id);
+          return (
+            <label
+              key={option.id}
+              className={cn(
+                "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-foreground transition-colors",
+                checked ? "bg-primary-light/60" : "hover:bg-surface"
+              )}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={checked}
+                onChange={() =>
+                  onUpdateFilters({
+                    propertyTypeIds: togglePropertyTypeId(filters, filters.preset, option.id),
+                  })
+                }
+              />
+              <span
+                className={cn(
+                  "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border",
+                  checked ? "border-primary bg-primary text-white" : "border-border bg-white"
+                )}
+              >
+                {checked && <Check size={11} strokeWidth={3} />}
+              </span>
+              <span className="leading-snug">{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
+      {presetConfig.crossLinkPreset && presetConfig.crossLinkLabel && (
+        <p className="text-sm text-text-secondary">
+          {presetConfig.crossLinkLabel}{" "}
+          <button
+            type="button"
+            onClick={() => onSwitchPreset(presetConfig.crossLinkPreset!)}
+            className="font-semibold text-primary hover:underline"
+          >
+            Click here
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 type PropertySearchFilterPanelsProps = {
   activePill: FilterPillId | null;
   filters: IntentSearchFilters;
@@ -117,57 +208,15 @@ export function PropertySearchFilterPanels({
   const presetConfig = getSearchPreset(filters.preset);
   const budgetOptions = getBudgetOptionsForPreset(filters.preset);
 
-  const togglePropertyType = (id: string) => {
-    const next = filters.propertyTypeIds.includes(id)
-      ? filters.propertyTypeIds.filter((x) => x !== id)
-      : [...filters.propertyTypeIds, id];
-    onUpdateFilters({ propertyTypeIds: next });
-  };
-
   switch (activePill) {
     case "propertyTypes":
       return (
-        <div className="space-y-3">
-          <div className="grid gap-1 sm:grid-cols-2">
-            {presetConfig.propertyTypes.map((option) => {
-              const checked = filters.propertyTypeIds.includes(option.id);
-              return (
-                <label
-                  key={option.id}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    checked ? "bg-primary-light text-primary" : "hover:bg-surface"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={checked}
-                    onChange={() => togglePropertyType(option.id)}
-                  />
-                  <span
-                    className={cn(
-                      "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                      checked ? "border-primary bg-primary text-white" : "border-border"
-                    )}
-                  >
-                    {checked && <Check size={10} strokeWidth={3} />}
-                  </span>
-                  {option.label}
-                </label>
-              );
-            })}
-          </div>
-          {presetConfig.crossLinkPreset && presetConfig.crossLinkLabel && (
-            <button
-              type="button"
-              onClick={() => onSwitchPreset(presetConfig.crossLinkPreset!)}
-              className="text-left text-xs font-semibold text-primary hover:underline"
-            >
-              {presetConfig.crossLinkLabel} Click here
-            </button>
-          )}
-        </div>
+        <PropertyTypesFilterPanel
+          filters={filters}
+          presetConfig={presetConfig}
+          onUpdateFilters={onUpdateFilters}
+          onSwitchPreset={onSwitchPreset}
+        />
       );
     case "budget":
     case "rentBudget":

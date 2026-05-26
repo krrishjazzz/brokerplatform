@@ -37,6 +37,11 @@ import {
   type SearchPresetId,
 } from "@/lib/search-intent-config";
 import { LocationSearchInput } from "@/components/search/location-search-input";
+import {
+  EMPTY_INTENT_FILTERS,
+  PropertySearchFiltersStrip,
+} from "@/components/search/property-search-filters-strip";
+import { FilterPillButton } from "@/components/search/property-search-filter-panels";
 import type { LocationSuggestion } from "@/lib/location/types";
 import { SEARCH_CITY_OPTIONS } from "@/lib/search-location";
 import { cn } from "@/lib/utils";
@@ -515,61 +520,82 @@ export function IntentSearchPanel({
           {getPresetContextLine(filters.preset)}
         </p>
 
-        <div className={cn("relative z-0 mt-3 flex flex-wrap items-center gap-2", isHero && "sm:mt-4")}>
-          <div className={cn("hidden flex-wrap gap-2", isHero ? "sm:flex" : "md:flex")}>
-            {visiblePills.map((pillId) => (
-              <FilterPillButton
-                key={pillId}
-                label={pillLabel(pillId)}
-                active={activePill === pillId}
-                onClick={() => openPill(pillId)}
-              />
-            ))}
-          </div>
-          <div className={cn("flex flex-wrap gap-2", isHero ? "sm:hidden" : "md:hidden")}>
-            {mobilePills.map((pillId) => (
-              <FilterPillButton
-                key={pillId}
-                label={pillLabel(pillId)}
-                active={activePill === pillId}
-                onClick={() => openPill(pillId)}
-              />
-            ))}
-            {morePills.length > 0 && (
-              <FilterPillButton
-                label="More"
-                active={morePills.includes(activePill as FilterPillId)}
-                onClick={() => openPill(morePills[0])}
-              />
-            )}
-          </div>
-          <Link
-            href={`/properties?${paramsString}`}
-            className={cn(
-              "items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-sm transition-colors hover:border-primary/35 hover:text-primary",
-              isHero ? "ml-auto inline-flex" : "ml-auto hidden lg:inline-flex"
-            )}
-          >
-            <SlidersHorizontal size={14} />
-            All filters
-          </Link>
-        </div>
-
-        {activePill && (
-          <div className="relative z-0 mt-3 hidden rounded-xl border border-border bg-surface/40 p-4 md:block">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-foreground">{FILTER_PILL_LABELS[activePill]}</p>
-              <button
-                type="button"
-                onClick={() => setActivePill(null)}
-                className="rounded-lg p-1 text-text-secondary hover:bg-white"
-                aria-label="Close filter panel"
+        {isHero ? (
+          <div className="relative z-0 mt-3 sm:mt-4">
+            <PropertySearchFiltersStrip
+              filters={filters}
+              activePill={activePill}
+              onActivePillChange={(id) => setActivePill(id)}
+              onUpdateFilters={updateFilters}
+              onSwitchPreset={switchPreset}
+              onClearAll={() => setFilters(EMPTY_INTENT_FILTERS())}
+              showHeader={false}
+            />
+            <div className="mt-2 flex justify-end">
+              <Link
+                href={`/properties?${paramsString}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-sm transition-colors hover:border-primary/35 hover:text-primary"
               >
-                <X size={16} />
-              </button>
+                <SlidersHorizontal size={14} />
+                All filters
+              </Link>
             </div>
-            {renderPillPanel(activePill)}
           </div>
+        ) : (
+          <>
+            <div className={cn("relative z-0 mt-3 flex flex-wrap items-center gap-2", "md:mt-4")}>
+              <div className="hidden flex-wrap gap-2 md:flex">
+                {visiblePills.map((pillId) => (
+                  <FilterPillButton
+                    key={pillId}
+                    label={pillLabel(pillId)}
+                    active={activePill === pillId}
+                    onClick={() => openPill(pillId)}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 md:hidden">
+                {mobilePills.map((pillId) => (
+                  <FilterPillButton
+                    key={pillId}
+                    label={pillLabel(pillId)}
+                    active={activePill === pillId}
+                    onClick={() => openPill(pillId)}
+                  />
+                ))}
+                {morePills.length > 0 && (
+                  <FilterPillButton
+                    label="More"
+                    active={morePills.includes(activePill as FilterPillId)}
+                    onClick={() => openPill(morePills[0])}
+                  />
+                )}
+              </div>
+              <Link
+                href={`/properties?${paramsString}`}
+                className="ml-auto hidden items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-sm transition-colors hover:border-primary/35 hover:text-primary lg:inline-flex"
+              >
+                <SlidersHorizontal size={14} />
+                All filters
+              </Link>
+            </div>
+            {activePill && (
+              <div className="relative z-0 mt-3 hidden rounded-xl border border-border bg-surface/40 p-4 md:block">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-bold text-foreground">{FILTER_PILL_LABELS[activePill]}</p>
+                  <button
+                    type="button"
+                    onClick={() => setActivePill(null)}
+                    className="rounded-lg p-1 text-text-secondary hover:bg-white"
+                    aria-label="Close filter panel"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                {renderPillPanel(activePill)}
+              </div>
+            )}
+          </>
         )}
 
       </div>
@@ -614,32 +640,6 @@ export function IntentSearchPanel({
         </div>
       )}
     </div>
-  );
-}
-
-function FilterPillButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors",
-        active
-          ? "border-primary bg-primary-light text-primary"
-          : "border-border bg-surface/50 text-text-secondary hover:border-primary/30 hover:bg-white hover:text-primary"
-      )}
-    >
-      {label}
-      <ChevronDown size={12} className={cn("ml-0.5 inline opacity-60", active && "rotate-180")} />
-    </button>
   );
 }
 

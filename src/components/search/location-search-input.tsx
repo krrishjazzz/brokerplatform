@@ -274,14 +274,20 @@ export function LocationSearchInput({
             setOpen(true);
           }}
           onFocus={() => {
+            if (onFocus) {
+              onFocus();
+              return;
+            }
             setOpen(true);
             syncAnchor();
-            onFocus?.();
           }}
           onClick={() => {
+            if (onClick) {
+              onClick();
+              return;
+            }
             setOpen(true);
             syncAnchor();
-            onClick?.();
           }}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
