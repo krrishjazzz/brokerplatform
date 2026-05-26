@@ -27,6 +27,7 @@ export function OwnersPageHero() {
     }
     openLoginPopup({
       intent: "owner",
+      allowIntentSwitch: false,
       redirect: `${OWNER_DASHBOARD_PATH}?tab=post`,
       title: "Sign in to list your property",
       subtitle: "Post free. KrrishJazz manages enquiries.",

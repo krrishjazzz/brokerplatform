@@ -30,6 +30,7 @@ export function HomeRequirementSection() {
     if (!signedIn) {
       openLoginPopup({
         intent: "buyer",
+        allowIntentSwitch: false,
         title: "Verify to post your requirement",
         subtitle: "Quick OTP, then submit what you are looking for.",
         onSuccess: () => void refreshUser(),

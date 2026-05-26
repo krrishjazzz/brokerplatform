@@ -79,6 +79,7 @@ export function usePropertyListingActions({ isLoggedIn }: UsePropertyListingActi
         pendingSaveRef.current = property;
         openLoginPopup({
           intent: "buyer",
+          allowIntentSwitch: false,
           redirect: buildPropertySaveLoginUrl(property.slug),
           title: "Sign in to save properties",
           subtitle: "Save listings and get alerts when prices change.",

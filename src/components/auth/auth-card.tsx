@@ -17,6 +17,7 @@ import {
   authCardInlineTitle,
   type LoginIntent,
 } from "@/lib/login-intent";
+import { LoginIntentSelector } from "@/components/auth/login-intent-selector";
 import { getDashboardBasePath } from "@/lib/dashboard-paths";
 import { resolvePostLoginDestination, sanitizeRedirect } from "@/lib/post-login";
 import { profileCanList } from "@/lib/capabilities";
@@ -39,6 +40,8 @@ export type AuthCardProps = {
   variant?: AuthCardVariant;
   title?: string;
   subtitle?: string;
+  /** When false, role selector is hidden and intent stays fixed. Default true. */
+  allowIntentSwitch?: boolean;
   className?: string;
   /** Called after successful sign-in instead of navigating (when provided). */
   onSuccess?: () => void;
@@ -50,6 +53,7 @@ export function AuthCard({
   variant = "inline",
   title,
   subtitle,
+  allowIntentSwitch = true,
   className,
   onSuccess,
 }: AuthCardProps) {
@@ -57,6 +61,10 @@ export function AuthCard({
   const { toast } = useToast();
   const router = useRouter();
   const safeRedirect = sanitizeRedirect(redirect ?? null);
+  const canSwitchIntent = allowIntentSwitch !== false;
+
+  const [selectedIntent, setSelectedIntent] = useState<LoginIntent>(intent);
+  const activeIntent = canSwitchIntent ? selectedIntent : intent;
 
   const [step, setStep] = useState<AuthStep>("phone");
   const [localPhone, setLocalPhone] = useState("");
@@ -79,8 +87,16 @@ export function AuthCard({
     getOtpString,
   } = usePhoneOtp();
 
-  const cardTitle = title ?? authCardInlineTitle(intent);
-  const cardSubtitle = subtitle ?? authCardInlineSubtitle(intent);
+  useEffect(() => {
+    setSelectedIntent(intent);
+  }, [intent]);
+
+  const cardTitle =
+    canSwitchIntent && !title ? authCardInlineTitle(activeIntent) : (title ?? authCardInlineTitle(activeIntent));
+  const cardSubtitle =
+    canSwitchIntent && !subtitle
+      ? authCardInlineSubtitle(activeIntent)
+      : (subtitle ?? authCardInlineSubtitle(activeIntent));
   const stayOnPageWhenSignedIn = variant === "inline" && !onSuccess;
 
   const finishAuth = async (loggedInUser: {
@@ -102,7 +118,7 @@ export function AuthCard({
           canList: loggedInUser.canList,
           hasBrokerApplication: loggedInUser.hasBrokerApplication,
         },
-        intent,
+        activeIntent,
         safeRedirect
       )
     );
@@ -133,12 +149,12 @@ export function AuthCard({
     formState: { errors: registerErrors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema) as any,
-    defaultValues: { wantToListAsOwner: intent === "owner" },
+    defaultValues: { wantToListAsOwner: activeIntent === "owner" },
   });
 
   useEffect(() => {
-    setValue("wantToListAsOwner", intent === "owner");
-  }, [intent, setValue]);
+    setValue("wantToListAsOwner", activeIntent === "owner");
+  }, [activeIntent, setValue]);
 
   const displayError = error || otpError;
 
@@ -212,7 +228,7 @@ export function AuthCard({
     try {
       const payload = {
         ...data,
-        wantToListAsOwner: intent === "owner" ? true : data.wantToListAsOwner,
+        wantToListAsOwner: activeIntent === "owner" ? true : data.wantToListAsOwner,
       };
       const reg = await registerUser(payload);
       if (!reg.success) {
@@ -226,7 +242,7 @@ export function AuthCard({
         onSuccess();
         return;
       }
-      if (intent === "broker") {
+      if (activeIntent === "broker") {
         router.push("/brokers#broker-auth");
         return;
       }
@@ -234,7 +250,7 @@ export function AuthCard({
       if (meRes.ok) {
         const { user: meUser } = await meRes.json();
         finishAuth(meUser);
-      } else if (intent === "owner") {
+      } else if (activeIntent === "owner") {
         router.push("/owners/dashboard");
       } else {
         router.push(safeRedirect ?? "/properties");
@@ -297,6 +313,14 @@ export function AuthCard({
         className
       )}
     >
+      {canSwitchIntent && step === "phone" && (
+        <LoginIntentSelector
+          value={selectedIntent}
+          onChange={setSelectedIntent}
+          className="mb-4"
+        />
+      )}
+
       <div className={cn("mb-4", step === "phone" && "text-center")}>
         <h3 className={cn("font-bold text-foreground", isCompact ? "text-lg" : "text-xl")}>
           {step === "phone" && cardTitle}
@@ -418,7 +442,7 @@ export function AuthCard({
             error={registerErrors.email?.message}
             {...registerForm("email")}
           />
-          {intent === "owner" && (
+          {activeIntent === "owner" && (
             <div className="rounded-card border border-success/20 bg-success-light p-3 text-sm text-success">
               <CheckCircle2 size={16} className="mr-1 inline" />
               Owner listing will be enabled on this account.

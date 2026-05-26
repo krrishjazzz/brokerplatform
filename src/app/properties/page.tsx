@@ -23,6 +23,7 @@ import { PropertiesFiltersSidebar } from "@/features/properties-search/component
 import { PropertiesSearchChrome } from "@/features/properties-search/components/properties-search-chrome";
 import { PropertiesResultsSection } from "@/features/properties-search/components/properties-results-section";
 import { PropertiesMobileActionBar } from "@/features/properties-search/components/properties-mobile-action-bar";
+import { SearchWorkspaceHeader } from "@/components/workspace/search-workspace-header";
 
 function PropertiesContent() {
   const router = useRouter();
@@ -37,6 +38,7 @@ function PropertiesContent() {
     properties,
     pagination,
     loading,
+    fetchError,
     hasSearchIntent,
     needsMoreFilters,
     page,
@@ -162,7 +164,7 @@ function PropertiesContent() {
 
   const handleSaveCurrentSearch = () => {
     if (!user) {
-      openLoginPopup({ intent: "buyer" });
+      openLoginPopup({ intent: "buyer", allowIntentSwitch: false });
       return;
     }
     const result = saveCurrentSearch();
@@ -257,6 +259,7 @@ function PropertiesContent() {
 
   return (
     <main className="min-h-screen bg-surface pb-24 lg:pb-8">
+      <SearchWorkspaceHeader />
       <PropertiesSearchChrome
         listingType={listingType}
         category={category}
@@ -267,6 +270,7 @@ function PropertiesContent() {
         freshOnly={freshOnly}
         readyToVisitOnly={readyToVisitOnly}
         onQuickFilter={applyQuickFilter}
+        hideInlineSearch
       />
 
       {filtersOpen && (
@@ -275,6 +279,12 @@ function PropertiesContent() {
           onClick={() => setFiltersOpen(false)}
           aria-hidden
         />
+      )}
+
+      {fetchError && (
+        <div className="border-b border-error/30 bg-error-light px-4 py-3 text-center text-sm font-medium text-error">
+          {fetchError}
+        </div>
       )}
 
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:items-start lg:gap-8 lg:px-6 lg:py-8">

@@ -45,6 +45,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
   const [properties, setProperties] = useState<Property[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [listingType, setListingType] = useState(
     searchParams.get("listingType") || intentPreset.listingType || ""
@@ -206,6 +207,15 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     if (ok && data) {
       setProperties(data.properties || []);
       setPagination(data.pagination || null);
+      setFetchError(null);
+    } else {
+      setProperties([]);
+      setPagination(null);
+      const apiMessage =
+        data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string"
+          ? (data as { error: string }).error
+          : null;
+      setFetchError(apiMessage || "Could not load properties. Please refresh the page.");
     }
 
     setLoading(false);
@@ -349,6 +359,7 @@ export function usePropertiesSearch({ searchParams }: UsePropertiesSearchOptions
     properties,
     pagination,
     loading,
+    fetchError,
     hasSearchIntent,
     needsMoreFilters,
     page,

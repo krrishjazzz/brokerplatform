@@ -460,6 +460,7 @@ export default function PropertyDetailPage() {
     if (!user?.name?.trim()) {
       openLoginPopup({
         intent: "buyer",
+        allowIntentSwitch: false,
         redirect: `/properties/${slug}?intent=save`,
         title: "Sign in to save this property",
         subtitle: "Shortlist listings and track them from your dashboard.",

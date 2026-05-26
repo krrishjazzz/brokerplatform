@@ -44,6 +44,7 @@ export function BrokersAuthPanel() {
             onClick={() =>
               openLoginPopup({
                 intent: "broker",
+                allowIntentSwitch: false,
                 title: "Sign in to apply as broker",
                 subtitle: "Join the managed KrrishJazz broker network.",
                 onSuccess: () => {

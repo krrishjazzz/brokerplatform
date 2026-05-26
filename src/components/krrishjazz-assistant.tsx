@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { isDashboardWorkspacePath } from "@/lib/dashboard-paths";
+import { usesWorkspaceChrome } from "@/lib/workspace";
 import { buildPlatformWhatsAppUrl, normalizePlatformPhoneForTel } from "@/lib/platform";
 
 export function KrrishJazzAssistant() {
@@ -23,7 +23,7 @@ export function KrrishJazzAssistant() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
-  if (isDashboardWorkspacePath(pathname ?? "")) return null;
+  if (usesWorkspaceChrome(pathname ?? "")) return null;
 
   const actions = [
     {

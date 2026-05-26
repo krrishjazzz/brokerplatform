@@ -20,18 +20,6 @@ export function isBuyerDashboardPath(pathname: string): boolean {
   return pathname === BUYER_DASHBOARD_PATH || pathname.startsWith(`${BUYER_DASHBOARD_PATH}/`);
 }
 
-export function isDashboardWorkspacePath(pathname: string): boolean {
-  if (!pathname) return false;
-  return (
-    isOwnerDashboardPath(pathname) ||
-    isBuyerDashboardPath(pathname) ||
-    pathname === "/admin" ||
-    pathname.startsWith("/admin/") ||
-    pathname === "/broker" ||
-    pathname.startsWith("/broker/")
-  );
-}
-
 /** Logo / “Home” for logged-in owners — dashboard instead of marketing homepage. */
 export function getAppHomeHref(canList: boolean): string {
   return canList ? OWNER_DASHBOARD_PATH : "/";

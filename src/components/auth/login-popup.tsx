@@ -3,12 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { AuthCard } from "@/components/auth/auth-card";
-import {
-  authCardInlineSubtitle,
-  authCardInlineTitle,
-  loginIntentPageSubtitle,
-  loginIntentPageTitle,
-} from "@/lib/login-intent";
+import { loginIntentPageSubtitle, loginIntentPageTitle } from "@/lib/login-intent";
 import { useLoginPopup } from "@/lib/login-popup-context";
 
 export function LoginPopup() {
@@ -28,12 +23,13 @@ export function LoginPopup() {
   if (!isOpen || !options) return null;
 
   const intent = options.intent ?? "buyer";
-  const title =
-    options.title ??
-    (intent === "buyer" ? authCardInlineTitle(intent) : loginIntentPageTitle(intent));
-  const subtitle =
-    options.subtitle ??
-    (intent === "buyer" ? authCardInlineSubtitle(intent) : loginIntentPageSubtitle(intent));
+  const allowSwitch = options.allowIntentSwitch !== false;
+  const title = allowSwitch
+    ? options.title
+    : (options.title ?? loginIntentPageTitle(intent));
+  const subtitle = allowSwitch
+    ? options.subtitle
+    : (options.subtitle ?? loginIntentPageSubtitle(intent));
 
   const handleSuccess = () => {
     options.onSuccess?.();
@@ -63,6 +59,7 @@ export function LoginPopup() {
         </button>
         <AuthCard
           intent={intent}
+          allowIntentSwitch={allowSwitch}
           redirect={options.redirect}
           variant="compact"
           title={title}

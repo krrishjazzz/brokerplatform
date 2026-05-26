@@ -16,6 +16,8 @@ export type LoginPopupOptions = {
   redirect?: string | null;
   title?: string;
   subtitle?: string;
+  /** When false, intent is fixed (e.g. save property, owner list CTA). Default true. */
+  allowIntentSwitch?: boolean;
   onSuccess?: () => void;
 };
 
@@ -38,6 +40,7 @@ export function LoginPopupProvider({ children }: { children: ReactNode }) {
       redirect: next?.redirect ?? null,
       title: next?.title,
       subtitle: next?.subtitle,
+      allowIntentSwitch: next?.allowIntentSwitch ?? true,
       onSuccess: next?.onSuccess,
     });
     setIsOpen(true);

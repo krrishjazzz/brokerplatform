@@ -32,11 +32,7 @@ export function HomeContinueJourneyStrip() {
           size="lg"
           className="shrink-0 min-w-[180px]"
           onClick={() =>
-            openLoginPopup({
-              intent: "buyer",
-              title: "Continue with KrrishJazz",
-              subtitle: "Track saved properties, enquiries, callbacks, and visits.",
-            })
+            openLoginPopup({ intent: "buyer" })
           }
         >
           Sign in with OTP

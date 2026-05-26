@@ -9,12 +9,8 @@ import { useLoginPopup } from "@/lib/login-popup-context";
 import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
 import { UserAccountMenu } from "@/components/account/user-account-menu";
 import { profileCanList } from "@/lib/capabilities";
-import {
-  getAppHomeHref,
-  isDashboardWorkspacePath,
-  isOwnerDashboardPath,
-  OWNER_DASHBOARD_PATH,
-} from "@/lib/dashboard-paths";
+import { getAppHomeHref, isOwnerDashboardPath, OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
+import { usesWorkspaceChrome } from "@/lib/workspace";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -49,7 +45,7 @@ function NavbarInner() {
   const { compactActive, compactBar } = usePropertySearchNavbar();
   const showNavbarCompactSearch = isPropertiesPage && compactActive && compactBar;
 
-  if (isDashboardWorkspacePath(pathname)) {
+  if (usesWorkspaceChrome(pathname)) {
     return null;
   }
 

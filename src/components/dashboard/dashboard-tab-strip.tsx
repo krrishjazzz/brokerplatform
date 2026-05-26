@@ -13,11 +13,13 @@ type DashboardTabStripProps = {
   onTabChange: (tab: DashboardTab) => void;
 };
 
+/** Owner workspace uses OwnerWorkspaceHeader — no embedded property search bar. */
 export function usesDashboardSearchLayout(ctx: NavContext): boolean {
+  if (ctx.mode === "owner") return false;
   const caps = deriveAuthCapabilities(ctx);
   if (caps.isAdmin) return false;
   if (caps.isApprovedBroker && !caps.canList) return false;
-  return caps.canList || caps.isBuyer;
+  return false;
 }
 
 export function DashboardTabStrip({

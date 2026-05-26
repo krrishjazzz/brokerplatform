@@ -5,13 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { deriveAuthCapabilities, profileCanList } from "@/lib/capabilities";
 import type { DashboardMode } from "@/components/dashboard/dashboard-mode";
 import { ownerListingBannerLine, ownerPostFreeCta } from "@/lib/owner-copy";
+import { persistLastWorkspace } from "@/lib/workspace";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { ClosureSupportSection } from "@/components/dashboard/closure-support-section";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
-import { usesDashboardSearchLayout } from "@/components/dashboard/dashboard-tab-strip";
 import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
-import { DashboardWorkspaceHeader } from "@/components/dashboard/dashboard-workspace-header";
+import { OwnerWorkspaceHeader } from "@/components/workspace/owner-workspace-header";
+import { SearchWorkspaceHeader } from "@/components/workspace/search-workspace-header";
 import { DashboardPathProvider } from "@/components/dashboard/dashboard-path-context";
 import { MyPropertiesSection } from "@/components/dashboard/my-properties-section";
 import { OwnerOverviewSection } from "@/components/dashboard/owner-overview-section";
@@ -48,6 +49,12 @@ function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: Dashbo
       router.replace(`/login?intent=${intent}&redirect=${encodeURIComponent(loginRedirect)}`);
     }
   }, [user, loading, router, loginRedirect, mode]);
+
+  useEffect(() => {
+    if (!user || loading) return;
+    if (mode === "owner") persistLastWorkspace("owner");
+    else if (mode === "buyer") persistLastWorkspace("buyer");
+  }, [user, loading, mode]);
 
   useEffect(() => {
     if (!user) return;
@@ -102,7 +109,6 @@ function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: Dashbo
   if (!user || !navCtx) return null;
 
   const caps = deriveAuthCapabilities(navCtx);
-  const searchLayout = usesDashboardSearchLayout(navCtx);
   const allowedTabs = getAllowedDashboardTabs(navCtx, mode);
   const showTab = (tab: Tab) => activeTab === tab && canRenderDashboardTab(tab, navCtx, mode);
 
@@ -133,50 +139,34 @@ function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: Dashbo
     </>
   );
 
-  if (searchLayout) {
-    return (
-      <DashboardPathProvider basePath={basePath}>
-        <div className="min-h-screen bg-surface">
-          <DashboardWorkspaceHeader />
-          {caps.canList && (
-            <div className="hidden items-center justify-center gap-3 border-b border-border bg-primary-light px-4 py-3 text-sm font-semibold text-foreground lg:flex lg:pl-64">
-              <AlertTriangle size={20} className="text-primary" />
-              <span>
-                {ownerListingBannerLine()}
-              </span>
-              {allowedTabs.includes("post") && (
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("post")}
-                  className="font-bold text-accent hover:underline"
-                >
-                  {ownerPostFreeCta()}
-                </button>
-              )}
-            </div>
-          )}
-          <DashboardSidebar
-            user={user}
-            ctx={navCtx}
-            activeTab={activeTab}
-            allowedTabs={allowedTabs}
-            sidebarOpen={sidebarOpen}
-            onCloseSidebar={() => setSidebarOpen(false)}
-            onOpenSidebar={() => setSidebarOpen(true)}
-            onTabChange={handleTabChange}
-          />
-          <div className="lg:ml-64">
-            <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:px-8 lg:py-6">{dashboardMain}</main>
-            <DashboardFooter />
-          </div>
-        </div>
-      </DashboardPathProvider>
-    );
-  }
+  const showOwnerHeader = mode === "owner" && caps.canList;
+  const showBuyerHeader = mode === "buyer";
+  const hasWorkspaceHeader = showOwnerHeader || showBuyerHeader;
+  const sidebarTopClass = hasWorkspaceHeader ? "top-14 lg:top-14" : "top-0";
+  const sidebarHeightClass = hasWorkspaceHeader
+    ? "h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-3.5rem)]"
+    : "h-full";
 
   return (
     <DashboardPathProvider basePath={basePath}>
       <div className="min-h-screen bg-surface">
+        {showOwnerHeader && <OwnerWorkspaceHeader />}
+        {showBuyerHeader && <SearchWorkspaceHeader logoHref="/properties" />}
+        {showOwnerHeader && caps.canList && (
+          <div className="hidden items-center justify-center gap-3 border-b border-border bg-primary-light px-4 py-3 text-sm font-semibold text-foreground lg:flex lg:pl-64">
+            <AlertTriangle size={20} className="text-primary" />
+            <span>{ownerListingBannerLine()}</span>
+            {allowedTabs.includes("post") && (
+              <button
+                type="button"
+                onClick={() => handleTabChange("post")}
+                className="font-bold text-accent hover:underline"
+              >
+                {ownerPostFreeCta()}
+              </button>
+            )}
+          </div>
+        )}
         <DashboardSidebar
           user={user}
           ctx={navCtx}
@@ -186,8 +176,8 @@ function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: Dashbo
           onCloseSidebar={() => setSidebarOpen(false)}
           onOpenSidebar={() => setSidebarOpen(true)}
           onTabChange={handleTabChange}
-          stickyTopClass="top-0 lg:top-[76px]"
-          sidebarHeightClass="h-full lg:h-[calc(100vh-76px)]"
+          stickyTopClass={sidebarTopClass}
+          sidebarHeightClass={sidebarHeightClass}
         />
         <div className="lg:ml-64">
           <main className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:px-8 lg:py-6">{dashboardMain}</main>

@@ -299,15 +299,30 @@ export function IntentSearchPanel({
         "w-full rounded-2xl border bg-white",
         variant === "embedded"
           ? "border-border shadow-[0_8px_30px_rgba(0,31,77,0.08)]"
-          : "border-white/80 shadow-[0_20px_60px_rgba(0,31,77,0.18)]",
+          : isHero
+            ? "border-border/60 shadow-[0_24px_64px_rgba(0,31,77,0.14)]"
+            : "border-white/80 shadow-[0_20px_60px_rgba(0,31,77,0.18)]",
         isHero && "min-w-0",
         className
       )}
     >
-      <div className="p-4 sm:p-5">
-        <div className="overflow-visible rounded-xl border border-border/90">
-          <div className="flex flex-col md:flex-row">
-            <div ref={presetMenuRef} className="relative z-20 border-b border-border md:min-w-[9.5rem] md:shrink-0 md:border-b-0 md:border-r">
+      <div className={cn("p-4 sm:p-5", isHero && "sm:p-6")}>
+        <div
+          className={cn(
+            "overflow-visible rounded-xl border border-border/90 bg-white",
+            isHero && "shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+          )}
+        >
+          <div className={cn("flex flex-col", isHero ? "sm:flex-row" : "md:flex-row")}>
+            <div
+              ref={presetMenuRef}
+              className={cn(
+                "relative z-20 shrink-0 border-b border-border",
+                isHero
+                  ? "sm:min-w-[9.5rem] sm:border-b-0 sm:border-r"
+                  : "md:min-w-[9.5rem] md:border-b-0 md:border-r"
+              )}
+            >
               <button
                 type="button"
                 onClick={() => setPresetOpen((o) => !o)}
@@ -360,7 +375,10 @@ export function IntentSearchPanel({
 
             <div
               ref={cityRef}
-              className="relative hidden border-b border-border sm:block md:min-w-[9rem] md:max-w-[11rem] md:shrink-0 md:border-b-0 md:border-r"
+              className={cn(
+                "relative border-b border-border md:min-w-[9rem] md:max-w-[11rem] md:shrink-0 md:border-b-0 md:border-r",
+                isHero ? "block" : "hidden sm:block"
+              )}
             >
               <button
                 type="button"
@@ -393,7 +411,12 @@ export function IntentSearchPanel({
               )}
             </div>
 
-            <div className="flex min-w-0 flex-1 items-center gap-2 border-b border-border px-4 py-3 md:border-b-0 md:border-r md:py-3.5">
+            <div
+              className={cn(
+                "flex min-w-0 flex-1 items-center gap-2 border-b border-border px-4 py-3",
+                isHero ? "sm:border-b-0 sm:border-r sm:py-3.5" : "md:border-b-0 md:border-r md:py-3.5"
+              )}
+            >
               <Search size={18} className="shrink-0 text-primary" />
               <LocationSearchInput
                 value={filters.query}
@@ -430,7 +453,10 @@ export function IntentSearchPanel({
             <button
               type="button"
               onClick={runSearch}
-              className="flex items-center justify-center gap-2 bg-primary px-5 py-3.5 text-sm font-bold text-white hover:bg-primary-dark sm:min-w-[7rem]"
+              className={cn(
+                "flex items-center justify-center gap-2 bg-primary px-5 py-3.5 text-sm font-bold text-white hover:bg-primary-dark sm:min-w-[7.5rem]",
+                isHero && "sm:rounded-r-xl"
+              )}
             >
               <Search size={17} strokeWidth={2.5} />
               Search
@@ -438,18 +464,27 @@ export function IntentSearchPanel({
           </div>
         </div>
 
-        <p className="mt-2 flex items-center gap-1 text-xs text-text-secondary sm:hidden">
-          <MapPin size={12} className="text-primary" />
-          {filters.city}
-          <button type="button" className="font-semibold text-primary" onClick={() => setCityOpen(true)}>
-            Change
-          </button>
+        {!isHero && (
+          <p className="mt-2 flex items-center gap-1 text-xs text-text-secondary sm:hidden">
+            <MapPin size={12} className="text-primary" />
+            {filters.city}
+            <button type="button" className="font-semibold text-primary" onClick={() => setCityOpen(true)}>
+              Change
+            </button>
+          </p>
+        )}
+
+        <p
+          className={cn(
+            "mt-2.5 text-xs font-medium text-text-secondary",
+            isHero && "text-center sm:text-left"
+          )}
+        >
+          {getPresetContextLine(filters.preset)}
         </p>
 
-        <p className="mt-2 text-xs font-medium text-text-secondary">{getPresetContextLine(filters.preset)}</p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="hidden flex-wrap gap-2 md:flex">
+        <div className={cn("mt-3 flex flex-wrap items-center gap-2", isHero && "sm:mt-4")}>
+          <div className={cn("hidden flex-wrap gap-2", isHero ? "sm:flex" : "md:flex")}>
             {visiblePills.map((pillId) => (
               <FilterPillButton
                 key={pillId}
@@ -459,7 +494,7 @@ export function IntentSearchPanel({
               />
             ))}
           </div>
-          <div className="flex flex-wrap gap-2 md:hidden">
+          <div className={cn("flex flex-wrap gap-2", isHero ? "sm:hidden" : "md:hidden")}>
             {mobilePills.map((pillId) => (
               <FilterPillButton
                 key={pillId}
@@ -478,7 +513,10 @@ export function IntentSearchPanel({
           </div>
           <Link
             href={`/properties?${paramsString}`}
-            className="ml-auto hidden items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-text-secondary hover:border-primary/35 hover:text-primary lg:inline-flex"
+            className={cn(
+              "items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary shadow-sm transition-colors hover:border-primary/35 hover:text-primary",
+              isHero ? "ml-auto inline-flex" : "ml-auto hidden lg:inline-flex"
+            )}
           >
             <SlidersHorizontal size={14} />
             All filters
@@ -561,10 +599,10 @@ function FilterPillButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+        "rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors",
         active
           ? "border-primary bg-primary-light text-primary"
-          : "border-border bg-white text-text-secondary hover:border-primary/30 hover:text-primary"
+          : "border-border bg-surface/50 text-text-secondary hover:border-primary/30 hover:bg-white hover:text-primary"
       )}
     >
       {label}

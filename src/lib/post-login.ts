@@ -1,4 +1,5 @@
 import type { LoginIntent } from "@/lib/login-intent";
+import { persistLastWorkspace, type WorkspaceMode } from "@/lib/workspace";
 
 export type PostLoginUser = {
   role: string;
@@ -29,25 +30,40 @@ export function resolvePostLoginDestination(
     return safeRedirect?.startsWith("/admin") ? safeRedirect : "/admin";
   }
 
+  let destination: string;
+  let workspace: WorkspaceMode = "buyer";
+
   if (intent === "broker") {
+    workspace = "broker";
     if (user.brokerStatus === "APPROVED") {
-      return "/broker/properties";
+      destination = "/broker/properties";
+    } else if (user.hasBrokerApplication) {
+      destination = "/dashboard?tab=application";
+    } else {
+      destination = "/brokers#broker-auth";
     }
-    if (user.hasBrokerApplication) {
-      return "/dashboard?tab=application";
-    }
-    return "/brokers#broker-auth";
+  } else if (intent === "owner") {
+    workspace = "owner";
+    destination = "/owners/dashboard";
+  } else if (safeRedirect) {
+    destination = safeRedirect;
+    workspace = safeRedirect.startsWith("/owners/dashboard")
+      ? "owner"
+      : safeRedirect.startsWith("/broker")
+        ? "broker"
+        : safeRedirect.startsWith("/admin")
+          ? "admin"
+          : "buyer";
+  } else {
+    destination = "/properties";
+    workspace = "buyer";
   }
 
-  if (intent === "owner") {
-    return "/owners/dashboard";
+  if (typeof window !== "undefined") {
+    persistLastWorkspace(workspace);
   }
 
-  if (safeRedirect) {
-    return safeRedirect;
-  }
-
-  return "/properties";
+  return destination;
 }
 
 export { deriveAuthCapabilities } from "@/lib/capabilities";

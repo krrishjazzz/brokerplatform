@@ -43,6 +43,9 @@ export type AccountCapabilityUser = {
 };
 
 export type AuthCapabilities = {
+  /** Can use marketplace search, save, and buyer enquiries */
+  canSearch: boolean;
+  canSave: boolean;
   canList: boolean;
   canPostProperty: boolean;
   ownerStatus: OwnerListingStatus;
@@ -108,6 +111,8 @@ export function deriveAuthCapabilities(user: AccountCapabilityUser): AuthCapabil
   }
 
   return {
+    canSearch: true,
+    canSave: true,
     canList,
     canPostProperty,
     ownerStatus,

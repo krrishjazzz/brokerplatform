@@ -55,9 +55,18 @@ export function authCardInlineSubtitle(intent: LoginIntent) {
 
 export function loginIntentChipLabel(intent: LoginIntent) {
   if (intent === "owner") return "Owner";
-  if (intent === "broker") return "Broker";
+  if (intent === "broker") return "Broker / Agent";
   return "Buyer / Tenant";
 }
+
+export const LOGIN_INTENT_OPTIONS: {
+  id: LoginIntent;
+  label: string;
+}[] = [
+  { id: "buyer", label: "Buyer / Tenant" },
+  { id: "owner", label: "Owner" },
+  { id: "broker", label: "Broker / Agent" },
+];
 
 export function loginIntentSidebarTitle(intent: LoginIntent) {
   if (intent === "owner") return "List with KrrishJazz";

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { KrrishJazzAssistant } from "@/components/krrishjazz-assistant";
-import { isDashboardWorkspacePath } from "@/lib/dashboard-paths";
+import { isDashboardWorkspacePath } from "@/lib/workspace";
 
 /** Global footer and assistant — hidden on app workspace routes. */
 export function LayoutChrome() {

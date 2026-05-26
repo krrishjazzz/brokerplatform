@@ -8,7 +8,7 @@ import { getBrowseIntentLabel, RESULT_QUICK_FILTERS } from "@/components/propert
 import { PropertiesTrustBanner } from "@/features/properties-search/components/properties-trust-banner";
 import { useAuth } from "@/lib/auth-context";
 import { profileCanList } from "@/lib/capabilities";
-import { getAppHomeHref } from "@/lib/dashboard-paths";
+import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
 import { cn } from "@/lib/utils";
 
 type PropertiesSearchChromeProps = {
@@ -21,6 +21,8 @@ type PropertiesSearchChromeProps = {
   freshOnly: boolean;
   readyToVisitOnly: boolean;
   onQuickFilter: (action: string) => void;
+  /** When SearchWorkspaceHeader is shown, skip the duplicate inline search row. */
+  hideInlineSearch?: boolean;
 };
 
 export function PropertiesSearchChrome({
@@ -33,12 +35,13 @@ export function PropertiesSearchChrome({
   freshOnly,
   readyToVisitOnly,
   onQuickFilter,
+  hideInlineSearch = false,
 }: PropertiesSearchChromeProps) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const canList = user ? profileCanList(user) : false;
-  const homeHref = getAppHomeHref(canList);
-  const homeLabel = canList ? "Dashboard" : "Home";
+  const homeHref = canList ? OWNER_DASHBOARD_PATH : "/";
+  const homeLabel = canList ? "Owner Dashboard" : "Home";
   const displayCity = city.trim() || "Kolkata";
   const intentLabel = getBrowseIntentLabel(listingType, category, preset);
 
@@ -68,14 +71,16 @@ export function PropertiesSearchChrome({
 
       <div className="border-b border-border bg-white">
         <div className="mx-auto max-w-7xl px-4 py-3 lg:px-6">
-          <PropertySearchShell
-            initialParams={searchParams}
-            onSearch={onSearchNavigate}
-            freshOnly={freshOnly}
-            readyToVisitOnly={readyToVisitOnly}
-            onToggleMobileFilters={onToggleFilters}
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
+          {!hideInlineSearch && (
+            <PropertySearchShell
+              initialParams={searchParams}
+              onSearch={onSearchNavigate}
+              freshOnly={freshOnly}
+              readyToVisitOnly={readyToVisitOnly}
+              onToggleMobileFilters={onToggleFilters}
+            />
+          )}
+          <div className={cn("flex flex-wrap gap-2", !hideInlineSearch && "mt-3")}>
             {RESULT_QUICK_FILTERS.map((filter) => {
               const Icon = filter.icon;
               const active =

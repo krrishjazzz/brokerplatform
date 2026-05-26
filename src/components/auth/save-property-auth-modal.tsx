@@ -23,6 +23,7 @@ export function SavePropertyAuthModal({
     if (!isOpen) return;
     openLoginPopup({
       intent: "buyer",
+      allowIntentSwitch: false,
       redirect: propertyPath,
       title: "Sign in to save this property",
       subtitle: "Shortlist listings and track them from your dashboard.",
