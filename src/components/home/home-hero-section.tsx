@@ -8,8 +8,8 @@ const HERO_IMAGE =
 
 export function HomeHeroSection() {
   return (
-    <section className="relative overflow-hidden border-b border-border">
-      <div className="absolute inset-0" aria-hidden>
+    <section className="relative overflow-x-clip border-b border-border">
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
         <Image
           src={HERO_IMAGE}
           alt=""
@@ -35,7 +35,7 @@ export function HomeHeroSection() {
           Search smart. Connect with experts. Close with confidence.
         </p>
 
-        <div className="mt-8 w-full max-w-[920px] sm:mt-10">
+        <div className="relative z-20 mt-8 w-full max-w-[920px] overflow-visible sm:mt-10">
           <SmartSearchPanel variant="hero" className="text-left" />
         </div>
       </div>

@@ -356,6 +356,8 @@ export type IntentSearchFilters = {
   query: string;
   /** Set when user picks a grouped location suggestion. */
   locationSuggestionId?: string;
+  /** Multi-locality search (e.g. Salt Lake + New Town). */
+  locationIds?: string[];
   propertyTypeIds: string[];
   budget: string;
   bedrooms: string;
@@ -480,13 +482,17 @@ export function buildIntentSearchParams(
   const city = filters.city.trim() || DEFAULT_SEARCH_CITY;
   params.set("city", city);
 
-  const locationQuery = filters.query.trim();
-  if (locationQuery || filters.locationSuggestionId) {
-    const resolved = resolveLocationSearch(
-      { query: locationQuery, suggestionId: filters.locationSuggestionId },
-      city
-    );
-    applyStructuredLocationToParams(params, resolved);
+  if (filters.locationIds?.length) {
+    filters.locationIds.forEach((id) => params.append("locationId", id));
+  } else {
+    const locationQuery = filters.query.trim();
+    if (locationQuery || filters.locationSuggestionId) {
+      const resolved = resolveLocationSearch(
+        { query: locationQuery, suggestionId: filters.locationSuggestionId },
+        city
+      );
+      applyStructuredLocationToParams(params, resolved);
+    }
   }
 
   const typeSearchQuery = appendPropertyTypes(params, preset, filters.propertyTypeIds);
@@ -586,6 +592,7 @@ export function parseIntentSearchFromUrl(searchParams: URLSearchParams): IntentS
       searchParams.get("landmark") ||
       "",
     locationSuggestionId: undefined,
+    locationIds: searchParams.getAll("locationId").filter(Boolean),
     propertyTypeIds,
     budget: searchParams.get("maxPrice") || "",
     bedrooms: searchParams.get("bedrooms") || "",

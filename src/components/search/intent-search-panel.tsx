@@ -108,12 +108,24 @@ export function IntentSearchPanel({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      const el = event.target as HTMLElement;
+
+      if (
+        el.closest("[data-search-intent]") ||
+        el.closest("[data-search-city]") ||
+        el.closest("[data-search-intent-menu]")
+      ) {
+        return;
+      }
       if (presetMenuRef.current?.contains(target)) return;
       if (cityRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setActivePill(null);
+
       setPresetOpen(false);
       setCityOpen(false);
+
+      if (!panelRef.current?.contains(target)) {
+        setActivePill(null);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -296,7 +308,7 @@ export function IntentSearchPanel({
     <div
       ref={panelRef}
       className={cn(
-        "w-full rounded-2xl border bg-white",
+        "w-full overflow-visible rounded-2xl border bg-white",
         variant === "embedded"
           ? "border-border shadow-[0_8px_30px_rgba(0,31,77,0.08)]"
           : isHero
@@ -306,18 +318,19 @@ export function IntentSearchPanel({
         className
       )}
     >
-      <div className={cn("p-4 sm:p-5", isHero && "sm:p-6")}>
+      <div className={cn("overflow-visible p-4 sm:p-5", isHero && "sm:p-6")}>
         <div
           className={cn(
-            "overflow-visible rounded-xl border border-border/90 bg-white",
-            isHero && "shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+            "relative z-30 overflow-visible rounded-xl border border-border/90 bg-white",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
           )}
         >
-          <div className={cn("flex flex-col", isHero ? "sm:flex-row" : "md:flex-row")}>
+          <div className="flex flex-col overflow-visible md:flex-row">
             <div
               ref={presetMenuRef}
+              data-search-intent
               className={cn(
-                "relative z-20 shrink-0 border-b border-border",
+                "relative z-40 shrink-0 overflow-visible border-b border-border",
                 isHero
                   ? "sm:min-w-[9.5rem] sm:border-b-0 sm:border-r"
                   : "md:min-w-[9.5rem] md:border-b-0 md:border-r"
@@ -325,7 +338,12 @@ export function IntentSearchPanel({
             >
               <button
                 type="button"
-                onClick={() => setPresetOpen((o) => !o)}
+                data-search-action
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPresetOpen((o) => !o);
+                }}
                 aria-expanded={presetOpen}
                 aria-haspopup="listbox"
                 className="flex h-full w-full items-center gap-1.5 px-4 py-3.5 text-left text-sm font-bold text-primary hover:bg-surface"
@@ -336,7 +354,9 @@ export function IntentSearchPanel({
               {presetOpen && (
                 <div
                   role="listbox"
-                  className="absolute left-0 top-full z-[60] min-w-[16rem] rounded-lg border border-border bg-white py-2 shadow-[0_12px_40px_rgba(0,31,77,0.15)]"
+                  data-search-intent-menu
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute left-0 top-full z-[200] max-h-[min(70vh,24rem)] w-max min-w-[16rem] max-w-[min(100%,20rem)] overflow-y-auto rounded-lg border border-border bg-white py-2 shadow-[0_12px_40px_rgba(0,31,77,0.15)]"
                 >
                   {SEARCH_PRESET_GROUPS.map((group) => (
                     <div key={group.label} className="px-2 py-1">
@@ -351,7 +371,10 @@ export function IntentSearchPanel({
                             type="button"
                             role="option"
                             aria-selected={active}
-                            onMouseDown={(e) => e.preventDefault()}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
                             onClick={() => switchPreset(item.id)}
                             className={cn(
                               "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold",
@@ -375,14 +398,20 @@ export function IntentSearchPanel({
 
             <div
               ref={cityRef}
+              data-search-city
               className={cn(
-                "relative border-b border-border md:min-w-[9rem] md:max-w-[11rem] md:shrink-0 md:border-b-0 md:border-r",
-                isHero ? "block" : "hidden sm:block"
+                "relative z-30 shrink-0 overflow-visible border-b border-border md:min-w-[9rem] md:max-w-[11rem] md:border-b-0 md:border-r",
+                isHero ? "block sm:border-r" : "hidden sm:block"
               )}
             >
               <button
                 type="button"
-                onClick={() => setCityOpen((o) => !o)}
+                data-search-action
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCityOpen((o) => !o);
+                }}
                 className="flex h-full w-full items-center gap-2 px-3 py-3.5 text-left text-sm font-semibold text-foreground hover:bg-surface"
               >
                 <MapPin size={16} className="shrink-0 text-primary" />
@@ -390,7 +419,7 @@ export function IntentSearchPanel({
                 <ChevronDown size={14} className={cn("ml-auto shrink-0 text-text-tertiary", cityOpen && "rotate-180")} />
               </button>
               {cityOpen && (
-                <div className="absolute left-0 top-full z-50 max-h-40 min-w-full overflow-y-auto border border-border bg-white py-1 shadow-card">
+                <div className="absolute left-0 top-full z-[200] max-h-40 min-w-full overflow-y-auto rounded-lg border border-border bg-white py-1 shadow-[0_12px_40px_rgba(0,31,77,0.15)]">
                   {SEARCH_CITY_OPTIONS.map((city) => (
                     <button
                       key={city}
@@ -412,12 +441,15 @@ export function IntentSearchPanel({
             </div>
 
             <div
+              data-search-field
               className={cn(
-                "flex min-w-0 flex-1 items-center gap-2 border-b border-border px-4 py-3",
-                isHero ? "sm:border-b-0 sm:border-r sm:py-3.5" : "md:border-b-0 md:border-r md:py-3.5"
+                "relative z-50 flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-visible border-b border-border px-4 py-3",
+                isHero
+                  ? "min-w-0 sm:min-w-[11rem] sm:border-b-0 sm:border-r sm:py-3.5"
+                  : "md:min-w-[11rem] md:border-b-0 md:border-r md:py-3.5"
               )}
             >
-              <Search size={18} className="shrink-0 text-primary" />
+              <Search size={18} className="pointer-events-none shrink-0 text-primary" />
               <LocationSearchInput
                 value={filters.query}
                 city={filters.city}
@@ -431,19 +463,22 @@ export function IntentSearchPanel({
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
                 placeholder="Search locality, project, society, landmark"
                 inputClassName="text-sm"
+                className="relative z-10 min-w-0 flex-1"
               />
               <button
                 type="button"
+                data-search-action
                 title="Search near me"
-                className="hidden shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary sm:inline-flex"
+                className="hidden shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary lg:inline-flex"
                 onClick={() => updateFilters({ query: filters.city })}
               >
                 <Navigation size={18} />
               </button>
               <button
                 type="button"
+                data-search-action
                 title="Voice search (coming soon)"
-                className="hidden shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface sm:inline-flex"
+                className="hidden shrink-0 rounded-lg p-1.5 text-text-secondary hover:bg-surface lg:inline-flex"
                 aria-disabled
               >
                 <Mic size={18} />
@@ -453,10 +488,7 @@ export function IntentSearchPanel({
             <button
               type="button"
               onClick={runSearch}
-              className={cn(
-                "flex items-center justify-center gap-2 bg-primary px-5 py-3.5 text-sm font-bold text-white hover:bg-primary-dark sm:min-w-[7.5rem]",
-                isHero && "sm:rounded-r-xl"
-              )}
+              className="flex items-center justify-center gap-2 bg-primary px-5 py-3.5 text-sm font-bold text-white hover:bg-primary-dark sm:min-w-[7.5rem]"
             >
               <Search size={17} strokeWidth={2.5} />
               Search
@@ -476,14 +508,14 @@ export function IntentSearchPanel({
 
         <p
           className={cn(
-            "mt-2.5 text-xs font-medium text-text-secondary",
+            "relative z-0 mt-2.5 text-xs font-medium text-text-secondary",
             isHero && "text-center sm:text-left"
           )}
         >
           {getPresetContextLine(filters.preset)}
         </p>
 
-        <div className={cn("mt-3 flex flex-wrap items-center gap-2", isHero && "sm:mt-4")}>
+        <div className={cn("relative z-0 mt-3 flex flex-wrap items-center gap-2", isHero && "sm:mt-4")}>
           <div className={cn("hidden flex-wrap gap-2", isHero ? "sm:flex" : "md:flex")}>
             {visiblePills.map((pillId) => (
               <FilterPillButton
@@ -524,7 +556,7 @@ export function IntentSearchPanel({
         </div>
 
         {activePill && (
-          <div className="mt-3 hidden rounded-xl border border-border bg-surface/40 p-4 md:block">
+          <div className="relative z-0 mt-3 hidden rounded-xl border border-border bg-surface/40 p-4 md:block">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-bold text-foreground">{FILTER_PILL_LABELS[activePill]}</p>
               <button

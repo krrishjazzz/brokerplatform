@@ -12,6 +12,7 @@ import { normalizeListingForApi } from "@/lib/posting-config";
 import { syncPrimaryFieldsFromTypeDetails } from "@/lib/posting-field-sync";
 import { validatePostingPayload } from "@/lib/posting-validation";
 import { formatProperty } from "@/server/public-property";
+import { resolveLocationIdsAsync } from "@/lib/location/search";
 import { computeListingQualityScore } from "@/lib/listing-quality-score";
 import { nanoid } from "nanoid";
 
@@ -61,10 +62,25 @@ export async function GET(req: NextRequest) {
     if (propertyTypes.length === 1) where.propertyType = propertyTypes[0];
     else if (propertyTypes.length > 1) where.propertyType = { in: propertyTypes };
 
-    const city = searchParams.get("city");
-    if (city) where.city = { contains: city };
+    const city = searchParams.get("city") || "Kolkata";
+    const locationIds = searchParams.getAll("locationId").filter(Boolean);
 
-    const locality = searchParams.get("locality");
+    if (locationIds.length > 0) {
+      const resolved = await resolveLocationIdsAsync(locationIds, city);
+      if (resolved.city) where.city = { contains: resolved.city, mode: "insensitive" };
+      const terms = resolved.matchLocalities;
+      if (terms.length > 0) {
+        const multiLocalityOr = terms.flatMap((term) => [
+          { locality: { contains: term, mode: "insensitive" as const } },
+          { subLocality: { contains: term, mode: "insensitive" as const } },
+        ]);
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { OR: multiLocalityOr }];
+      }
+    } else if (city) {
+      where.city = { contains: city, mode: "insensitive" };
+    }
+
+    const locality = locationIds.length > 0 ? null : searchParams.get("locality");
     const subLocality = searchParams.get("subLocality");
     const project = searchParams.get("project");
     const landmark = searchParams.get("landmark");

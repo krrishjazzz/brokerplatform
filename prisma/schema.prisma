@@ -220,7 +220,7 @@ model ActivityEvent {
   @@index([actorId, createdAt])
 }
 
-// Internal location dictionary — canonical localities, aliases, zones.
+// Legacy flat dictionary — prefer Location hierarchy; kept for backward compatibility.
 model LocationDictionary {
   id                 String   @id @default(cuid())
   city               String
@@ -237,6 +237,35 @@ model LocationDictionary {
 
   @@index([city, locality, isActive])
   @@unique([city, locality, subLocality])
+}
+
+// Hierarchical locations: Country → State → City → Zone → Locality → Sublocality / Landmark
+model Location {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  type      String
+  parentId  String?
+  parent    Location?  @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Location[] @relation("LocationTree")
+  cityId    String?
+  city      Location?  @relation("CityScope", fields: [cityId], references: [id], onDelete: SetNull)
+  scoped    Location[] @relation("CityScope")
+  state     String     @default("")
+  country   String     @default("India")
+  latitude  Float?
+  longitude Float?
+  aliases   String     @default("[]")
+  nearbyIds String     @default("[]")
+  priority  Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([parentId, slug])
+  @@index([type, isActive, priority])
+  @@index([cityId, type, isActive])
+  @@index([slug, isActive])
 }
 
 model ListingFreshness {

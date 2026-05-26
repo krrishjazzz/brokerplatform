@@ -1,25 +1,37 @@
+/**
+ * Location search — DB hierarchy first, static dictionary fallback.
+ * Prefer async APIs from db-search.ts in routes; sync helpers delegate to static data.
+ */
 import {
+  LOCATION_DICTIONARY,
   getDictionaryEntry,
   getNearbyLocalities,
   LANDMARK_SUGGESTIONS,
-  LOCATION_DICTIONARY,
   PROJECT_SUGGESTIONS,
 } from "@/lib/location/dictionary";
+import { textMatchesLocationQuery } from "@/lib/location/normalize";
 import type {
   LocationSuggestion,
   LocationSuggestionGroups,
   ResolvedLocationSearch,
   StructuredLocation,
 } from "@/lib/location/types";
+import { suggestionToStructured } from "@/lib/location/db-search";
+
+export {
+  suggestLocationsAsync,
+  getPopularLocationsAsync,
+  getLocationByIdAsync,
+  getCitiesAsync,
+  resolveLocationSearchAsync,
+  resolveLocationIdsAsync,
+  applyStructuredLocationToParams,
+  getLocationSeoMeta,
+  suggestionToStructured,
+} from "@/lib/location/db-search";
 
 function normalize(text: string) {
   return text.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function matchesQuery(terms: string[], query: string) {
-  const q = normalize(query);
-  if (!q) return true;
-  return terms.some((t) => normalize(t).includes(q) || q.includes(normalize(t)));
 }
 
 function entryToLocalitySuggestion(entry: (typeof LOCATION_DICTIONARY)[0]): LocationSuggestion | null {
@@ -49,6 +61,7 @@ function entryToSubLocalitySuggestion(entry: (typeof LOCATION_DICTIONARY)[0]): L
   };
 }
 
+/** @deprecated Use suggestLocationsAsync — static fallback for legacy sync callers. */
 export function suggestLocations(query: string, city: string, limitPerGroup = 6): LocationSuggestionGroups {
   const localities: LocationSuggestion[] = [];
   const subLocalities: LocationSuggestion[] = [];
@@ -58,7 +71,7 @@ export function suggestLocations(query: string, city: string, limitPerGroup = 6)
   for (const entry of LOCATION_DICTIONARY) {
     if (entry.city !== city || entry.isActive === false) continue;
     const terms = [entry.locality, entry.subLocality || "", ...entry.aliases].filter(Boolean);
-    if (!matchesQuery(terms, query)) continue;
+    if (!textMatchesLocationQuery(terms, query)) continue;
 
     const loc = entryToLocalitySuggestion(entry);
     if (loc && localities.length < limitPerGroup) localities.push(loc);
@@ -70,7 +83,7 @@ export function suggestLocations(query: string, city: string, limitPerGroup = 6)
   for (const p of PROJECT_SUGGESTIONS) {
     if (p.city !== city) continue;
     const terms = [p.label, p.projectOrSociety || "", ...p.searchTerms];
-    if (!matchesQuery(terms, query)) continue;
+    if (!textMatchesLocationQuery(terms, query)) continue;
     if (projects.length >= limitPerGroup) break;
     projects.push({ ...p, type: "project" });
   }
@@ -79,7 +92,7 @@ export function suggestLocations(query: string, city: string, limitPerGroup = 6)
     if ("city" in l && l.city !== city) continue;
     if (!("label" in l)) continue;
     const terms = [l.label, l.landmark || "", ...l.searchTerms];
-    if (!matchesQuery(terms, query)) continue;
+    if (!textMatchesLocationQuery(terms, query)) continue;
     if (landmarks.length >= limitPerGroup) break;
     landmarks.push({ ...l, type: "landmark" });
   }
@@ -99,17 +112,7 @@ export function getSuggestionById(id: string): LocationSuggestion | null {
   return null;
 }
 
-export function suggestionToStructured(s: LocationSuggestion): StructuredLocation {
-  return {
-    city: s.city,
-    locality: s.locality,
-    subLocality: s.subLocality,
-    projectOrSociety: s.projectOrSociety,
-    landmark: s.landmark,
-  };
-}
-
-/** Resolve free-text or suggestion id into structured search + match localities. */
+/** @deprecated Use resolveLocationSearchAsync */
 export function resolveLocationSearch(
   input: { query?: string; suggestionId?: string },
   defaultCity: string
@@ -186,30 +189,3 @@ function buildResolved(
   };
 }
 
-/** Apply structured location to property list API query params. */
-export function applyStructuredLocationToParams(
-  params: URLSearchParams,
-  resolved: ResolvedLocationSearch
-) {
-  params.set("city", resolved.city);
-
-  if (resolved.locality) params.set("locality", resolved.locality);
-  if (resolved.subLocality) params.set("subLocality", resolved.subLocality);
-  if (resolved.projectOrSociety) params.set("project", resolved.projectOrSociety);
-  if (resolved.landmark) params.set("landmark", resolved.landmark);
-
-  if (resolved.matchLocalities.length > 1) {
-    resolved.matchLocalities.forEach((loc) => params.append("nearbyLocality", loc));
-  }
-
-  const textParts = [
-    resolved.freeText,
-    resolved.projectOrSociety,
-    resolved.landmark,
-    resolved.subLocality,
-  ].filter(Boolean);
-
-  if (textParts.length > 0 && !params.get("q")) {
-    params.set("q", textParts.join(" "));
-  }
-}

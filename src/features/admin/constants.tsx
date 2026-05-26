@@ -6,6 +6,7 @@ import {
   UserCheck,
   MessageSquare,
   Settings,
+  MapPin,
 } from "lucide-react";
 
 export type AdminTab =
@@ -15,6 +16,7 @@ export type AdminTab =
   | "pending-brokers"
   | "all-users"
   | "all-leads"
+  | "locations"
   | "settings";
 
 export const ADMIN_NAV_ITEMS: { label: string; value: AdminTab; icon: React.ReactNode }[] = [
@@ -24,5 +26,6 @@ export const ADMIN_NAV_ITEMS: { label: string; value: AdminTab; icon: React.Reac
   { label: "Pending Brokers", value: "pending-brokers", icon: <UserCheck size={18} /> },
   { label: "All Users", value: "all-users", icon: <Users size={18} /> },
   { label: "All Leads", value: "all-leads", icon: <MessageSquare size={18} /> },
+  { label: "Locations", value: "locations", icon: <MapPin size={18} /> },
   { label: "Settings", value: "settings", icon: <Settings size={18} /> },
 ];

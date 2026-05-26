@@ -14,6 +14,7 @@ import {
   PendingBrokersSection,
   PendingPropertiesSection,
   SettingsSection,
+  LocationsSection,
   type AdminTab,
 } from "@/features/admin";
 
@@ -110,6 +111,7 @@ export default function AdminPage() {
         {activeTab === "pending-brokers" && <PendingBrokersSection />}
         {activeTab === "all-users" && <AllUsersSection />}
         {activeTab === "all-leads" && <AllLeadsSection />}
+        {activeTab === "locations" && <LocationsSection />}
         {activeTab === "settings" && <SettingsSection />}
       </main>
     </div>

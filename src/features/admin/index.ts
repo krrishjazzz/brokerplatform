@@ -5,3 +5,4 @@ export { AllPropertiesSection } from "./sections/all-properties-section";
 export { PendingBrokersSection } from "./sections/pending-brokers-section";
 export { AllUsersSection } from "./sections/all-users-section";
 export { SettingsSection } from "./sections/settings-section";
+export { LocationsSection } from "./sections/locations-section";

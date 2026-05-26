@@ -35,10 +35,14 @@ export function PropertySearchIntentMenu({
       : "flex h-full w-full items-center gap-1.5 px-4 py-3.5 text-left text-sm font-bold text-primary hover:bg-surface";
 
   return (
-    <div ref={menuRef} data-search-intent className={cn("relative z-20", className)}>
+    <div ref={menuRef} data-search-intent className={cn("relative z-30 shrink-0", className)}>
       <button
         type="button"
-        onClick={() => onOpenChange(!open)}
+        data-search-action
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenChange(!open);
+        }}
         aria-expanded={open}
         aria-haspopup="listbox"
         className={triggerClass}
@@ -51,7 +55,7 @@ export function PropertySearchIntentMenu({
           role="listbox"
           data-search-intent-menu
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute left-0 top-full z-[70] min-w-[16rem] rounded-lg border border-border bg-white py-2 shadow-[0_12px_40px_rgba(0,31,77,0.15)]"
+          className="absolute left-0 top-full z-[200] max-h-[min(70vh,24rem)] min-w-[16rem] overflow-y-auto rounded-lg border border-border bg-white py-2 shadow-[0_12px_40px_rgba(0,31,77,0.15)]"
         >
           {SEARCH_PRESET_GROUPS.map((group) => (
             <div key={group.label} className="px-2 py-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type MouseEvent } from "react";
-import { MapPin, Mic, Navigation, Search } from "lucide-react";
+import { MapPin, Mic, Navigation, Search, SlidersHorizontal } from "lucide-react";
 import { DEFAULT_SEARCH_CITY, getPresetMenuLabel, type IntentSearchFilters, type SearchPresetId } from "@/lib/search-intent-config";
 import { SEARCH_CITY_OPTIONS, SEARCH_LOCATION_OPTIONS } from "@/lib/search-location";
 import { LocationSearchInput } from "@/components/search/location-search-input";
@@ -64,14 +64,22 @@ export function PropertySearchBarRow({
   const handleShellClick = (e: MouseEvent) => {
     if (!isSingleRow || !onOpenOverlay) return;
     const target = e.target as HTMLElement;
-    if (target.closest("[data-search-intent]") || target.closest("[data-search-action]")) return;
+    if (
+      target.closest("[data-search-intent]") ||
+      target.closest("[data-search-action]") ||
+      target.closest("[data-search-input]") ||
+      target.closest("input") ||
+      target.closest("button")
+    ) {
+      return;
+    }
     onOpenOverlay();
   };
 
   return (
     <div
-      className={cn(barShell, isSingleRow && onOpenOverlay && "cursor-pointer", className)}
-      onClick={isSingleRow ? handleShellClick : undefined}
+      className={cn(barShell, className)}
+      onClick={isSingleRow && onOpenOverlay ? handleShellClick : undefined}
     >
       <div
         className={cn(
@@ -116,7 +124,7 @@ export function PropertySearchBarRow({
               <span className="truncate">{filters.city}</span>
             </button>
             {cityOpen && (
-              <div className="absolute left-0 top-full z-50 max-h-40 min-w-full overflow-y-auto border border-border bg-white py-1 shadow-card">
+              <div className="absolute left-0 top-full z-[200] max-h-40 min-w-full overflow-y-auto rounded-lg border border-border bg-white py-1 shadow-[0_12px_40px_rgba(0,31,77,0.15)]">
                 {SEARCH_CITY_OPTIONS.map((city) => (
                   <button
                     key={city}
@@ -161,10 +169,9 @@ export function PropertySearchBarRow({
               })
             }
             onKeyDown={(e) => e.key === "Enter" && onRunSearch()}
-            onFocus={isSingleRow ? openFilters : undefined}
-            onClick={isSingleRow ? openFilters : undefined}
             placeholder="Search locality, project, society, landmark"
             inputClassName={isSingleRow ? "text-sm text-foreground" : "text-sm"}
+            className="data-search-input relative z-30"
           />
           {!isSingleRow && (
             <datalist id="kj-search-locations">
@@ -197,6 +204,18 @@ export function PropertySearchBarRow({
           >
             <Mic size={isNavbar ? 15 : isCompact ? 16 : 18} />
           </button>
+          {isNavbar && onOpenOverlay && (
+            <button
+              type="button"
+              data-search-action
+              title="More filters"
+              onClick={openFilters}
+              className={navbarIconBtn}
+              aria-label="More filters"
+            >
+              <SlidersHorizontal size={15} />
+            </button>
+          )}
         </div>
 
         {isCompact ? (
