@@ -129,12 +129,6 @@ export function buildActiveFilters(
   if (filters.city && filters.city !== "Kolkata") {
     chips.push({ label: filters.city, clear: () => setters.setCity("") });
   }
-  if (filters.freshOnly) {
-    chips.push({ label: "Fresh", clear: () => setters.setFreshOnly(false) });
-  }
-  if (filters.readyToVisitOnly) {
-    chips.push({ label: "Ready to Visit", clear: () => setters.setReadyToVisitOnly(false) });
-  }
   if (filters.constructionStatus) {
     chips.push({
       label: labelForValue(CONSTRUCTION_STATUS_OPTIONS, filters.constructionStatus),

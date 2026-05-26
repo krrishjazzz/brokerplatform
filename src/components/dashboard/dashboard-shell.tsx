@@ -40,7 +40,7 @@ function DashboardShellInner({ basePath, loginRedirect, mode = "buyer" }: Dashbo
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(mode === "owner" ? "properties" : "overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {

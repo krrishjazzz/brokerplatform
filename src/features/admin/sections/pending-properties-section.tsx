@@ -26,7 +26,8 @@ export function PendingPropertiesSection() {
 
   const fetchProps = useCallback(async () => {
     try {
-      const res = await fetch("/api/properties?status=PENDING_REVIEW&limit=50");
+      const params = new URLSearchParams({ status: "PENDING_REVIEW", limit: "50" });
+      const res = await fetch(`/api/admin/properties?${params}`, { credentials: "include" });
       const data = await res.json();
       setProperties(data.properties || []);
     } catch {

@@ -134,8 +134,10 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const data: Record<string, unknown> = {};
-  if (body.name != null) data.name = String(body.name).trim();
-  if (body.slug != null) data.slug = String(body.slug).trim();
+  if (body.name != null) {
+    data.name = String(body.name).trim();
+    if (body.slug == null) data.slug = slugifyLocation(String(body.name));
+  }
   if (body.type != null) data.type = String(body.type);
   if (body.parentId !== undefined) data.parentId = body.parentId || null;
   if (body.cityId !== undefined) data.cityId = body.cityId || null;

@@ -1,4 +1,4 @@
-import { BellRing, Building2, Eye, Home, Key } from "lucide-react";
+import { Building2, Home, Key } from "lucide-react";
 import { PROPERTY_CATEGORY_OPTIONS } from "@/lib/constants";
 import { getPresetMenuLabel, resolvePresetFromUrl } from "@/lib/search-intent-config";
 
@@ -8,15 +8,6 @@ export const INTENT_LISTING_TABS = [
   { label: "Rent", value: "RENT", icon: Key },
   { label: "Commercial", value: "COMMERCIAL", icon: Building2 },
 ] as const;
-
-/** Quick filters on results — only differentiating signals. */
-export const RESULT_QUICK_FILTERS = [
-  { label: "Fresh", action: "fresh", icon: BellRing },
-  { label: "Ready to Visit", action: "ready", icon: Eye },
-] as const;
-
-/** @deprecated Use RESULT_QUICK_FILTERS */
-export const TRUST_FILTERS = RESULT_QUICK_FILTERS;
 
 export const QUICK_FILTERS = [
   { label: "2 BHK", action: "2bhk" },

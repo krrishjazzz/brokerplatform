@@ -114,7 +114,7 @@ export function getDefaultTab(ctx: NavContext): DashboardTab {
   const caps = deriveAuthCapabilities(ctx);
   const mode = ctx.mode ?? "buyer";
 
-  if (mode === "owner" && caps.canList) return "overview";
+  if (mode === "owner" && caps.canList) return "properties";
   if (caps.isApprovedBroker && mode !== "owner") return "enquiries";
   if (caps.isPendingBroker || caps.isRejectedBroker) return "application";
   if (caps.canList) return "overview";

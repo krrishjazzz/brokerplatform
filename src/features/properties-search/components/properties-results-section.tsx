@@ -193,12 +193,6 @@ export function PropertiesResultsSection({
         </div>
       )}
 
-      {!loading && visibleProperties.length > 0 && (
-        <div className="mt-8">
-          <RequirementPromoStrip variant="inline" onPostRequirement={onPostRequirement} />
-        </div>
-      )}
-
       {pagination && pagination.totalPages > 1 && (
         <PropertiesPagination
           page={page}

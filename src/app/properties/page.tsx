@@ -80,7 +80,6 @@ function PropertiesContent() {
     query,
     setQuery,
     clearFilters,
-    applyQuickFilter,
     currentFiltersObject,
     applySavedFilters,
     intentPreset,
@@ -267,9 +266,6 @@ function PropertiesContent() {
         city={city}
         onSearchNavigate={handleSearchNavigate}
         onToggleFilters={toggleFilters}
-        freshOnly={freshOnly}
-        readyToVisitOnly={readyToVisitOnly}
-        onQuickFilter={applyQuickFilter}
         hideInlineSearch
       />
 

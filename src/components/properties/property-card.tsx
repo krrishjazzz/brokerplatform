@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { BellRing, Building2, Eye, Heart, MapPin, Sparkles } from "lucide-react";
+import { Building2, Heart, MapPin, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatIntentAwarePrice, getListingIntentFromProperty } from "@/lib/posting-field-sync";
 import { cn } from "@/lib/utils";
 import { trackPropertyMetric } from "@/lib/track-property-metric";
 import type { Property, PropertySaveTarget } from "./types";
-import { badgeVariant, getFreshness, getSmartSpecs, listingLabel } from "./property-display";
+import { badgeVariant, getSmartSpecs, listingLabel } from "./property-display";
 
 interface PropertyCardProps {
   property: Property;
@@ -21,23 +21,8 @@ interface PropertyCardProps {
 }
 
 function getDifferentiatingBadges(property: Property) {
-  const freshness = getFreshness(property.updatedAt);
-  const badges: { label: string; icon: typeof BellRing; tone: string }[] = [];
+  const badges: { label: string; icon: typeof Sparkles; tone: string }[] = [];
 
-  if (freshness.score === "high") {
-    badges.push({
-      label: freshness.label,
-      icon: BellRing,
-      tone: "text-primary bg-primary-light border-primary/20",
-    });
-  }
-  if (property.readyToVisit) {
-    badges.push({
-      label: "Ready to Visit",
-      icon: Eye,
-      tone: "text-accent bg-accent/10 border-accent/20",
-    });
-  }
   if (property.listingStatus === "NEW_LAUNCH") {
     badges.push({
       label: "New Launch",
@@ -46,7 +31,7 @@ function getDifferentiatingBadges(property: Property) {
     });
   }
 
-  return badges.slice(0, 2);
+  return badges;
 }
 
 export function PropertyCard({
@@ -55,7 +40,6 @@ export function PropertyCard({
   trackSearchImpression = false,
   onSave,
 }: PropertyCardProps) {
-  const freshness = getFreshness(property.updatedAt);
   const image = property.coverImage || property.images[0];
   const specs = getSmartSpecs(property).slice(0, 3);
   const compareBadges = getDifferentiatingBadges(property);
@@ -133,13 +117,6 @@ export function PropertyCard({
               </span>
             </p>
           </Link>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant={freshness.variant}>
-              <BellRing size={11} className="mr-1" />
-              {freshness.label}
-            </Badge>
-          </div>
 
           {specs.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">

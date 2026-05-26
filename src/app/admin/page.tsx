@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, ShieldCheck, X } from "lucide-react";
+import { Menu, ShieldCheck, X, LogOut } from "lucide-react";
 import { AllLeadsSection } from "@/components/admin/leads-section";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import {
   ADMIN_NAV_ITEMS,
   AllPropertiesSection,
+  AllRequirementsSection,
   AllUsersSection,
   DashboardSection,
   PendingBrokersSection,
@@ -19,7 +20,7 @@ import {
 } from "@/features/admin";
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
@@ -102,12 +103,23 @@ export default function AdminPage() {
             </button>
           ))}
         </nav>
+
+        <div className="border-t border-border p-3">
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="flex w-full items-center gap-3 rounded-btn px-3 py-2.5 text-sm font-medium text-error transition-colors hover:bg-error/5"
+          >
+            <LogOut size={18} /> Logout
+          </button>
+        </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto p-4 lg:p-6">
         {activeTab === "dashboard" && <DashboardSection />}
         {activeTab === "pending-properties" && <PendingPropertiesSection />}
         {activeTab === "all-properties" && <AllPropertiesSection />}
+        {activeTab === "all-requirements" && <AllRequirementsSection />}
         {activeTab === "pending-brokers" && <PendingBrokersSection />}
         {activeTab === "all-users" && <AllUsersSection />}
         {activeTab === "all-leads" && <AllLeadsSection />}
