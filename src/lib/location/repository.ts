@@ -172,14 +172,14 @@ export async function loadLocationCache(force = false): Promise<LocationCache | 
     const byCityName = new Map<string, LocationRecord[]>();
     const cities: LocationRecord[] = [];
 
-    for (const record of byId.values()) {
+    for (const record of Array.from(byId.values())) {
       if (record.type === "city") {
         cities.push(record);
         byCityName.set(normalizeLocationText(record.name), []);
       }
     }
 
-    for (const record of byId.values()) {
+    for (const record of Array.from(byId.values())) {
       const cityKey = normalizeLocationText(record.cityName);
       if (!byCityName.has(cityKey)) byCityName.set(cityKey, []);
       const searchable: LocationType[] = ["locality", "sublocality", "landmark", "project", "zone", "city"];
