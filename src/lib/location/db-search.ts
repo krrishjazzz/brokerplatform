@@ -143,10 +143,11 @@ export async function getPopularLocationsAsync(city: string, limit = 8): Promise
   if (cache) {
     const cityKey = city.trim().toLowerCase();
     const popular = cache.popular.filter((r) => r.cityName.toLowerCase() === cityKey);
-    return popular
+    const suggestions = popular
       .map((r) => recordToSuggestion(r))
-      .filter((s): s is LocationSuggestion => Boolean(s))
-      .slice(0, limit);
+      .filter((s): s is LocationSuggestion => s !== null);
+
+    return suggestions.slice(0, limit);
   }
 
   const defaults = ["New Town", "Salt Lake", "Rajarhat", "Ballygunge", "Garia", "Park Street"];

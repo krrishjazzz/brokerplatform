@@ -211,7 +211,7 @@ export function invalidateLocationCache() {
   globalRef.__locationCache = undefined;
 }
 
-export function recordToSuggestion(record: LocationRecord) {
+export function recordToSuggestion(record: LocationRecord): import("@/lib/location/types").LocationSuggestion | null {
   const type = mapSuggestionType(record.type);
   if (!type) return null;
 
