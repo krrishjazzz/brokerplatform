@@ -51,7 +51,7 @@ export default function BrokerCrmPage() {
     stageFilter || undefined,
     searchQuery || undefined
   );
-  const { listings, loading: listingsLoading, refetch: refetchListings } = useBrokerCrmListings(isReady);
+  const { listings, loading: listingsLoading } = useBrokerCrmListings(isReady);
 
   const activeClients = useMemo(
     () => clients.filter((client) => !["WON", "LOST"].includes(client.stage)),
