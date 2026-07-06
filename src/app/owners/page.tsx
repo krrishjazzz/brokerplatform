@@ -172,7 +172,7 @@ export default function OwnersPage() {
               Post for free today and let KrrishJazz handle verified exposure and managed enquiries.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link href="/owners/dashboard?tab=post">
+              <Link href="#owner-auth">
                 <Button size="lg" className="bg-white text-primary hover:bg-white/95">
                   Post Property Free
                 </Button>

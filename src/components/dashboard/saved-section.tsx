@@ -53,7 +53,7 @@ export function SavedSection() {
           <Heart size={48} className="mx-auto text-text-secondary mb-3" />
           <p className="text-text-secondary">No saved properties.</p>
           <Button className="mt-4" onClick={() => (window.location.href = "/properties")}>
-            Browse Properties
+            Search properties
           </Button>
         </div>
       ) : (

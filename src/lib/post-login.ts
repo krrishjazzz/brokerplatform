@@ -1,4 +1,6 @@
 import type { LoginIntent } from "@/lib/login-intent";
+import { profileCanList } from "@/lib/capabilities";
+import { getDefaultHomeHref, getOwnerLandingHref } from "@/lib/user-journey";
 import { persistLastWorkspace, type WorkspaceMode } from "@/lib/workspace";
 
 export type PostLoginUser = {
@@ -17,7 +19,7 @@ export function sanitizeRedirect(path: string | null | undefined): string | null
 
 /**
  * Single routing table after OTP / session restore.
- * Priority: admin -> explicit broker intent -> owner intent -> safe redirect -> browse default.
+ * Priority: admin -> explicit broker intent -> owner intent -> safe redirect -> default home.
  */
 export function resolvePostLoginDestination(
   user: PostLoginUser,
@@ -43,8 +45,8 @@ export function resolvePostLoginDestination(
       destination = "/brokers#broker-auth";
     }
   } else if (intent === "owner") {
-    workspace = "owner";
-    destination = "/owners/dashboard";
+    workspace = profileCanList(user) ? "owner" : "buyer";
+    destination = getOwnerLandingHref(user);
   } else if (safeRedirect) {
     destination = safeRedirect;
     workspace = safeRedirect.startsWith("/owners/dashboard")
@@ -55,8 +57,9 @@ export function resolvePostLoginDestination(
           ? "admin"
           : "buyer";
   } else {
-    destination = "/properties";
-    workspace = "buyer";
+    destination = getDefaultHomeHref(user);
+    workspace =
+      destination.startsWith("/broker") ? "broker" : destination.startsWith("/owners") ? "owner" : "buyer";
   }
 
   if (typeof window !== "undefined") {

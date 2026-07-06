@@ -39,7 +39,7 @@ export function BrowsePropertiesButton({
     <>
       <button type="button" onClick={handleClick} className={cn(buttonClass, className)}>
         <Search size={16} />
-        Browse Properties
+        Search properties
       </button>
       {useOverlay && (
         <MarketplaceSearchOverlay open={overlayOpen} onClose={() => setOverlayOpen(false)} />

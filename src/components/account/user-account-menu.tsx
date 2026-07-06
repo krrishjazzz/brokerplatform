@@ -3,17 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Briefcase,
   Building2,
   ChevronDown,
   Heart,
-  LayoutDashboard,
   LogOut,
   MessageSquare,
   Search,
   Shield,
   User,
 } from "lucide-react";
+import { WorkspaceSwitcher } from "@/components/account/workspace-switcher";
 import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import { deriveAuthCapabilities } from "@/lib/capabilities";
@@ -21,8 +20,11 @@ import {
   BUYER_DASHBOARD_PATH,
   OWNER_DASHBOARD_PATH,
 } from "@/lib/dashboard-paths";
+import { getListPropertyHref } from "@/lib/user-journey";
 import {
   deriveWorkspaceCapabilities,
+  getWorkspaceModeFromPath,
+  getWorkspaceSwitcherOptions,
   persistLastWorkspace,
   type WorkspaceMode,
   workspaceModeLabel,
@@ -45,7 +47,8 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const activeWorkspace = workspaceMode ?? (pathname ? getModeFromPath(pathname) : "buyer");
+  const activeWorkspace =
+    workspaceMode ?? (pathname ? getWorkspaceModeFromPath(pathname) : "buyer");
 
   const navigateTo = (href: string, workspace?: WorkspaceMode) => {
     if (workspace) persistLastWorkspace(workspace);
@@ -111,6 +114,13 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
     ownerStatus: user.ownerStatus,
     hasBrokerApplication: user.hasBrokerApplication,
   });
+  const switcherOptions = getWorkspaceSwitcherOptions({
+    role: user.role,
+    brokerStatus: user.brokerStatus,
+    canList: user.canList,
+    ownerStatus: user.ownerStatus,
+    hasBrokerApplication: user.hasBrokerApplication,
+  });
 
   const menuBadgeLabel =
     activeWorkspace === "owner" && wsCaps.canList
@@ -133,7 +143,9 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
   const profileHref =
     activeWorkspace === "owner" && wsCaps.canList
       ? `${OWNER_DASHBOARD_PATH}?tab=profile`
-      : `${BUYER_DASHBOARD_PATH}?tab=profile`;
+      : activeWorkspace === "broker"
+        ? `${BUYER_DASHBOARD_PATH}?tab=profile`
+        : `${BUYER_DASHBOARD_PATH}?tab=profile`;
 
   const renderMenuBody = () => {
     if (caps.isAdmin) {
@@ -152,49 +164,74 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
 
     return (
       <div className="px-2 py-2">
-        {wsCaps.canList && (
+        <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+          Quick links
+        </p>
+        {(activeWorkspace === "broker" || activeWorkspace === "owner") && (
           <MenuItem
-            icon={<LayoutDashboard size={16} />}
-            label="Owner Dashboard"
-            href={OWNER_DASHBOARD_PATH}
-            active={activeWorkspace === "owner"}
-            onClick={(href) => navigateTo(href, "owner")}
+            icon={<Search size={16} />}
+            label="Customer view"
+            href="/properties"
+            active={pathname?.startsWith("/properties")}
+            onClick={(href) => navigateTo(href, "buyer")}
           />
         )}
-        <MenuItem
-          icon={<Search size={16} />}
-          label="Browse Properties"
-          href="/properties"
-          active={activeWorkspace === "buyer" && pathname?.startsWith("/properties")}
-          onClick={(href) => navigateTo(href, "buyer")}
-        />
-        <MenuItem
-          icon={<Heart size={16} />}
-          label="Saved Properties"
-          href={`${BUYER_DASHBOARD_PATH}?tab=saved`}
-          onClick={(href) => navigateTo(href, "buyer")}
-        />
-        <MenuItem
-          icon={<MessageSquare size={16} />}
-          label="My Buyer Enquiries"
-          href={`${BUYER_DASHBOARD_PATH}?tab=enquiries`}
-          onClick={(href) => navigateTo(href, "buyer")}
-        />
-        {wsCaps.canUseBrokerWorkspace && (
+        {activeWorkspace === "buyer" && (
           <MenuItem
-            icon={<Briefcase size={16} />}
-            label="Broker Workspace"
+            icon={<Search size={16} />}
+            label="Search properties"
+            href="/properties"
+            active={pathname?.startsWith("/properties")}
+            onClick={(href) => navigateTo(href, "buyer")}
+          />
+        )}
+        {activeWorkspace !== "owner" && (
+          <>
+            <MenuItem
+              icon={<Heart size={16} />}
+              label="Saved properties"
+              href={`${BUYER_DASHBOARD_PATH}?tab=saved`}
+              onClick={(href) => navigateTo(href, "buyer")}
+            />
+            <MenuItem
+              icon={<MessageSquare size={16} />}
+              label="My enquiries"
+              href={`${BUYER_DASHBOARD_PATH}?tab=enquiries`}
+              onClick={(href) => navigateTo(href, "buyer")}
+            />
+          </>
+        )}
+        {activeWorkspace === "owner" && wsCaps.canList && (
+          <>
+            <MenuItem
+              icon={<MessageSquare size={16} />}
+              label="Listing enquiries"
+              href={`${OWNER_DASHBOARD_PATH}?tab=enquiries`}
+              onClick={(href) => navigateTo(href, "owner")}
+            />
+          </>
+        )}
+        {wsCaps.canUseBrokerWorkspace && activeWorkspace !== "broker" && (
+          <MenuItem
+            icon={<Building2 size={16} />}
+            label="Partner workspace"
             href="/broker/properties"
-            active={activeWorkspace === "broker"}
-            emphasis
             onClick={(href) => navigateTo(href, "broker")}
           />
         )}
-        {(caps.isPendingBroker || caps.isRejectedBroker) && !wsCaps.canList && (
+        {(caps.isPendingBroker || caps.isRejectedBroker) && !wsCaps.canUseBrokerWorkspace && (
           <MenuItem
             icon={<Building2 size={16} />}
             label="Partner application"
             href={`${BUYER_DASHBOARD_PATH}?tab=application`}
+            onClick={navigateTo}
+          />
+        )}
+        {!wsCaps.canList && activeWorkspace === "buyer" && (
+          <MenuItem
+            icon={<Building2 size={16} />}
+            label="List a property"
+            href={getListPropertyHref(user)}
             onClick={navigateTo}
           />
         )}
@@ -233,7 +270,7 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-white text-foreground shadow-modal">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-white text-foreground shadow-modal">
           <div className="border-b border-border px-4 py-3">
             <p className="text-sm font-semibold text-foreground">{user.name || user.phone}</p>
             <p className="mt-0.5 text-xs text-text-secondary">{workspaceModeLabel(activeWorkspace)}</p>
@@ -241,6 +278,18 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
               {menuBadgeLabel}
             </Badge>
           </div>
+
+          {!caps.isAdmin && switcherOptions.length > 1 && (
+            <div className="border-b border-border px-4 py-3">
+              <WorkspaceSwitcher
+                options={switcherOptions}
+                activeMode={activeWorkspace === "admin" ? "buyer" : activeWorkspace}
+                variant="menu"
+                onNavigate={() => setOpen(false)}
+              />
+            </div>
+          )}
+
           {renderMenuBody()}
           <div className="border-t border-border px-4 py-3">
             <button
@@ -258,14 +307,6 @@ export function UserAccountMenu({ tone = "dark", workspaceMode, className }: Use
       )}
     </div>
   );
-}
-
-function getModeFromPath(pathname: string): WorkspaceMode {
-  if (pathname.startsWith("/admin")) return "admin";
-  if (pathname.startsWith("/broker")) return "broker";
-  if (pathname.startsWith("/owners/dashboard")) return "owner";
-  if (pathname.startsWith("/properties")) return "buyer";
-  return "buyer";
 }
 
 function MenuItem({

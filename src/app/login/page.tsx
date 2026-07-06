@@ -50,7 +50,7 @@ function LoginPageContent() {
 
         <section className="flex flex-col items-center justify-center">
           <div className="w-full max-w-md">
-            <AuthCard intent={intent} redirect={safeRedirect} variant="page" allowIntentSwitch />
+            <AuthCard intent={intent} redirect={safeRedirect} variant="page" allowIntentSwitch={intent !== "buyer"} />
             {intent === "buyer" && (
               <p className="mt-4 text-center text-xs text-text-secondary">
                 <Link href="/" className="font-medium text-primary hover:underline">

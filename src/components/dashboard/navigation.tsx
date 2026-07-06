@@ -39,21 +39,6 @@ export function getOwnerNavItems(): DashboardNavItem[] {
   ];
 }
 
-function getBrokerNavItems(): DashboardNavItem[] {
-  return [
-    {
-      id: "broker-workspace",
-      label: "Broker Workspace",
-      icon: <Briefcase size={iconSize} />,
-      href: "/broker/properties",
-      emphasis: true,
-    },
-    { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
-    { id: "saved", label: "Saved Properties", icon: <Heart size={iconSize} /> },
-    { id: "profile", label: "Profile", icon: <User size={iconSize} /> },
-  ];
-}
-
 function getBuyerNavItems(): DashboardNavItem[] {
   return [
     { id: "enquiries", label: "My Enquiries", icon: <MessageSquare size={iconSize} /> },
@@ -85,29 +70,28 @@ export function getNavItems(ctx: NavContext): DashboardNavItem[] {
     return getOwnerNavItems();
   }
 
-  if (caps.isApprovedBroker) {
-    return getBrokerNavItems();
-  }
+  let items = getBuyerNavItems();
 
-  if (caps.isPendingBroker || caps.isRejectedBroker) {
-    if (caps.canList) {
-      return [
-        { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
-        ...getOwnerNavItems(),
-      ];
-    }
-    return [
+  if (caps.isApprovedBroker) {
+    items = [
+      {
+        id: "broker-workspace",
+        label: "Partner workspace",
+        icon: <Briefcase size={iconSize} />,
+        href: "/broker/properties",
+        emphasis: true,
+      },
+      ...items,
+    ];
+  } else if (caps.isPendingBroker || caps.isRejectedBroker) {
+    items = [
       { id: "application", label: "Broker Application", icon: <ClipboardList size={iconSize} /> },
-      ...getBuyerNavItems().filter((i) => i.id !== "post"),
+      ...items.filter((i) => i.id !== "post"),
       { id: "post", label: "List a Property", icon: <PlusCircle size={iconSize} /> },
     ];
   }
 
-  if (caps.canList) {
-    return getOwnerNavItems();
-  }
-
-  return getBuyerNavItems();
+  return items;
 }
 
 export function getDefaultTab(ctx: NavContext): DashboardTab {
@@ -115,8 +99,6 @@ export function getDefaultTab(ctx: NavContext): DashboardTab {
   const mode = ctx.mode ?? "buyer";
 
   if (mode === "owner" && caps.canList) return "properties";
-  if (caps.isApprovedBroker && mode !== "owner") return "enquiries";
   if (caps.isPendingBroker || caps.isRejectedBroker) return "application";
-  if (caps.canList) return "overview";
   return "enquiries";
 }

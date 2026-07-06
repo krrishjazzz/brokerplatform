@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getListPropertyMarketingHref } from "@/lib/user-journey";
 
 export function OwnerListPropertyCta() {
   return (
@@ -43,7 +44,7 @@ export function OwnerListPropertyCta() {
                 ))}
               </ul>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/owners/dashboard?tab=post">
+              <Link href={getListPropertyMarketingHref()}>
                   <Button size="lg" className="min-w-44 gap-2">
                     <PlusCircle size={18} />
                     Post Property Free

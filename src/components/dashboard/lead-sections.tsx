@@ -194,7 +194,7 @@ export function EnquiriesSection() {
           <MessageSquare size={48} className="mx-auto text-text-secondary mb-3" />
           <p className="text-text-secondary">You haven&apos;t sent any enquiries yet.</p>
           <Button className="mt-4" onClick={() => (window.location.href = "/properties")}>
-            Browse Properties
+            Search properties
           </Button>
         </div>
       ) : (

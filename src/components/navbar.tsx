@@ -8,8 +8,12 @@ import { useAuth } from "@/lib/auth-context";
 import { useLoginPopup } from "@/lib/login-popup-context";
 import { usePropertySearchNavbar } from "@/lib/property-search-navbar-context";
 import { UserAccountMenu } from "@/components/account/user-account-menu";
-import { profileCanList } from "@/lib/capabilities";
-import { getAppHomeHref, isOwnerDashboardPath, OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
+import { canAccessBrokerWorkspace, profileCanList } from "@/lib/capabilities";
+import {
+  getAppHomeHref,
+  isOwnerDashboardPath,
+} from "@/lib/dashboard-paths";
+import { getListPropertyHref } from "@/lib/user-journey";
 import { usesWorkspaceChrome } from "@/lib/workspace";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +44,10 @@ function NavbarInner() {
 
   const activeNavKey = getNavActiveKey(pathname, searchParams);
   const canList = user ? profileCanList(user) : false;
-  const homeHref = getAppHomeHref(canList);
+  const isBroker = user ? canAccessBrokerWorkspace(user.brokerStatus) : false;
+  const homeHref = getAppHomeHref(user);
+  const listPropertyHref = getListPropertyHref(user);
+  const listPropertyLabel = canList ? "My listings" : "List property";
   const isPropertiesPage = pathname.startsWith("/properties");
   const { compactActive, compactBar } = usePropertySearchNavbar();
   const showNavbarCompactSearch = isPropertiesPage && compactActive && compactBar;
@@ -85,14 +92,26 @@ function NavbarInner() {
                 </Link>
               ))}
               <Link
-                href={canList ? OWNER_DASHBOARD_PATH : "/owners"}
-                className={navLinkClass(pathname.startsWith("/owners"))}
+                href={listPropertyHref}
+                className={navLinkClass(
+                  isOwnerDashboardPath(pathname) || pathname.startsWith("/owners")
+                )}
               >
-                {canList ? "My Dashboard" : "List Property"}
+                {listPropertyLabel}
               </Link>
-              <Link href="/brokers" className={navLinkClass(pathname.startsWith("/brokers"))}>
-                For Brokers
-              </Link>
+              {isBroker && (
+                <Link
+                  href="/broker/properties"
+                  className={navLinkClass(pathname.startsWith("/broker"))}
+                >
+                  Partner workspace
+                </Link>
+              )}
+              {!isBroker && (
+                <Link href="/brokers" className={navLinkClass(pathname.startsWith("/brokers"))}>
+                  For brokers
+                </Link>
+              )}
             </div>
           )}
 
@@ -127,7 +146,7 @@ function NavbarInner() {
               </Link>
             ))}
             <Link
-              href={canList ? OWNER_DASHBOARD_PATH : "/owners"}
+              href={listPropertyHref}
               className={cn(
                 "block rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
                 isOwnerDashboardPath(pathname) || pathname.startsWith("/owners")
@@ -135,17 +154,29 @@ function NavbarInner() {
                   : "text-white/85 hover:bg-white/10"
               )}
             >
-              {canList ? "Owner Dashboard" : "List Property"}
+              {listPropertyLabel}
             </Link>
-            <Link
-              href="/brokers"
-              className={cn(
-                "block rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-                pathname.startsWith("/brokers") ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"
-              )}
-            >
-              For Brokers
-            </Link>
+            {isBroker ? (
+              <Link
+                href="/broker/properties"
+                className={cn(
+                  "block rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+                  pathname.startsWith("/broker") ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"
+                )}
+              >
+                Partner workspace
+              </Link>
+            ) : (
+              <Link
+                href="/brokers"
+                className={cn(
+                  "block rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+                  pathname.startsWith("/brokers") ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"
+                )}
+              >
+                For brokers
+              </Link>
+            )}
             {!user && (
               <button
                 type="button"

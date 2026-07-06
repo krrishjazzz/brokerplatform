@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/lib/auth-context";
+import { canAccessBrokerWorkspace } from "@/lib/capabilities";
+import { getListPropertyHref } from "@/lib/user-journey";
 import { usesWorkspaceChrome } from "@/lib/workspace";
 import { buildPlatformWhatsAppUrl, normalizePlatformPhoneForTel } from "@/lib/platform";
 
@@ -21,6 +24,7 @@ export function KrrishJazzAssistant() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
   if (usesWorkspaceChrome(pathname ?? "")) return null;
@@ -36,7 +40,7 @@ export function KrrishJazzAssistant() {
       label: "Post Free Listing",
       detail: "Owners can list without upfront charges.",
       icon: <Home size={16} />,
-      onClick: () => router.push("/owners/dashboard?tab=post"),
+      onClick: () => router.push(getListPropertyHref(user)),
     },
     {
       label: "Request Callback",
@@ -51,7 +55,12 @@ export function KrrishJazzAssistant() {
       label: "Broker Help",
       detail: "Open demand and inventory workbench.",
       icon: <Building2 size={16} />,
-      onClick: () => router.push("/broker/properties"),
+      onClick: () =>
+        router.push(
+          user && canAccessBrokerWorkspace(user.brokerStatus)
+            ? "/broker/properties"
+            : "/brokers"
+        ),
     },
     {
       label: "WhatsApp Support",

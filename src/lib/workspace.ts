@@ -100,14 +100,60 @@ export function workspaceHomeHref(mode: WorkspaceMode, caps: WorkspaceCapabiliti
 export function workspaceModeLabel(mode: WorkspaceMode): string {
   switch (mode) {
     case "owner":
-      return "Owner Dashboard";
+      return "My listings";
     case "buyer":
-      return "Marketplace";
+      return "My search";
     case "broker":
-      return "Broker Workspace";
+      return "Partner workspace";
     case "admin":
       return "Admin";
     default:
       return "KrrishJazz";
   }
+}
+
+export type WorkspaceSwitcherOption = {
+  mode: Exclude<WorkspaceMode, "admin">;
+  label: string;
+  shortLabel: string;
+  href: string;
+  enabled: boolean;
+  hint?: string;
+};
+
+/** Earned workspace chips — one account, multiple dashboards. */
+export function getWorkspaceSwitcherOptions(user: AccountCapabilityUser): WorkspaceSwitcherOption[] {
+  const wsCaps = deriveWorkspaceCapabilities(user);
+
+  const options: WorkspaceSwitcherOption[] = [
+    {
+      mode: "buyer",
+      label: "My search",
+      shortLabel: "Search",
+      href: "/properties",
+      enabled: true,
+    },
+  ];
+
+  if (wsCaps.canList) {
+    options.push({
+      mode: "owner",
+      label: "My listings",
+      shortLabel: "Listings",
+      href: OWNER_DASHBOARD_PATH,
+      enabled: true,
+    });
+  }
+
+  if (wsCaps.canUseBrokerWorkspace) {
+    options.push({
+      mode: "broker",
+      label: "Partner workspace",
+      shortLabel: "Partner",
+      href: "/broker/properties",
+      enabled: true,
+    });
+  }
+
+  return options;
 }

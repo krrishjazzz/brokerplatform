@@ -57,21 +57,13 @@ export async function middleware(request: NextRequest) {
 
     const canList = Boolean(payload.canList);
 
-    if (pathname === "/" && canList) {
-      return NextResponse.redirect(new URL("/owners/dashboard", request.url));
-    }
-
-    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
-      if (canList) {
-        const url = new URL("/owners/dashboard", request.url);
-        url.search = request.nextUrl.search;
-        return NextResponse.redirect(url);
-      }
-    }
-
     if (pathname.startsWith("/owners/dashboard") && !canList) {
       const url = new URL("/dashboard", request.url);
-      url.search = request.nextUrl.search;
+      url.searchParams.set("tab", "post");
+      const existingSearch = request.nextUrl.searchParams;
+      existingSearch.forEach((value, key) => {
+        if (key !== "tab") url.searchParams.set(key, value);
+      });
       return NextResponse.redirect(url);
     }
 

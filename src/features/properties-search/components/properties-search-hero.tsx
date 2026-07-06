@@ -7,7 +7,6 @@ import { IntentSearchPanel } from "@/components/search/intent-search-panel";
 import { getBrowseIntentLabel } from "@/components/properties/search-options";
 import { PropertiesTrustBanner } from "@/features/properties-search/components/properties-trust-banner";
 import { useAuth } from "@/lib/auth-context";
-import { profileCanList } from "@/lib/capabilities";
 import { getAppHomeHref } from "@/lib/dashboard-paths";
 
 type PropertiesSearchHeroProps = {
@@ -29,9 +28,8 @@ export function PropertiesSearchHero({
 }: PropertiesSearchHeroProps) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const canList = user ? profileCanList(user) : false;
-  const homeHref = getAppHomeHref(canList);
-  const homeLabel = canList ? "Dashboard" : "Home";
+  const homeHref = getAppHomeHref(user);
+  const homeLabel = user ? "Search" : "Home";
   const displayCity = city.trim() || "Kolkata";
   const intentLabel = getBrowseIntentLabel(listingType, category, preset);
 

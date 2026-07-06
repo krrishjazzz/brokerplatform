@@ -40,7 +40,7 @@ export function LoginPopupProvider({ children }: { children: ReactNode }) {
       redirect: next?.redirect ?? null,
       title: next?.title,
       subtitle: next?.subtitle,
-      allowIntentSwitch: next?.allowIntentSwitch ?? true,
+      allowIntentSwitch: next?.allowIntentSwitch ?? false,
       onSuccess: next?.onSuccess,
     });
     setIsOpen(true);

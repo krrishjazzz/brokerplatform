@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { deriveAuthCapabilities } from "@/lib/capabilities";
 import type { useAuth } from "@/lib/auth-context";
+import { getWorkspaceSwitcherOptions } from "@/lib/workspace";
+import { WorkspaceSwitcher } from "@/components/account/workspace-switcher";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getNavItems } from "@/components/dashboard/navigation";
@@ -38,6 +40,8 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const caps = deriveAuthCapabilities(ctx);
   const navItems = getNavItems(ctx).filter((item) => item.id !== "broker-workspace");
+  const switcherOptions = getWorkspaceSwitcherOptions(ctx);
+  const activeWorkspace = ctx.mode === "owner" ? "owner" : "buyer";
   const sidebarAccountLabel =
     ctx.mode === "owner" && caps.canList
       ? caps.canPostProperty
@@ -97,6 +101,17 @@ export function DashboardSidebar({
             </button>
           </div>
         </div>
+
+        {!caps.isAdmin && switcherOptions.length > 1 && (
+          <div className="border-b border-border px-3 py-3">
+            <WorkspaceSwitcher
+              options={switcherOptions}
+              activeMode={activeWorkspace}
+              variant="menu"
+              onNavigate={onCloseSidebar}
+            />
+          </div>
+        )}
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-3" aria-label="Dashboard sections">
           {navItems.map((item) => {

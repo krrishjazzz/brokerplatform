@@ -256,14 +256,17 @@ export default function BrokerPropertiesPage() {
                 <Network size={14} />
                 Broker inventory exchange
               </div>
-              <h1 className="text-3xl font-semibold sm:text-4xl">Broker Network Properties</h1>
+              <h1 className="text-3xl font-semibold sm:text-4xl">Broker inventory</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">
-                Scan broker-visible inventory, match requirements, and contact verified brokers directly while customers still see KrrishJazz.
+                All broker-visible listings, including inventory not shown on public search. Use customer view to preview what buyers see on KrrishJazz.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={() => router.push("/broker/requirements")}>
                   <Target size={15} className="mr-2" />
                   View demand desk
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => router.push("/properties")} className="border border-white/20 text-white hover:bg-white/10">
+                  Customer view
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setClientFocus("matches")} className="border border-white/20 text-white hover:bg-white/10">
                   <BellRing size={15} className="mr-2" />

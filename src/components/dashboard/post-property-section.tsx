@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Home, Loader2, Save } from "lucide-react";
@@ -16,6 +17,7 @@ import {
   syncPrimaryFieldsFromTypeDetails,
 } from "@/lib/posting-field-sync";
 import { dashboardFetch } from "@/lib/dashboard-api";
+import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
 import {
   MIN_IMAGES_RECOMMENDED,
   validatePostingPayload,
@@ -352,6 +354,7 @@ export function PostPropertySection({
       });
       if (res.ok) {
         await refreshUser();
+        toast("Listing access requested. KrrishJazz will review your account shortly.", "success");
       } else {
         const err = await res.json();
         toast(err.error || "Could not enable owner listing access", "error");
@@ -376,6 +379,13 @@ export function PostPropertySection({
               ? "Your listing access was not approved. Contact KrrishJazz support to re-apply."
               : "KrrishJazz is reviewing your owner access. You can browse the dashboard; posting and edits unlock after approval."}
           </p>
+          {user.ownerStatus !== "REJECTED" && (
+            <Link href={OWNER_DASHBOARD_PATH} className="mt-4 inline-block">
+              <Button variant="outline" size="sm" type="button">
+                Go to My listings
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     );

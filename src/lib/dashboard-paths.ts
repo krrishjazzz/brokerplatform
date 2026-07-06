@@ -1,15 +1,20 @@
-/** Buyer/customer workspace */
+/** Buyer/customer workspace — saved, enquiries, requirements */
 export const BUYER_DASHBOARD_PATH = "/dashboard";
 
 /** Owner listing command center */
 export const OWNER_DASHBOARD_PATH = "/owners/dashboard";
 
-export function getDashboardBasePath(canList: boolean): string {
-  return canList ? OWNER_DASHBOARD_PATH : BUYER_DASHBOARD_PATH;
+/** My activity dashboard — same path for all users */
+export function getActivityDashboardPath(): string {
+  return BUYER_DASHBOARD_PATH;
 }
 
-export function dashboardTabHref(canList: boolean, tab: string): string {
-  return `${getDashboardBasePath(canList)}?tab=${tab}`;
+export function dashboardTabHref(tab: string): string {
+  return `${BUYER_DASHBOARD_PATH}?tab=${tab}`;
+}
+
+export function ownerDashboardTabHref(tab: string): string {
+  return `${OWNER_DASHBOARD_PATH}?tab=${tab}`;
 }
 
 export function isOwnerDashboardPath(pathname: string): boolean {
@@ -20,7 +25,9 @@ export function isBuyerDashboardPath(pathname: string): boolean {
   return pathname === BUYER_DASHBOARD_PATH || pathname.startsWith(`${BUYER_DASHBOARD_PATH}/`);
 }
 
-/** Logo / “Home” for logged-in owners — dashboard instead of marketing homepage. */
-export function getAppHomeHref(canList: boolean): string {
-  return canList ? OWNER_DASHBOARD_PATH : "/";
+/** Logo / breadcrumb home — search-first for all non-admin users. */
+export function getAppHomeHref(user?: { role?: string } | null): string {
+  if (!user) return "/";
+  if (user.role === "ADMIN") return "/admin";
+  return "/properties";
 }

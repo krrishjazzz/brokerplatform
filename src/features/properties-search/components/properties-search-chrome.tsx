@@ -7,8 +7,7 @@ import { PropertySearchShell } from "@/components/search/property-search-shell";
 import { getBrowseIntentLabel } from "@/components/properties/search-options";
 import { PropertiesTrustBanner } from "@/features/properties-search/components/properties-trust-banner";
 import { useAuth } from "@/lib/auth-context";
-import { profileCanList } from "@/lib/capabilities";
-import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
+import { getAppHomeHref } from "@/lib/dashboard-paths";
 
 type PropertiesSearchChromeProps = {
   listingType: string;
@@ -32,9 +31,8 @@ export function PropertiesSearchChrome({
 }: PropertiesSearchChromeProps) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const canList = user ? profileCanList(user) : false;
-  const homeHref = canList ? OWNER_DASHBOARD_PATH : "/";
-  const homeLabel = canList ? "Owner Dashboard" : "Home";
+  const homeHref = getAppHomeHref(user);
+  const homeLabel = user ? "Search" : "Home";
   const displayCity = city.trim() || "Kolkata";
   const intentLabel = getBrowseIntentLabel(listingType, category, preset);
 

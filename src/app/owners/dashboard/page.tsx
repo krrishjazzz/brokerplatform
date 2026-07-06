@@ -2,7 +2,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
 
 export const metadata = {
-  title: "Owner Dashboard | KrrishJazz",
+  title: "My listings | KrrishJazz",
   description: "Manage listings, enquiries, visits, and closure support.",
 };
 

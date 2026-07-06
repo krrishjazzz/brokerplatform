@@ -14,7 +14,6 @@ export function OwnerWorkspaceHeader() {
     <SearchWorkspaceHeader
       logoHref={OWNER_DASHBOARD_PATH}
       workspaceMode="owner"
-      hideOwnerDashboardLink
       trailingActions={
         <Link
           href={postHref}

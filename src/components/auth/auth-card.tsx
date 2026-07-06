@@ -18,9 +18,9 @@ import {
   type LoginIntent,
 } from "@/lib/login-intent";
 import { LoginIntentSelector } from "@/components/auth/login-intent-selector";
-import { getDashboardBasePath } from "@/lib/dashboard-paths";
+import { getActivityDashboardPath } from "@/lib/dashboard-paths";
+import { getOwnerLandingHref } from "@/lib/user-journey";
 import { resolvePostLoginDestination, sanitizeRedirect } from "@/lib/post-login";
-import { profileCanList } from "@/lib/capabilities";
 import {
   formatPhoneDisplay,
   formatPhoneInputValue,
@@ -53,7 +53,7 @@ export function AuthCard({
   variant = "inline",
   title,
   subtitle,
-  allowIntentSwitch = true,
+  allowIntentSwitch = false,
   className,
   onSuccess,
 }: AuthCardProps) {
@@ -251,7 +251,7 @@ export function AuthCard({
         const { user: meUser } = await meRes.json();
         finishAuth(meUser);
       } else if (activeIntent === "owner") {
-        router.push("/owners/dashboard");
+        router.push(getOwnerLandingHref({ role: "CUSTOMER", canList: false }));
       } else {
         router.push(safeRedirect ?? "/properties");
       }
@@ -284,10 +284,10 @@ export function AuthCard({
           </Button>
         ) : (
           <Link
-            href={user ? getDashboardBasePath(profileCanList(user)) : "/dashboard"}
+            href={user ? getActivityDashboardPath() : "/dashboard"}
             className="mt-4 inline-block text-sm font-semibold text-primary hover:underline"
           >
-            Open your dashboard
+            Open my activity
           </Link>
         )}
       </div>

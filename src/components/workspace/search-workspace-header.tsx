@@ -18,17 +18,19 @@ import {
   PropertySearchFiltersStrip,
 } from "@/components/search/property-search-filters-strip";
 import { UserAccountMenu } from "@/components/account/user-account-menu";
+import { WorkspaceSwitcher } from "@/components/account/workspace-switcher";
 import { useAuth } from "@/lib/auth-context";
-import { profileCanList } from "@/lib/capabilities";
-import { deriveWorkspaceCapabilities, persistLastWorkspace, type WorkspaceMode } from "@/lib/workspace";
-import { getAppHomeHref, OWNER_DASHBOARD_PATH } from "@/lib/dashboard-paths";
+import { getAppHomeHref } from "@/lib/dashboard-paths";
+import {
+  getWorkspaceSwitcherOptions,
+  persistLastWorkspace,
+  type WorkspaceMode,
+} from "@/lib/workspace";
 
 export type SearchWorkspaceHeaderProps = {
   /** Logo target — defaults to marketplace search. */
   logoHref?: string;
   workspaceMode?: WorkspaceMode;
-  /** Hide when already on owner dashboard. */
-  hideOwnerDashboardLink?: boolean;
   /** Shown before profile menu (e.g. Post Property on owner dashboard). */
   trailingActions?: ReactNode;
 };
@@ -36,7 +38,6 @@ export type SearchWorkspaceHeaderProps = {
 export function SearchWorkspaceHeader({
   logoHref,
   workspaceMode = "buyer",
-  hideOwnerDashboardLink = false,
   trailingActions,
 }: SearchWorkspaceHeaderProps) {
   const router = useRouter();
@@ -44,18 +45,10 @@ export function SearchWorkspaceHeader({
   const { user } = useAuth();
   const headerRef = useRef<HTMLElement>(null);
 
-  const resolvedLogoHref =
-    logoHref ?? (user ? getAppHomeHref(profileCanList(user)) : "/");
+  const resolvedLogoHref = logoHref ?? (user ? getAppHomeHref(user) : "/");
 
-  const caps = user
-    ? deriveWorkspaceCapabilities({
-        role: user.role,
-        brokerStatus: user.brokerStatus,
-        canList: user.canList,
-        ownerStatus: user.ownerStatus,
-        hasBrokerApplication: user.hasBrokerApplication,
-      })
-    : null;
+  const switcherOptions = user ? getWorkspaceSwitcherOptions(user) : null;
+  const resolvedWorkspaceMode = workspaceMode === "owner" ? "owner" : "buyer";
 
   const [draftFilters, setDraftFilters] = useState<IntentSearchFilters>(() =>
     parseIntentSearchFromUrl(searchParams)
@@ -168,19 +161,18 @@ export function SearchWorkspaceHeader({
               </div>
 
               <div className="relative z-10 flex h-14 shrink-0 items-center gap-2">
-                {caps?.canList && !hideOwnerDashboardLink && (
-                  <Link
-                    href={OWNER_DASHBOARD_PATH}
-                    className="hidden rounded-lg border border-white/25 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/10 sm:inline-block lg:text-sm"
-                  >
-                    Owner Dashboard
-                  </Link>
+                {user && switcherOptions && (
+                  <div className="hidden lg:block">
+                    <WorkspaceSwitcher
+                      options={switcherOptions}
+                      activeMode={resolvedWorkspaceMode}
+                      variant="header"
+                      className="w-[280px]"
+                    />
+                  </div>
                 )}
                 {trailingActions}
-                <UserAccountMenu
-                  tone="dark"
-                  workspaceMode={workspaceMode === "owner" ? "owner" : "buyer"}
-                />
+                <UserAccountMenu tone="dark" workspaceMode={resolvedWorkspaceMode} />
               </div>
             </div>
           </div>

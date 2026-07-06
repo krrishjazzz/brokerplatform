@@ -126,9 +126,9 @@ export function AccountStatusBanner({
         <div className="rounded-card border border-border bg-white p-4">
           <div className="flex items-center gap-2 text-primary">
             <Search size={18} />
-            <p className="font-semibold text-foreground">Signed in as buyer</p>
+            <p className="font-semibold text-foreground">Signed in for search</p>
           </div>
-          <p className="mt-2 text-sm text-text-secondary">Track enquiries and saved properties from this dashboard.</p>
+          <p className="mt-2 text-sm text-text-secondary">Track saved properties and enquiries from my activity.</p>
         </div>
         <div className="rounded-card border border-primary/15 bg-primary-light/40 p-4">
           <div className="flex items-center gap-2 text-primary">
@@ -136,7 +136,7 @@ export function AccountStatusBanner({
             <p className="font-semibold text-foreground">Want to list?</p>
           </div>
           <p className="mt-2 text-sm text-text-secondary">Enable owner listing on the same account.</p>
-          <Link href="/owners/dashboard?tab=post" className="mt-2 inline-block text-sm font-semibold text-primary hover:underline">
+          <Link href="/dashboard?tab=post" className="mt-2 inline-block text-sm font-semibold text-primary hover:underline">
             List a property
           </Link>
         </div>
