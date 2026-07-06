@@ -121,3 +121,51 @@ export type PropertyInput = z.infer<typeof propertySchema>;
 export type EnquiryInput = z.infer<typeof enquirySchema>;
 export type SearchRequirementInput = z.infer<typeof searchRequirementSchema>;
 export type RequirementInput = z.infer<typeof requirementSchema>;
+
+const crmPhoneSchema = z
+  .string()
+  .min(10, "Phone is required")
+  .max(16, "Invalid phone");
+
+export const brokerClientSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  phone: crmPhoneSchema,
+  altPhone: crmPhoneSchema.optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal("")),
+  intent: z.enum(["BUY", "RENT", "LEASE", "SELL"]).default("BUY"),
+  city: z.string().optional().or(z.literal("")),
+  localities: z.array(z.string()).default([]),
+  propertyTypes: z.array(z.string()).default([]),
+  budgetMin: z.coerce.number().positive().optional(),
+  budgetMax: z.coerce.number().positive().optional(),
+  bhk: z.coerce.number().int().min(0).optional(),
+  stage: z.enum(["NEW", "CONTACTED", "VISIT_SCHEDULED", "NEGOTIATION", "WON", "LOST"]).default("NEW"),
+  seriousness: z.enum(["HOT", "WARM", "COLD"]).default("WARM"),
+  source: z.enum(["CALL", "WHATSAPP", "REFERRAL", "WALK_IN", "KRRISHJAZZ"]).default("WHATSAPP"),
+  notes: z.string().optional().or(z.literal("")),
+  shortlistedIds: z.array(z.string()).default([]),
+  nextFollowUpAt: z.string().optional().or(z.literal("")),
+  enquiryId: z.string().optional().or(z.literal("")),
+});
+
+export const brokerClientUpdateSchema = brokerClientSchema.partial();
+
+export const brokerTaskSchema = z.object({
+  clientId: z.string().optional().or(z.literal("")),
+  propertyId: z.string().optional().or(z.literal("")),
+  type: z.enum(["CALL", "WHATSAPP", "VISIT", "REMIND"]).default("WHATSAPP"),
+  title: z.string().min(2, "Title is required"),
+  note: z.string().optional().or(z.literal("")),
+  dueAt: z.string().min(1, "Due date is required"),
+});
+
+export const brokerShareSchema = z.object({
+  clientId: z.string().min(1),
+  propertyIds: z.array(z.string()).min(1).max(5),
+  templateKey: z.string().optional(),
+  customMessage: z.string().optional(),
+});
+
+export type BrokerClientInput = z.infer<typeof brokerClientSchema>;
+export type BrokerTaskInput = z.infer<typeof brokerTaskSchema>;
+export type BrokerShareInput = z.infer<typeof brokerShareSchema>;

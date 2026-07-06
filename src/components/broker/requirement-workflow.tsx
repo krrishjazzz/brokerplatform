@@ -1,16 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import {
-  BellRing,
   Building2,
   Clock,
   Loader2,
   MapPin,
   MessageCircle,
+  MoreHorizontal,
   Phone,
   Share2,
   Target,
-  UserCheck,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,76 +70,86 @@ export function RequirementCard({ requirement, onCallBroker, onWhatsApp, onShare
   const age = getAgeSignal(requirement.createdAt);
   const budgetText = getBudgetText(requirement);
   const hasMatches = requirement.matchedPropertiesCount > 0;
+  const seriousness = requirement.clientSeriousness || "MEDIUM";
 
   return (
-    <article className="overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="grid lg:grid-cols-[1fr_260px]">
-        <div className="p-4 lg:p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge variant={age.variant}>
-              <BellRing size={11} className="mr-1" />
-              {age.label}
-            </Badge>
-            <Badge variant={hasMatches ? "accent" : "warning"}>
-              <Target size={11} className="mr-1" />
-              {hasMatches ? `${requirement.matchedPropertiesCount} matches` : "Inventory gap"}
-            </Badge>
-            <Badge variant="blue">{requirement.propertyType}</Badge>
-          </div>
-
-          <h2 className="line-clamp-2 text-base font-semibold leading-snug text-foreground sm:text-lg lg:text-xl">{requirement.description}</h2>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-secondary sm:text-sm">
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={14} className="text-primary" />
-              {requirement.locality ? `${requirement.locality}, ` : ""}{requirement.city}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Clock size={14} className={age.tone} />
-              Posted {new Date(requirement.createdAt).toLocaleDateString("en-IN")}
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <InfoTile label="Budget" value={budgetText} />
-            <InfoTile label="Need" value={requirement.propertyType} />
-            <InfoTile label="Network" value={hasMatches ? "Inventory available" : "Find supply"} highlight={hasMatches} />
-          </div>
-        </div>
-
-        <div className="border-t border-border bg-surface p-4 lg:border-l lg:border-t-0 lg:p-5">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-white">
-              <UserCheck size={19} />
+    <article className="overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:shadow-lift">
+      <div className="p-4 lg:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <Badge variant={age.variant} className="text-[10px]">
+                {age.label}
+              </Badge>
+              <Badge variant={hasMatches ? "accent" : "warning"} className="text-[10px]">
+                {hasMatches ? `${requirement.matchedPropertiesCount} matches` : "Gap"}
+              </Badge>
+              <Badge variant="blue" className="text-[10px]">{requirement.propertyType}</Badge>
+              <Badge variant="default" className="text-[10px]">{seriousness}</Badge>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{requirement.broker.name}</p>
-              <p className="text-xs text-text-secondary">{requirement.broker.phone || "Phone unavailable"}</p>
+
+            <h2 className="line-clamp-2 text-base font-semibold leading-snug text-foreground lg:text-lg">
+              {requirement.description}
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={13} className="text-primary" />
+                {requirement.locality ? `${requirement.locality}, ` : ""}{requirement.city}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock size={13} />
+                {new Date(requirement.createdAt).toLocaleDateString("en-IN")}
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-3">
+              <InfoTile label="Budget" value={budgetText} highlight={hasMatches} />
+              <InfoTile label="Type" value={requirement.propertyType} />
+              <InfoTile label="Broker" value={requirement.broker.name} />
             </div>
           </div>
 
-          <div className="grid gap-2">
-            <Button variant="accent" size="sm" onClick={() => onMatchProperty(requirement)} className="w-full">
-              <Building2 size={14} className="mr-2" />
-              View Matches
+          <div className="flex shrink-0 flex-wrap gap-2 lg:w-64 lg:flex-col" onClick={(event) => event.stopPropagation()}>
+            <Button variant="accent" size="sm" onClick={() => onMatchProperty(requirement)} className="flex-1 lg:w-full">
+              <Target size={14} className="mr-1.5" />
+              Match
             </Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={() => onWhatsApp(requirement.broker.phone || "", requirement)}>
-                <MessageCircle size={14} className="mr-1" />
-                WhatsApp
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onCallBroker(requirement.broker.phone || "", requirement)}>
-                <Phone size={14} className="mr-1" />
-                Call
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => onShareRequirement(requirement)} className="w-full">
-              <Share2 size={14} className="mr-2" />
-              Share Requirement
+            <Button variant="outline" size="sm" onClick={() => onWhatsApp(requirement.broker.phone || "", requirement)} className="flex-1 lg:w-full">
+              <MessageCircle size={14} className="mr-1.5" />
+              WhatsApp
             </Button>
+            <RequirementMoreMenu
+              onCall={() => onCallBroker(requirement.broker.phone || "", requirement)}
+              onShare={() => onShareRequirement(requirement)}
+            />
           </div>
         </div>
       </div>
     </article>
+  );
+}
+
+function RequirementMoreMenu({ onCall, onShare }: { onCall: () => void; onShare: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <Button variant="ghost" size="sm" onClick={() => setOpen((value) => !value)} aria-label="More actions">
+        <MoreHorizontal size={16} />
+      </Button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-card border border-border bg-white py-1 shadow-modal">
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface" onClick={() => { onCall(); setOpen(false); }}>
+              <Phone size={13} /> Call
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface" onClick={() => { onShare(); setOpen(false); }}>
+              <Share2 size={13} /> Share
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

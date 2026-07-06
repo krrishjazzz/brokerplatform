@@ -17,6 +17,53 @@ const allowedEvents = new Set([
   "MATCH_ACTION_CLICKED",
 ]);
 
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session || session.brokerStatus !== "APPROVED") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const limit = Math.min(Number(searchParams.get("limit") || 20), 50);
+
+    const collaborations = await prisma.collaboration.findMany({
+      where: {
+        OR: [{ initiatorId: session.id }, { recipientId: session.id }],
+        ...(status ? { status } : {}),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      include: {
+        property: { select: { id: true, title: true, slug: true, city: true, price: true } },
+        requirement: { select: { id: true, description: true, city: true, propertyType: true } },
+        initiator: { select: { id: true, name: true } },
+        recipient: { select: { id: true, name: true } },
+      },
+    });
+
+    return NextResponse.json({
+      collaborations: collaborations.map((item) => ({
+        id: item.id,
+        status: item.status,
+        lastAction: item.lastAction,
+        source: item.source,
+        updatedAt: item.updatedAt.toISOString(),
+        property: item.property
+          ? { ...item.property, price: Number(item.property.price) }
+          : null,
+        requirement: item.requirement,
+        initiator: item.initiator,
+        recipient: item.recipient,
+      })),
+    });
+  } catch (error) {
+    console.error("Broker collaborations GET error:", error);
+    return NextResponse.json({ error: "Failed to load collaborations" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();

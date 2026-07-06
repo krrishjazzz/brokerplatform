@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
   Building2,
   Filter,
-  Loader2,
-  MessageCircle,
-  Network,
   Search,
   Target,
   X,
@@ -16,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { BrokerPropertyCardSkeleton } from "@/components/broker/broker-skeletons";
 import { BrokerWorkflowCard, ChipButton, FilterBlock, MetricCard } from "@/components/broker/broker-primitives";
 import { getFreshness, getRequirementBudget } from "@/components/broker/formatters";
 import { BrokerPropertyDetailsModal, BrokerPropertyCard, MatchingRequirementsDrawer } from "@/components/broker/property-workflow";
@@ -32,9 +30,12 @@ import {
   useBrokerUrlFilters,
 } from "@/features/broker-exchange";
 import { PaginationBar } from "@/shared/components/pagination-bar";
+import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
+import { dismissWorkflowTips as dismissTips, recordWorkflowTipsVisit, shouldShowWorkflowTips } from "@/lib/broker-storage";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
 import { BROKER_QUICK_FILTER_TYPES, PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
+import { MessageCircle } from "lucide-react";
 
 const QUICK_FILTERS = [
   { label: "High match", action: "matches" },
@@ -43,6 +44,21 @@ const QUICK_FILTERS = [
   { label: "Warehouse", action: "warehouse" },
   { label: "Rent", action: "rent" },
 ];
+
+const TIPS_PAGE_KEY = "inventory";
+
+function isQuickFilterActive(
+  action: string,
+  clientFocus: string,
+  selectedListingType: string,
+  selectedPropertyType: string
+) {
+  if (action === clientFocus) return true;
+  if (action === "rent" && selectedListingType === "RENT") return true;
+  if (action === "office" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.OFFICE) return true;
+  if (action === "warehouse" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.WAREHOUSE) return true;
+  return false;
+}
 
 export default function BrokerPropertiesPage() {
   const router = useRouter();
@@ -61,6 +77,19 @@ export default function BrokerPropertiesPage() {
   const [clientFocus, setClientFocus] = useState<"all" | "matches" | "fresh">("all");
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [matchProperty, setMatchProperty] = useState<Property | null>(null);
+  const [showWorkflowTips, setShowWorkflowTips] = useState(false);
+
+  useEffect(() => {
+    recordWorkflowTipsVisit(TIPS_PAGE_KEY);
+    setShowWorkflowTips(shouldShowWorkflowTips(TIPS_PAGE_KEY));
+  }, []);
+
+  const handleDismissTips = () => {
+    dismissTips(TIPS_PAGE_KEY);
+    setShowWorkflowTips(false);
+  };
+
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
   useBrokerUrlFilters({
     city: setSelectedCity,
@@ -72,7 +101,7 @@ export default function BrokerPropertiesPage() {
 
   const apiFilters = useMemo(
     () => ({
-      q: searchQuery || undefined,
+      q: debouncedSearch || undefined,
       listingType: selectedListingType || undefined,
       category: selectedCategory || undefined,
       propertyType: selectedPropertyType || undefined,
@@ -82,7 +111,7 @@ export default function BrokerPropertiesPage() {
       maxPrice: maxPrice || undefined,
       sort: selectedSort || undefined,
     }),
-    [searchQuery, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort]
+    [debouncedSearch, selectedListingType, selectedCategory, selectedPropertyType, selectedLocality, selectedCity, minPrice, maxPrice, selectedSort]
   );
 
   const { properties, loading, page, setPage, pagination, refetch } = useBrokerInventory(apiFilters, isReady);
@@ -248,107 +277,165 @@ export default function BrokerPropertiesPage() {
 
   return (
     <main className="min-h-screen bg-surface pb-20 lg:pb-8">
-      <section className="bg-primary text-white">
-        <div className="mx-auto max-w-7xl px-4 py-7 lg:px-6">
-          <div className="grid gap-5 lg:grid-cols-[1fr_420px] lg:items-end">
-            <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-pill border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85">
-                <Network size={14} />
-                Broker inventory exchange
-              </div>
-              <h1 className="text-3xl font-semibold sm:text-4xl">Broker inventory</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">
-                All broker-visible listings, including inventory not shown on public search. Use customer view to preview what buyers see on KrrishJazz.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={() => router.push("/broker/requirements")}>
-                  <Target size={15} className="mr-2" />
-                  View demand desk
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => router.push("/properties")} className="border border-white/20 text-white hover:bg-white/10">
-                  Customer view
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setClientFocus("matches")} className="border border-white/20 text-white hover:bg-white/10">
-                  <BellRing size={15} className="mr-2" />
-                  Show hot matches
-                </Button>
-              </div>
-            </div>
+      {/* Zone A — compact title strip */}
+      <section className="border-b border-white/10 bg-primary-dark text-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 lg:px-6">
+          <h1 className="text-2xl font-semibold sm:text-3xl">Broker inventory</h1>
+          <p className="mt-1 max-w-2xl text-sm text-white/75">
+            Broker-visible supply — includes listings not on public search.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="inverse" size="sm" onClick={() => router.push("/broker/requirements")}>
+              <Target size={15} className="mr-2" />
+              Demand desk
+            </Button>
+            <Button variant="inverse-outline" size="sm" onClick={() => router.push("/properties")}>
+              Customer view
+            </Button>
+            <Button
+              variant="inverse-outline"
+              size="sm"
+              onClick={() => setClientFocus(clientFocus === "matches" ? "all" : "matches")}
+            >
+              <BellRing size={15} className="mr-2" />
+              Hot matches
+            </Button>
+          </div>
+        </div>
+      </section>
 
-            <div className="grid grid-cols-2 gap-2">
-              <MetricCard label="Inventory" value={properties.length} tone="default" />
-              <MetricCard label="Fresh" value={freshListings} tone="success" />
-              <MetricCard label="Matched" value={hotMatches} tone="accent" />
-              <MetricCard label="On hold" value={onHold} tone="warning" />
+      {/* Zone B — search toolbar (white) */}
+      <section className="sticky z-20 border-b border-border bg-white shadow-sm" style={{ top: "var(--broker-header-height, 7rem)" }}>
+        <div className="mx-auto max-w-7xl px-4 py-3 lg:px-6">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="relative min-h-11 flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    setPage(1);
+                    refetch();
+                  }
+                }}
+                placeholder="Search title, locality, city, property type..."
+                className="h-11 w-full rounded-btn border border-border bg-white pl-10 pr-3 text-sm outline-none placeholder:text-text-secondary focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  refetch();
+                }}
+                variant="accent"
+                size="sm"
+                className="flex-1 lg:flex-none"
+              >
+                Search
+              </Button>
+              <Button
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                variant="outline"
+                size="sm"
+                className="relative flex-1 lg:flex-none"
+              >
+                <Filter size={16} className="mr-2" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
 
-          <div className="mt-5 rounded-card border border-white/15 bg-white p-2 shadow-card">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="relative min-h-12 flex-1">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      setPage(1);
-                      refetch();
-                    }
-                  }}
-                  placeholder="Search title, locality, city, property type..."
-                  className="h-12 w-full rounded-btn bg-surface pl-10 pr-3 text-sm outline-none placeholder:text-text-secondary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => { setPage(1); refetch(); }} variant="accent" className="flex-1 lg:flex-none">
-                  Search
-                </Button>
-                <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="ghost" className="flex-1 lg:flex-none">
-                  <Filter size={16} className="mr-2" />
-                  Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
-              {QUICK_FILTERS.map((filter) => (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {QUICK_FILTERS.map((filter) => {
+              const active = isQuickFilterActive(
+                filter.action,
+                clientFocus,
+                selectedListingType,
+                selectedPropertyType
+              );
+              return (
                 <button
                   key={filter.label}
                   type="button"
                   onClick={() => applyQuickFilter(filter.action)}
                   className={cn(
-                    "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-                    (filter.action === clientFocus || (filter.action === "rent" && selectedListingType === "RENT") || (filter.action === "office" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.OFFICE) || (filter.action === "warehouse" && selectedPropertyType === BROKER_QUICK_FILTER_TYPES.WAREHOUSE))
+                    "cursor-pointer rounded-pill border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors",
+                    active
                       ? "border-primary bg-primary text-white"
-                      : "border-border bg-surface text-text-secondary hover:border-primary/40 hover:text-primary"
+                      : "border-border bg-white text-foreground hover:border-primary/50 hover:text-primary"
                   )}
                 >
                   {filter.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Zone C — metrics + alerts on surface */}
+      <section className="border-b border-border bg-surface">
+        <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 lg:px-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MetricCard label="Inventory" value={properties.length} tone="default" />
+            <MetricCard label="Fresh" value={freshListings} tone="success" />
+            <MetricCard label="Matched" value={hotMatches} tone="accent" />
+            <MetricCard label="On hold" value={onHold} tone="warning" />
           </div>
 
-          <div className="mt-4 grid gap-2 text-primary lg:grid-cols-3">
-            <BrokerWorkflowCard icon={<Search size={16} />} title="Find inventory" text="Use city, type, and budget filters before sharing." />
-            <BrokerWorkflowCard icon={<Target size={16} />} title="Match demand" text="Open matching requirements from every property card." />
-            <BrokerWorkflowCard icon={<MessageCircle size={16} />} title="Close faster" text="Call or WhatsApp verified brokers with ready-to-send property context." />
-          </div>
-
-          <div className="mt-3 rounded-card border border-white/15 bg-white/10 p-3 text-white">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {followUpCount > 0 && (
+            <div className="flex flex-col gap-2 rounded-card border border-warning/30 bg-warning-light/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold">Broker CRM cue</p>
-                <p className="mt-1 text-xs leading-5 text-white/75">
-                  {followUpCount} listing{followUpCount === 1 ? "" : "s"} need follow-up from matches or freshness checks.
+                <p className="text-sm font-semibold text-foreground">Follow-ups needed</p>
+                <p className="mt-0.5 text-xs text-text-secondary">
+                  {followUpCount} listing{followUpCount === 1 ? "" : "s"} have matches or freshness checks pending.
                 </p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setClientFocus("matches")} className="border border-white/20 text-white hover:bg-white/10">
-                Open follow-ups
+              <Button variant="outline" size="sm" onClick={() => setClientFocus("matches")}>
+                View matches
               </Button>
             </div>
-          </div>
+          )}
+
+          {showWorkflowTips && (
+            <div className="rounded-card border border-border bg-white p-4 shadow-card">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold text-foreground">How partner inventory works</p>
+                <button
+                  type="button"
+                  onClick={handleDismissTips}
+                  className="rounded-lg p-1 text-text-secondary hover:bg-surface hover:text-foreground"
+                  aria-label="Dismiss tips"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="grid gap-2 lg:grid-cols-3">
+                <BrokerWorkflowCard
+                  icon={<Search size={16} />}
+                  title="Find inventory"
+                  text="Filter by city, type, and budget before sharing."
+                />
+                <BrokerWorkflowCard
+                  icon={<Target size={16} />}
+                  title="Match demand"
+                  text="Open matching requirements from any property card."
+                />
+                <BrokerWorkflowCard
+                  icon={<MessageCircle size={16} />}
+                  title="Close faster"
+                  text="Call or WhatsApp brokers with ready context."
+                />
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -358,8 +445,8 @@ export default function BrokerPropertiesPage() {
 
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
         <aside className={cn(
-          "h-fit shrink-0 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:w-72",
-          filtersOpen ? "fixed inset-x-0 bottom-0 top-0 z-40 block rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4" : "hidden"
+          "h-fit shrink-0 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:w-72 lg:top-[calc(var(--broker-header-height,7rem)+1rem)]",
+          filtersOpen ? "fixed inset-x-0 bottom-0 top-0 z-40 block rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4" : "hidden lg:block"
         )}>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -471,26 +558,26 @@ export default function BrokerPropertiesPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <div className="mb-4 rounded-card border border-border bg-white p-4 shadow-card">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {visibleProperties.length} properties ready for broker action
-                </p>
-                <p className="mt-1 text-xs text-text-secondary">
-                  {highMatchListings} with matching requirements, {freshListings} fresh this week.
-                </p>
-              </div>
+          {!loading && visibleProperties.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-text-secondary">
+                <span className="font-semibold text-foreground">{visibleProperties.length}</span> properties
+                {highMatchListings > 0 && (
+                  <> · <span className="font-semibold text-accent">{highMatchListings}</span> with matches</>
+                )}
+              </p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="accent">{hotMatches} total matches</Badge>
-                <Badge variant="success">{freshListings} fresh</Badge>
+                {hotMatches > 0 && <Badge variant="accent">{hotMatches} matches</Badge>}
+                {freshListings > 0 && <Badge variant="success">{freshListings} fresh</Badge>}
               </div>
             </div>
-          </div>
+          )}
 
           {loading ? (
-            <div className="flex h-96 items-center justify-center rounded-card border border-border bg-white shadow-card">
-              <Loader2 size={38} className="animate-spin text-primary" />
+            <div className="grid grid-cols-1 gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <BrokerPropertyCardSkeleton key={index} />
+              ))}
             </div>
           ) : visibleProperties.length === 0 ? (
             <div className="rounded-card border border-dashed border-border bg-white p-8 shadow-card">
@@ -552,24 +639,6 @@ export default function BrokerPropertiesPage() {
         }}
       />
 
-      <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <div>
-            <p className="text-xs text-text-secondary">Broker action desk</p>
-            <p className="text-sm font-bold text-foreground">{visibleProperties.length} supply, {hotMatches} matches</p>
-          </div>
-          <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary">Clear</button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="outline" className="w-full">
-            <Filter size={16} className="mr-2" />
-            Filters{activeFiltersCount ? ` (${activeFiltersCount})` : ""}
-          </Button>
-          <Button onClick={() => { setPage(1); refetch(); }} variant="accent" className="w-full">
-            Refresh
-          </Button>
-        </div>
-      </div>
     </main>
   );
 }

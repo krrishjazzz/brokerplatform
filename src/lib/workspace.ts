@@ -92,7 +92,7 @@ export function getLastWorkspace(): WorkspaceMode | null {
 
 export function workspaceHomeHref(mode: WorkspaceMode, caps: WorkspaceCapabilities): string {
   if (mode === "admin") return "/admin";
-  if (mode === "broker") return "/broker/properties";
+  if (mode === "broker") return "/broker/overview";
   if (mode === "owner" && caps.canList) return OWNER_DASHBOARD_PATH;
   return "/properties";
 }
@@ -150,7 +150,7 @@ export function getWorkspaceSwitcherOptions(user: AccountCapabilityUser): Worksp
       mode: "broker",
       label: "Partner workspace",
       shortLabel: "Partner",
-      href: "/broker/properties",
+      href: "/broker/overview",
       enabled: true,
     });
   }

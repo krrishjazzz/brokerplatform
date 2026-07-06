@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "accent" | "outline";
+  variant?: "primary" | "secondary" | "ghost" | "accent" | "outline" | "inverse" | "inverse-outline";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 }
@@ -15,6 +15,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ghost: "bg-white text-foreground hover:bg-primary-light border border-border",
       accent: "bg-accent text-white shadow-[0_4px_14px_rgb(217_119_6/0.35)] hover:bg-accent/90",
       outline: "bg-white text-primary border border-border-strong hover:bg-surface",
+      /** Filled control on dark headers (broker hero, nav bars). */
+      inverse: "border border-white/20 bg-white text-primary shadow-sm hover:bg-white/95",
+      /** Outlined control on dark headers — always visible label. */
+      "inverse-outline":
+        "border border-white/35 bg-white/10 text-white shadow-sm hover:bg-white/20 hover:border-white/50",
     };
     const sizes = {
       sm: "px-3 py-1.5 text-sm",

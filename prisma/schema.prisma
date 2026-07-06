@@ -31,6 +31,9 @@ model Profile {
   receivedCollabs    Collaboration[] @relation("ReceivedCollaborations")
   activityEvents     ActivityEvent[]
   freshnessUpdates   ListingFreshness[]
+  brokerClients      BrokerClient[]  @relation("BrokerClients")
+  brokerTasks          BrokerTask[]    @relation("BrokerTasks")
+  brokerLeadShares     BrokerLeadShare[] @relation("BrokerLeadShares")
 }
 
 model BrokerProfile {
@@ -108,6 +111,7 @@ model Property {
   collaborations   Collaboration[]
   freshnessHistory ListingFreshness[]
   metricDays       PropertyMetricDaily[]
+  brokerLeadShares BrokerLeadShare[]
 
   @@index([city, locality, status, listingType, category])
   @@index([visibilityType, listingStatus])
@@ -298,4 +302,75 @@ model PropertyMetricDaily {
 
   @@unique([propertyId, day])
   @@index([propertyId])
+}
+
+model BrokerClient {
+  id             String           @id @default(cuid())
+  brokerId       String
+  broker         Profile          @relation("BrokerClients", fields: [brokerId], references: [id])
+  name           String
+  phone          String
+  altPhone       String?
+  email          String?
+  intent         String           @default("BUY")
+  city           String           @default("")
+  localities     String           @default("[]")
+  propertyTypes  String           @default("[]")
+  budgetMin      Decimal?
+  budgetMax      Decimal?
+  bhk            Int?
+  stage          String           @default("NEW")
+  seriousness    String           @default("WARM")
+  source         String           @default("WHATSAPP")
+  notes          String           @default("")
+  shortlistedIds String           @default("[]")
+  nextFollowUpAt DateTime?
+  lastContactAt  DateTime?
+  enquiryId      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  tasks          BrokerTask[]
+  shares         BrokerLeadShare[]
+
+  @@unique([brokerId, phone])
+  @@index([brokerId, stage])
+  @@index([brokerId, nextFollowUpAt])
+  @@index([brokerId, seriousness])
+}
+
+model BrokerTask {
+  id         String        @id @default(cuid())
+  brokerId   String
+  broker     Profile       @relation("BrokerTasks", fields: [brokerId], references: [id])
+  clientId   String?
+  client     BrokerClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  propertyId String?
+  type       String        @default("WHATSAPP")
+  title      String
+  note       String?
+  dueAt      DateTime
+  status     String        @default("PENDING")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([brokerId, status, dueAt])
+  @@index([clientId])
+}
+
+model BrokerLeadShare {
+  id          String       @id @default(cuid())
+  brokerId    String
+  broker      Profile      @relation("BrokerLeadShares", fields: [brokerId], references: [id])
+  clientId    String
+  client      BrokerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  propertyId  String?
+  property    Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyIds String       @default("[]")
+  messageBody String
+  templateKey String?
+  channel     String       @default("WHATSAPP")
+  createdAt   DateTime     @default(now())
+
+  @@index([brokerId, clientId])
+  @@index([clientId, createdAt])
 }

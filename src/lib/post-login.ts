@@ -38,7 +38,7 @@ export function resolvePostLoginDestination(
   if (intent === "broker") {
     workspace = "broker";
     if (user.brokerStatus === "APPROVED") {
-      destination = "/broker/properties";
+      destination = "/broker/overview";
     } else if (user.hasBrokerApplication) {
       destination = "/dashboard?tab=application";
     } else {

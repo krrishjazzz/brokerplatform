@@ -1,17 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import {
-  BadgeCheck,
-  BellRing,
   Building2,
   Eye,
   Loader2,
   MapPin,
   MessageCircle,
+  MoreHorizontal,
   Phone,
   Share,
   Target,
-  UserCheck,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,130 +43,148 @@ interface BrokerPropertyCardProps {
 
 export function BrokerPropertyCard({ property, onViewDetails, onContactBroker, onWhatsApp, onShare, onFindRequirements }: BrokerPropertyCardProps) {
   const sourceLabel = property.sourceLabel || property.publicBrokerName || "Broker Network Property";
-  const sourceName = property.sourceName || sourceLabel;
   const sourcePhone = property.sourcePhone || "";
-  const sourceTone = property.sourceType === "YOUR_PROPERTY" ? "success" : property.sourceType === "KRRISHJAZZ_OWNER_PROPERTY" ? "blue" : "accent";
   const pricePerUnit = property.area ? Math.round(property.price / property.area) : 0;
   const freshness = getFreshness(property.updatedAt);
   const availability = getAvailability(property);
   const imageUrl = property.coverImage || property.images?.[0] || "";
+  const visibilityLabel = getVisibilityLabel(property.visibilityType);
+  const extraBadges = [
+    property.verified ? "Verified" : null,
+    property.listingType,
+    property.propertyType,
+  ].filter(Boolean).length;
 
   return (
-    <article className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="grid sm:grid-cols-[180px_1fr] lg:grid-cols-[260px_1fr]">
-        <div className="relative h-44 overflow-hidden bg-surface sm:h-full lg:h-full">
+    <article
+      className="group overflow-hidden rounded-card border border-border bg-white shadow-card transition-all hover:shadow-lift"
+      onClick={() => onViewDetails(property)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onViewDetails(property);
+        }
+      }}
+    >
+      <div className="grid sm:grid-cols-[160px_1fr] lg:grid-cols-[220px_1fr]">
+        <div className="relative h-40 overflow-hidden bg-surface sm:h-full">
           {imageUrl ? (
-            <img src={imageUrl} alt={property.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+            <img src={imageUrl} alt={property.title} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-primary">
-              <Building2 size={48} />
+              <Building2 size={40} />
             </div>
           )}
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-            <Badge variant={getListingVariant(property.listingType)}>{property.listingType}</Badge>
-            <Badge variant={freshness.variant}>
-              <BellRing size={11} className="mr-1" />
+          <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+            <Badge variant={freshness.variant} className="text-[10px]">
               {freshness.label}
             </Badge>
+            {property.matchingRequirementsCount > 0 && (
+              <Badge variant="accent" className="text-[10px]">
+                {property.matchingRequirementsCount} matches
+              </Badge>
+            )}
           </div>
-          <button
-            type="button"
-            className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary shadow-card transition-colors hover:bg-primary-light"
-            onClick={() => onContactBroker(sourcePhone, property)}
-            aria-label="Call broker"
-          >
-            <Phone size={18} />
-          </button>
-          {property.matchingRequirementsCount > 0 && (
-            <div className="absolute bottom-3 left-3 rounded-card bg-foreground/85 px-3 py-2 text-white backdrop-blur">
-              <p className="text-xs text-white/70">Demand signal</p>
-              <p className="text-sm font-semibold">{property.matchingRequirementsCount} matching req</p>
-            </div>
-          )}
         </div>
 
-        <div className="flex min-w-0 flex-col p-3 lg:p-5">
-          <div className="grid gap-4 lg:grid-cols-[1fr_210px]">
-            <div className="min-w-0">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge variant={availability.variant}>{availability.label}</Badge>
-                {property.verified && (
-                  <Badge variant="success">
-                    <BadgeCheck size={11} className="mr-1" />
-                    Verified
-                  </Badge>
+        <div className="flex min-w-0 flex-col p-3 lg:p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                <Badge variant={availability.variant} className="text-[10px]">{availability.label}</Badge>
+                <Badge variant="default" className="text-[10px]">{visibilityLabel}</Badge>
+                {extraBadges > 0 && (
+                  <span className="text-[10px] font-semibold text-text-secondary">+{extraBadges}</span>
                 )}
-                <Badge variant={sourceTone as any}>{sourceLabel}</Badge>
-                <Badge>{property.propertyType}</Badge>
               </div>
-              <h2 className="line-clamp-2 text-base font-semibold text-foreground sm:text-lg lg:text-xl">{property.title}</h2>
-              <p className="mt-1.5 flex items-center gap-1 text-xs text-text-secondary sm:text-sm">
-                <MapPin size={14} className="shrink-0 text-primary" />
-                <span className="line-clamp-1">{property.locality ? `${property.locality}, ` : ""}{property.address}, {property.city}</span>
+              <h2 className="line-clamp-2 text-base font-semibold text-foreground lg:text-lg">{property.title}</h2>
+              <p className="mt-1 flex items-center gap-1 text-xs text-text-secondary">
+                <MapPin size={13} className="shrink-0 text-primary" />
+                <span className="line-clamp-1">
+                  {property.locality ? `${property.locality}, ` : ""}{property.city}
+                </span>
               </p>
             </div>
-
-            <div className="rounded-card border border-primary/15 bg-primary-light p-3 lg:text-right">
-              <p className="text-xs font-semibold uppercase text-text-secondary">Broker price</p>
-              <p className="mt-1 text-xl font-bold text-primary lg:text-2xl">{formatPrice(property.price)}</p>
-              {pricePerUnit > 0 && <p className="mt-1 text-xs text-text-secondary">Rs {pricePerUnit.toLocaleString()}/sqft</p>}
+            <div className="shrink-0 text-right">
+              <p className="text-lg font-bold text-primary lg:text-xl">{formatPrice(property.price)}</p>
+              {pricePerUnit > 0 && (
+                <p className="text-[10px] text-text-secondary">Rs {pricePerUnit.toLocaleString()}/sqft</p>
+              )}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {getBrokerSpecs(property).map((spec) => (
-              <div key={spec.label} className="rounded-btn border border-border bg-surface px-3 py-2">
-                <p className="truncate text-sm font-semibold text-foreground">{spec.value}</p>
-                <p className="mt-0.5 text-xs text-text-secondary">{spec.label}</p>
+          <div className="mt-3 grid grid-cols-3 gap-1.5 text-center sm:grid-cols-4">
+            {getBrokerSpecs(property).slice(0, 4).map((spec) => (
+              <div key={spec.label} className="rounded-btn border border-border bg-surface px-2 py-1.5">
+                <p className="truncate text-xs font-semibold text-foreground">{spec.value}</p>
+                <p className="text-[10px] text-text-secondary">{spec.label}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 rounded-card border border-border bg-surface p-3 lg:grid-cols-[1fr_1fr_1fr]">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                {sourceLabel.charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{sourceName}</p>
-                <p className="text-xs text-text-secondary">{sourceLabel}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <Target size={16} className="text-accent" />
-              {property.matchingRequirementsCount} matching requirement{property.matchingRequirementsCount === 1 ? "" : "s"}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <UserCheck size={16} className="text-success" />
-              {sourcePhone || "Contact via KrrishJazz"}
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-[1.4fr_1fr_auto] gap-2">
-            <Button variant="accent" size="sm" onClick={() => onWhatsApp(sourcePhone, property)} className="w-full">
-              <MessageCircle size={14} className="mr-2" />
+          <div
+            className="mt-3 grid grid-cols-[1.2fr_1fr_auto] gap-2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Button variant="accent" size="sm" onClick={() => onFindRequirements(property)} className="w-full">
+              <Target size={14} className="mr-1.5" />
+              Match
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onWhatsApp(sourcePhone, property)} className="w-full">
+              <MessageCircle size={14} className="mr-1.5" />
               WhatsApp
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onContactBroker(sourcePhone, property)} className="w-full">
-              <Phone size={14} className="mr-2" />
-              Call
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onViewDetails(property)} className="w-full" aria-label="Details">
-              <Eye size={14} />
-            </Button>
-          </div>
-          <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-            <Button variant="outline" size="sm" onClick={() => onFindRequirements(property)} className="w-full">
-              <Target size={14} className="mr-2" />
-              Match Requirement
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onShare(property)} className="w-full" aria-label="Share">
-              <Share size={14} />
-            </Button>
+            <CardMoreMenu
+              onCall={() => onContactBroker(sourcePhone, property)}
+              onShare={() => onShare(property)}
+              onDetails={() => onViewDetails(property)}
+              sourceLabel={sourceLabel}
+            />
           </div>
         </div>
       </div>
     </article>
+  );
+}
+
+function CardMoreMenu({
+  onCall,
+  onShare,
+  onDetails,
+  sourceLabel,
+}: {
+  onCall: () => void;
+  onShare: () => void;
+  onDetails: () => void;
+  sourceLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <Button variant="ghost" size="sm" onClick={() => setOpen((value) => !value)} aria-label="More actions">
+        <MoreHorizontal size={16} />
+      </Button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-card border border-border bg-white py-1 shadow-modal">
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface" onClick={() => { onCall(); setOpen(false); }}>
+              <Phone size={13} /> Call
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface" onClick={() => { onShare(); setOpen(false); }}>
+              <Share size={13} /> Share
+            </button>
+            <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-surface" onClick={() => { onDetails(); setOpen(false); }}>
+              <Eye size={13} /> Details
+            </button>
+            <p className="border-t border-border px-3 py-2 text-[10px] text-text-secondary">{sourceLabel}</p>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

@@ -33,12 +33,12 @@ export function getDefaultHomeHref(user: AccountCapabilityUser): string {
   if (typeof window !== "undefined") {
     const last = resolveValidLastWorkspace(user, getLastWorkspace());
     if (last === "owner") return OWNER_DASHBOARD_PATH;
-    if (last === "broker") return "/broker/properties";
+    if (last === "broker") return "/broker/overview";
     if (last === "buyer") return "/properties";
   }
 
   if (canAccessBrokerWorkspace(user.brokerStatus) && !profileCanList(user)) {
-    return "/broker/properties";
+    return "/broker/overview";
   }
 
   return "/properties";

@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
   FileText,
   Filter,
-  Flame,
-  Loader2,
   Phone,
   Plus,
   Search,
@@ -16,7 +14,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { BrokerWorkflowCard, ChipButton, FilterBlock, MetricCard } from "@/components/broker/broker-primitives";
 import { AddRequirementModal, MatchingPropertiesDrawer, RequirementCard } from "@/components/broker/requirement-workflow";
 import {
@@ -40,9 +37,12 @@ import {
   useBrokerUrlFilters,
 } from "@/features/broker-exchange";
 import { PaginationBar } from "@/shared/components/pagination-bar";
+import { useDebouncedValue } from "@/shared/hooks/use-debounced-value";
+import { dismissWorkflowTips as dismissTips, recordWorkflowTipsVisit, shouldShowWorkflowTips } from "@/lib/broker-storage";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatPrice } from "@/lib/utils";
 import { BROKER_QUICK_FILTER_TYPES, PROPERTY_TYPES, INDIAN_CITIES } from "@/lib/constants";
+import { BrokerRequirementCardSkeleton } from "@/components/broker/broker-skeletons";
 
 const QUICK_FILTERS = [
   { label: "Hot demand", value: "new" },
@@ -51,6 +51,8 @@ const QUICK_FILTERS = [
   { label: "Office", value: BROKER_QUICK_FILTER_TYPES.OFFICE },
   { label: "Apartment", value: "Apartment" },
 ];
+
+const TIPS_PAGE_KEY = "requirements";
 
 export default function BrokerRequirementsPage() {
   const router = useRouter();
@@ -68,6 +70,19 @@ export default function BrokerRequirementsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [matchRequirement, setMatchRequirement] = useState<Requirement | null>(null);
+  const [showWorkflowTips, setShowWorkflowTips] = useState(false);
+
+  useEffect(() => {
+    recordWorkflowTipsVisit(TIPS_PAGE_KEY);
+    setShowWorkflowTips(shouldShowWorkflowTips(TIPS_PAGE_KEY));
+  }, []);
+
+  const handleDismissTips = () => {
+    dismissTips(TIPS_PAGE_KEY);
+    setShowWorkflowTips(false);
+  };
+
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
   useBrokerUrlFilters({
     city: setSelectedCity,
@@ -79,7 +94,7 @@ export default function BrokerRequirementsPage() {
 
   const apiFilters = useMemo(
     () => ({
-      q: searchQuery || undefined,
+      q: debouncedSearch || undefined,
       propertyType: selectedPropertyType || undefined,
       locality: selectedLocality || undefined,
       city: selectedCity || undefined,
@@ -87,7 +102,7 @@ export default function BrokerRequirementsPage() {
       maxBudget: maxBudget || undefined,
       urgency: selectedUrgency || undefined,
     }),
-    [searchQuery, selectedPropertyType, selectedLocality, selectedCity, minBudget, maxBudget, selectedUrgency]
+    [debouncedSearch, selectedPropertyType, selectedLocality, selectedCity, minBudget, maxBudget, selectedUrgency]
   );
 
   const { requirements, loading, page, setPage, pagination, refetch } = useBrokerRequirementsList(apiFilters, isReady);
@@ -365,89 +380,118 @@ export default function BrokerRequirementsPage() {
 
   return (
     <main className="min-h-screen bg-surface pb-20 lg:pb-8">
-      <section className="bg-primary text-white">
-        <div className="mx-auto max-w-7xl px-4 py-7 lg:px-6">
-          <div className="grid gap-5 lg:grid-cols-[1fr_420px] lg:items-end">
-            <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-pill border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85">
-                <Flame size={14} />
-                Active demand desk
-              </div>
-              <h1 className="text-3xl font-semibold sm:text-4xl">Broker Requirements</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">
-                Track live demand, match inventory fast, and coordinate directly with brokers before opportunities go cold.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={() => router.push("/broker/properties")}>
-                  <Building2 size={15} className="mr-2" />
-                  View inventory
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowAddModal(true)} className="border border-white/20 text-white hover:bg-white/10">
-                  <Plus size={15} className="mr-2" />
-                  Add demand
-                </Button>
-              </div>
-            </div>
+      <section className="border-b border-white/10 bg-primary-dark text-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 lg:px-6">
+          <h1 className="text-2xl font-semibold sm:text-3xl">Demand desk</h1>
+          <p className="mt-1 max-w-2xl text-sm text-white/75">
+            Live buyer and tenant requirements — match inventory before demand goes cold.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="inverse" size="sm" onClick={() => router.push("/broker/properties")}>
+              <Building2 size={15} className="mr-2" />
+              View inventory
+            </Button>
+            <Button variant="inverse-outline" size="sm" onClick={() => setShowAddModal(true)}>
+              <Plus size={15} className="mr-2" />
+              Add demand
+            </Button>
+          </div>
+        </div>
+      </section>
 
-            <div className="grid grid-cols-2 gap-2">
-              <MetricCard label="Demand" value={requirements.length} tone="default" />
-              <MetricCard label="Fresh" value={freshCount} tone="success" />
-              <MetricCard label="Matched" value={matchedCount} tone="accent" />
-              <MetricCard label="Total Matches" value={totalMatches} tone="primary" />
+      <section className="sticky z-20 border-b border-border bg-white shadow-sm" style={{ top: "var(--broker-header-height, 7rem)" }}>
+        <div className="mx-auto max-w-7xl px-4 py-3 lg:px-6">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="relative min-h-11 flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && refetch()}
+                placeholder="Search requirement, city, property type..."
+                className="h-11 w-full rounded-btn border border-border bg-white pl-10 pr-3 text-sm outline-none placeholder:text-text-secondary focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => refetch()} variant="accent" size="sm" className="flex-1 lg:flex-none">
+                Search
+              </Button>
+              <Button
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                variant="outline"
+                size="sm"
+                className="flex-1 lg:flex-none"
+              >
+                <Filter size={16} className="mr-2" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+              <Button onClick={() => setShowAddModal(true)} variant="primary" size="sm" className="hidden lg:inline-flex">
+                <Plus size={16} className="mr-2" />
+                Add
+              </Button>
             </div>
           </div>
 
-          <div className="mt-5 rounded-card border border-white/15 bg-white p-2 shadow-card">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="relative min-h-12 flex-1">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && refetch()}
-                  placeholder="Search requirement, city, property type..."
-                  className="h-12 w-full rounded-btn bg-surface pl-10 pr-3 text-sm outline-none placeholder:text-text-secondary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => refetch()} variant="accent" className="flex-1 lg:flex-none">
-                  Search
-                </Button>
-                <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="ghost" className="flex-1 lg:flex-none">
-                  <Filter size={16} className="mr-2" />
-                  Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-                </Button>
-                <Button onClick={() => setShowAddModal(true)} className="hidden lg:inline-flex">
-                  <Plus size={16} className="mr-2" />
-                  Add
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2">
-              {QUICK_FILTERS.map((filter) => (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {QUICK_FILTERS.map((filter) => {
+              const active =
+                filter.value === selectedUrgency ||
+                filter.value === selectedPropertyType ||
+                filter.value === matchFocus;
+              return (
                 <button
                   key={filter.label}
                   type="button"
                   onClick={() => applyQuickFilter(filter.value)}
                   className={cn(
-                    "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-                    (filter.value === selectedUrgency || filter.value === selectedPropertyType || filter.value === matchFocus)
+                    "cursor-pointer rounded-pill border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors",
+                    active
                       ? "border-primary bg-primary text-white"
-                      : "border-border bg-surface text-text-secondary hover:border-primary/40 hover:text-primary"
+                      : "border-border bg-white text-foreground hover:border-primary/50 hover:text-primary"
                   )}
                 >
                   {filter.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-surface">
+        <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 lg:px-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MetricCard label="Demand" value={requirements.length} tone="default" />
+            <MetricCard label="Fresh" value={freshCount} tone="success" />
+            <MetricCard label="Matched" value={matchedCount} tone="accent" />
+            <MetricCard label="Total matches" value={totalMatches} tone="primary" />
           </div>
 
-          <div className="mt-4 grid gap-2 text-primary lg:grid-cols-3">
-            <BrokerWorkflowCard icon={<Plus size={16} />} title="Capture demand" text="Add buyer or tenant requirements while the client is warm." />
-            <BrokerWorkflowCard icon={<Target size={16} />} title="Match supply" text="Open matching properties and share only the best-fit options." />
-            <BrokerWorkflowCard icon={<Phone size={16} />} title="Confirm fast" text="Call or WhatsApp brokers with budget, city, and seriousness already packaged." />
-          </div>
+          {showWorkflowTips && (
+            <div className="rounded-card border border-border bg-white p-4 shadow-card">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold text-foreground">How demand desk works</p>
+                <button
+                  type="button"
+                  onClick={handleDismissTips}
+                  className="rounded-lg p-1 text-text-secondary hover:bg-surface hover:text-foreground"
+                  aria-label="Dismiss tips"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="grid gap-2 lg:grid-cols-3">
+                <BrokerWorkflowCard icon={<Plus size={16} />} title="Capture demand" text="Add requirements while the client is warm." />
+                <BrokerWorkflowCard icon={<Target size={16} />} title="Match supply" text="Share only the best-fit inventory options." />
+                <BrokerWorkflowCard icon={<Phone size={16} />} title="Confirm fast" text="Call or WhatsApp with budget and city packaged." />
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -457,8 +501,8 @@ export default function BrokerRequirementsPage() {
 
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:flex-row lg:px-6">
         <aside className={cn(
-          "h-fit shrink-0 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:top-20 lg:w-72",
-          filtersOpen ? "fixed inset-x-0 bottom-0 top-0 z-40 block rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4" : "hidden"
+          "h-fit shrink-0 overflow-y-auto rounded-card border border-border bg-white p-4 shadow-card lg:sticky lg:w-72 lg:top-[calc(var(--broker-header-height,7rem)+1rem)]",
+          filtersOpen ? "fixed inset-x-0 bottom-0 top-0 z-40 block rounded-none pb-28 pt-5 lg:static lg:rounded-card lg:pb-4 lg:pt-4" : "hidden lg:block"
         )}>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -548,26 +592,20 @@ export default function BrokerRequirementsPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <div className="mb-4 rounded-card border border-border bg-white p-4 shadow-card">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {visibleRequirements.length} active requirement{visibleRequirements.length === 1 ? "" : "s"} ready for matching
-                </p>
-                <p className="mt-1 text-xs text-text-secondary">
-                  {matchedCount} have matching inventory. Unmatched demand is an inventory opportunity.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="accent">{totalMatches} property matches</Badge>
-                <Badge variant="success">{freshCount} fresh</Badge>
-              </div>
-            </div>
-          </div>
+          {!loading && visibleRequirements.length > 0 && (
+            <p className="mb-4 text-sm text-text-secondary">
+              <span className="font-semibold text-foreground">{visibleRequirements.length}</span> requirements
+              {matchedCount > 0 && (
+                <> · <span className="font-semibold text-accent">{matchedCount}</span> with inventory</>
+              )}
+            </p>
+          )}
 
           {loading ? (
-            <div className="flex h-96 items-center justify-center rounded-card border border-border bg-white shadow-card">
-              <Loader2 size={38} className="animate-spin text-primary" />
+            <div className="grid grid-cols-1 gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <BrokerRequirementCardSkeleton key={index} />
+              ))}
             </div>
           ) : visibleRequirements.length === 0 ? (
             <div className="rounded-card border border-dashed border-border bg-white p-8 text-center shadow-card">
@@ -624,25 +662,6 @@ export default function BrokerRequirementsPage() {
         onShareProperty={handleShareMatchedProperty}
       />
 
-      <div className="fixed inset-x-3 bottom-3 z-30 rounded-card border border-border bg-white p-2 shadow-modal lg:hidden">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <div>
-            <p className="text-xs text-text-secondary">Demand action desk</p>
-            <p className="text-sm font-bold text-foreground">{visibleRequirements.length} requirements, {totalMatches} matches</p>
-          </div>
-          <button type="button" onClick={clearFilters} className="text-xs font-semibold text-primary">Clear</button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={() => setFiltersOpen(!filtersOpen)} variant="outline" className="w-full">
-            <Filter size={16} className="mr-2" />
-            Filters{activeFiltersCount ? ` (${activeFiltersCount})` : ""}
-          </Button>
-          <Button onClick={() => setShowAddModal(true)} variant="accent" className="w-full">
-            <Plus size={16} className="mr-2" />
-            Add Demand
-          </Button>
-        </div>
-      </div>
     </main>
   );
 }

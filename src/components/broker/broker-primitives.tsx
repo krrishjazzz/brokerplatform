@@ -7,24 +7,24 @@ type MetricTone = "default" | "success" | "accent" | "warning" | "primary";
 
 export function MetricCard({ label, value, tone }: { label: string; value: number; tone: MetricTone }) {
   const toneClass = {
-    default: "border-border bg-surface text-foreground",
-    success: "border-success/20 bg-success/10 text-success",
-    accent: "border-accent/20 bg-accent/10 text-accent",
-    warning: "border-warning/20 bg-warning/10 text-warning",
-    primary: "border-primary/20 bg-primary-light text-primary",
+    default: "border-border bg-white text-foreground shadow-sm",
+    success: "border-success/25 bg-white text-foreground shadow-sm [&_p:last-child]:text-success",
+    accent: "border-accent/25 bg-white text-foreground shadow-sm [&_p:last-child]:text-accent",
+    warning: "border-warning/25 bg-white text-foreground shadow-sm [&_p:last-child]:text-warning",
+    primary: "border-primary/20 bg-white text-foreground shadow-sm [&_p:last-child]:text-primary",
   }[tone];
 
   return (
     <div className={cn("rounded-card border px-4 py-3", toneClass)}>
-      <p className="text-xs text-text-secondary">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="text-xs font-medium text-text-secondary">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
 
 export function BrokerWorkflowCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
-    <div className="rounded-card border border-white/15 bg-white p-4 shadow-card">
+    <div className="rounded-card border border-border bg-surface p-4">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">{icon}</span>
         <div>
