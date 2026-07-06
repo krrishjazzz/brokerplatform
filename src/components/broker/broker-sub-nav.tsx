@@ -64,7 +64,7 @@ export function BrokerSubNav() {
                 )}
               >
                 {tab.label}
-                {badge > 0 && tab.countKey === "matches" && (
+                {badge > 0 && "countKey" in tab && tab.countKey === "matches" && (
                   <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white">
                     {badge > 99 ? "99+" : badge}
                   </span>

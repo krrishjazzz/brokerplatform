@@ -28,7 +28,7 @@ export function BrokerMobileNav() {
         {MOBILE_TABS.map((tab) => {
           const active = tab.match(pathname);
           const Icon = tab.icon;
-          const badge = tab.countKey ? counts[tab.countKey] : 0;
+          const badge = "countKey" in tab ? counts[tab.countKey] : 0;
           return (
             <Link
               key={tab.href}
@@ -40,7 +40,7 @@ export function BrokerMobileNav() {
             >
               <Icon size={18} />
               <span>{tab.label}</span>
-              {badge > 0 && tab.countKey !== "inventory" && (
+              {badge > 0 && "countKey" in tab && tab.countKey !== "inventory" && (
                 <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">
                   {badge > 99 ? "99+" : badge}
                 </span>
