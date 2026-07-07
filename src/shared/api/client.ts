@@ -49,3 +49,11 @@ export async function postJson<T>(path: string, body: unknown, init?: RequestIni
     ...init,
   });
 }
+
+export async function patchJson<T>(path: string, body: unknown, init?: RequestInit) {
+  return fetchJson<T>(path, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    ...init,
+  });
+}

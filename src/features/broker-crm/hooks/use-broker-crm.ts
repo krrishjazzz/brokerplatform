@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchJson, postJson } from "@/shared/api/client";
-import type { BrokerCrmClient, BrokerCrmListing, BrokerCrmShare, BrokerCrmTask, CrmStage } from "./types";
+import { fetchJson, patchJson, postJson } from "@/shared/api/client";
+import type { BrokerCrmClient, BrokerCrmListing, BrokerCrmShare, BrokerCrmTask, CrmStage } from "../types";
 
 export function useBrokerCrmClients(enabled: boolean, stage?: string, q?: string) {
   const [clients, setClients] = useState<BrokerCrmClient[]>([]);
@@ -73,10 +73,7 @@ export async function createBrokerClient(payload: Record<string, unknown>) {
 }
 
 export async function updateBrokerClient(id: string, payload: Record<string, unknown>) {
-  return fetchJson<{ client: BrokerCrmClient }>(`/api/broker/crm/clients/${id}`, {
-    method: "PATCH",
-    body: payload,
-  });
+  return patchJson<{ client: BrokerCrmClient }>(`/api/broker/crm/clients/${id}`, payload);
 }
 
 export async function getBrokerClientDetail(id: string) {
@@ -90,10 +87,7 @@ export async function createBrokerTask(payload: Record<string, unknown>) {
 }
 
 export async function updateBrokerTask(id: string, payload: Record<string, unknown>) {
-  return fetchJson<{ task: BrokerCrmTask }>(`/api/broker/crm/tasks/${id}`, {
-    method: "PATCH",
-    body: payload,
-  });
+  return patchJson<{ task: BrokerCrmTask }>(`/api/broker/crm/tasks/${id}`, payload);
 }
 
 export async function sharePropertiesToClient(payload: {

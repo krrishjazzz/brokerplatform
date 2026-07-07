@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
@@ -39,7 +39,7 @@ import { cn, formatPrice } from "@/lib/utils";
 
 type DeskMode = "property" | "requirement";
 
-export default function BrokerMatchesPage() {
+function BrokerMatchesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -412,5 +412,13 @@ export default function BrokerMatchesPage() {
         </section>
       </div>
     </BrokerPageShell>
+  );
+}
+
+export default function BrokerMatchesPage() {
+  return (
+    <Suspense fallback={null}>
+      <BrokerMatchesContent />
+    </Suspense>
   );
 }

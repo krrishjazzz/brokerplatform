@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchJson } from "@/shared/api/client";
+import { fetchJson, patchJson } from "@/shared/api/client";
 
 export type BrokerProfileData = {
   name: string | null;
@@ -36,10 +36,10 @@ export function useBrokerProfile(enabled: boolean) {
   const updateProfile = useCallback(
     async (payload: { bio?: string; serviceAreas?: string[] }) => {
       setSaving(true);
-      const { ok, data } = await fetchJson<{ profile: Partial<BrokerProfileData> }>("/api/broker/profile", {
-        method: "PATCH",
-        body: payload,
-      });
+      const { ok, data } = await patchJson<{ profile: Partial<BrokerProfileData> }>(
+        "/api/broker/profile",
+        payload
+      );
       if (ok && data?.profile) {
         setProfile((current) => (current ? { ...current, ...data.profile } : current));
       }
