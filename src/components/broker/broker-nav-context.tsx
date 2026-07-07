@@ -10,6 +10,12 @@ export type BrokerNavCounts = {
   followUps: number;
 };
 
+export type BrokerNavCountKey = keyof Pick<BrokerNavCounts, "inventory" | "demand" | "matches">;
+
+export function getBrokerNavBadge(counts: BrokerNavCounts, countKey?: BrokerNavCountKey) {
+  return countKey ? counts[countKey] : 0;
+}
+
 type BrokerNavContextValue = {
   counts: BrokerNavCounts;
   loading: boolean;

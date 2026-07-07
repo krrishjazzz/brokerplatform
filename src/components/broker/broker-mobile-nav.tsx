@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import { Building2, Contact, LayoutDashboard, Target, UserCircle, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBrokerNavCounts } from "@/components/broker/broker-nav-context";
+import { getBrokerNavBadge, useBrokerNavCounts, type BrokerNavCountKey } from "@/components/broker/broker-nav-context";
 
-const MOBILE_TABS = [
-  { label: "Home", href: "/broker/overview", icon: LayoutDashboard, match: (path: string) => path === "/broker/overview" || path === "/broker" },
-  { label: "CRM", href: "/broker/crm", icon: Contact, match: (path: string) => path.startsWith("/broker/crm") },
-  { label: "Stock", href: "/broker/properties", icon: Building2, match: (path: string) => path.startsWith("/broker/properties"), countKey: "inventory" as const },
-  { label: "Demand", href: "/broker/requirements", icon: Target, match: (path: string) => path.startsWith("/broker/requirements"), countKey: "demand" as const },
-  { label: "Match", href: "/broker/matches", icon: Zap, match: (path: string) => path.startsWith("/broker/matches"), countKey: "matches" as const },
-  { label: "Profile", href: "/broker/profile", icon: UserCircle, match: (path: string) => path.startsWith("/broker/profile") },
+type MobileTab = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  match: (path: string) => boolean;
+  countKey?: BrokerNavCountKey;
+};
+
+const MOBILE_TABS: MobileTab[] = [
+  { label: "Home", href: "/broker/overview", icon: LayoutDashboard, match: (path) => path === "/broker/overview" || path === "/broker" },
+  { label: "CRM", href: "/broker/crm", icon: Contact, match: (path) => path.startsWith("/broker/crm") },
+  { label: "Stock", href: "/broker/properties", icon: Building2, match: (path) => path.startsWith("/broker/properties"), countKey: "inventory" },
+  { label: "Demand", href: "/broker/requirements", icon: Target, match: (path) => path.startsWith("/broker/requirements"), countKey: "demand" },
+  { label: "Match", href: "/broker/matches", icon: Zap, match: (path) => path.startsWith("/broker/matches"), countKey: "matches" },
+  { label: "Profile", href: "/broker/profile", icon: UserCircle, match: (path) => path.startsWith("/broker/profile") },
 ];
 
 export function BrokerMobileNav() {
@@ -28,7 +37,7 @@ export function BrokerMobileNav() {
         {MOBILE_TABS.map((tab) => {
           const active = tab.match(pathname);
           const Icon = tab.icon;
-          const badge = "countKey" in tab ? counts[tab.countKey] : 0;
+          const badge = getBrokerNavBadge(counts, tab.countKey);
           return (
             <Link
               key={tab.href}
@@ -40,7 +49,7 @@ export function BrokerMobileNav() {
             >
               <Icon size={18} />
               <span>{tab.label}</span>
-              {badge > 0 && "countKey" in tab && tab.countKey !== "inventory" && (
+              {badge > 0 && tab.countKey !== "inventory" && (
                 <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white">
                   {badge > 99 ? "99+" : badge}
                 </span>

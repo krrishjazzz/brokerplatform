@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useBrokerNavCounts } from "@/components/broker/broker-nav-context";
+import { useBrokerNavCounts, getBrokerNavBadge } from "@/components/broker/broker-nav-context";
 
 const BROKER_TABS = [
   {
@@ -51,7 +51,7 @@ export function BrokerSubNav() {
         <nav className="flex gap-1 overflow-x-auto py-2" aria-label="Partner workspace">
           {BROKER_TABS.map((tab) => {
             const active = tab.match(pathname);
-            const badge = "countKey" in tab && tab.countKey ? counts[tab.countKey] : 0;
+            const badge = getBrokerNavBadge(counts, "countKey" in tab ? tab.countKey : undefined);
             return (
               <Link
                 key={tab.href}
